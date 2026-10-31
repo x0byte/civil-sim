@@ -5,6 +5,7 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { SimulationResult, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
+import { walkingDistances } from "../../../engine/src/index.ts";
 import type { Collaboration } from "../population/officeProfile.ts";
 
 /** Someone walking within this distance of a desk counts as passing it. */
@@ -19,7 +20,7 @@ export interface TeamSpread {
   teamId: string;
   name: string;
   people: number;
-  /** Mean straight-line distance between every pair of desks in the team. */
+  /** Mean walking distance between every pair of desks in the team. */
   meanDistanceM: number;
 }
 
@@ -27,45 +28,66 @@ export interface PartnerDistance {
   a: string;
   b: string;
   label: string;
-  /** Mean straight-line distance from each desk in one team to each desk in the other. */
+  /** Mean walking distance from each desk in one team to each desk in the other. */
   meanDistanceM: number;
 }
 
-function deskPositions(plan: FloorPlan, scenario: Scenario): Map<string, Vec2> {
-  const desks = new Map(plan.fixtures.map((f) => [f.id, f.position]));
-  return new Map(scenario.people.flatMap((p) => (desks.has(p.deskId) ? [[p.id, desks.get(p.deskId)!]] : [])));
+export interface TeamDistances {
+  teams: TeamSpread[];
+  partners: PartnerDistance[];
+  /** Pairs of desks with no walking route between them, left out of the averages. */
+  unreachablePairs: number;
 }
 
-/** How spread out each team is, and how far apart teams that work together sit. */
-export function teamDistances(
-  plan: FloorPlan,
-  scenario: Scenario,
-  collaborations: Collaboration[] = [],
-): { teams: TeamSpread[]; partners: PartnerDistance[] } {
-  const at = deskPositions(plan, scenario);
-  const members = (teamId: string) => scenario.people.filter((p) => p.teamId === teamId && at.has(p.id)).map((p) => at.get(p.id)!);
+// Walking distances take up to about a second for a few hundred desks, so each run is measured once.
+const cache = new WeakMap<Scenario, WeakMap<Collaboration[], TeamDistances>>();
+
+/**
+ * How spread out each team is, and how far apart teams that work together sit, as walking
+ * distance between desks along the same routes the simulation uses.
+ */
+export function teamDistances(plan: FloorPlan, scenario: Scenario, collaborations: Collaboration[] = []): TeamDistances {
+  const hit = cache.get(scenario)?.get(collaborations);
+  if (hit) return hit;
+
+  const desks = new Map(plan.fixtures.map((f) => [f.id, f.position]));
+  const seated = scenario.people.filter((p) => desks.has(p.deskId));
+  const index = new Map(seated.map((p, i) => [p.id, i]));
+  const matrix = seated.length >= 2 ? walkingDistances(plan, seated.map((p) => desks.get(p.deskId)!)) : [];
   const names = new Map(scenario.teams.map((t) => [t.id, t.name]));
+  const members = (teamId: string) => seated.filter((p) => p.teamId === teamId).map((p) => index.get(p.id)!);
+  let unreachablePairs = 0;
+  const measure = (pairs: [number, number][]) => {
+    const ds: number[] = [];
+    for (const [i, j] of pairs) {
+      const d = matrix[i]?.[j];
+      if (d === null || d === undefined) unreachablePairs++;
+      else ds.push(d);
+    }
+    return mean(ds);
+  };
 
   const teams = scenario.teams
     .map((t) => {
-      const ps = members(t.id);
-      const pairs: number[] = [];
-      for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) pairs.push(dist(ps[i], ps[j]));
-      return { teamId: t.id, name: t.name, people: ps.length, meanDistanceM: mean(pairs) };
+      const ms = members(t.id);
+      const pairs: [number, number][] = [];
+      for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) pairs.push([ms[i], ms[j]]);
+      return { teamId: t.id, name: t.name, people: ms.length, meanDistanceM: measure(pairs) };
     })
     .filter((t) => t.people >= 2);
 
   const partners = collaborations
     .filter((c) => c.a !== c.b && c.meetingsPerDay > 0)
     .map((c) => {
-      const pa = members(c.a);
-      const pb = members(c.b);
-      const d = pa.flatMap((x) => pb.map((y) => dist(x, y)));
-      return { a: c.a, b: c.b, label: `${names.get(c.a) ?? c.a} ↔ ${names.get(c.b) ?? c.b}`, meanDistanceM: mean(d) };
+      const pairs = members(c.a).flatMap((i) => members(c.b).map((j): [number, number] => [i, j]));
+      return { a: c.a, b: c.b, label: `${names.get(c.a) ?? c.a} ↔ ${names.get(c.b) ?? c.b}`, meanDistanceM: measure(pairs) };
     })
     .filter((p) => p.meanDistanceM > 0);
 
-  return { teams, partners };
+  const out = { teams, partners, unreachablePairs };
+  if (!cache.has(scenario)) cache.set(scenario, new WeakMap());
+  cache.get(scenario)!.set(collaborations, out);
+  return out;
 }
 
 export interface DeskDisturbance {

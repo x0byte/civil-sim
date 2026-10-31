@@ -101,7 +101,7 @@ export function usePlayClock(durationS: number, resetKey: unknown): PlayClock {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, select, textarea, button")) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, select, textarea, button")) return;
       if (e.key === " ") {
         e.preventDefault();
         toggle();

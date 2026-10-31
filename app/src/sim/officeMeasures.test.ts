@@ -31,12 +31,26 @@ const scenario: Scenario = {
 };
 
 describe("teamDistances", () => {
-  it("measures how spread out a team is and how far apart partner teams sit", () => {
-    const { teams, partners } = teamDistances(officeA, scenario, [{ a: "a", b: "b", meetingsPerDay: 1 }]);
-    expect(teams).toEqual([{ teamId: "a", name: "Alpha", people: 2, meanDistanceM: 3 }]);
+  it("measures how spread out a team is and how far apart partner teams sit, as walking distance", () => {
+    const { teams, partners, unreachablePairs } = teamDistances(officeA, scenario, [{ a: "a", b: "b", meetingsPerDay: 1 }]);
+    // In the open office nothing is in the way, so walking distance equals straight-line distance.
+    expect(teams).toHaveLength(1);
+    expect(teams[0]).toMatchObject({ teamId: "a", name: "Alpha", people: 2 });
+    expect(teams[0].meanDistanceM).toBeCloseTo(3, 1);
     // Beta's desk to each Alpha desk: 3 m and √(3² + 3²) ≈ 4.24 m
     expect(partners[0].label).toBe("Alpha ↔ Beta");
-    expect(partners[0].meanDistanceM).toBeCloseTo((3 + Math.hypot(3, 3)) / 2);
+    expect(partners[0].meanDistanceM).toBeCloseTo((3 + Math.hypot(3, 3)) / 2, 1);
+    expect(unreachablePairs).toBe(0);
+  });
+
+  it("walks round walls instead of through them", () => {
+    const withManager: Scenario = {
+      ...scenario,
+      people: [...scenario.people, { id: "pm", teamId: "b", role: "manager", deskId: "desk-m" }],
+    };
+    const beta = teamDistances(officeA, withManager).teams.find((t) => t.teamId === "b")!;
+    const straight = Math.hypot(3 - 2.5, 11 - 2); // desk-07 to desk-m
+    expect(beta.meanDistanceM).toBeGreaterThan(straight + 0.5);
   });
 });
 

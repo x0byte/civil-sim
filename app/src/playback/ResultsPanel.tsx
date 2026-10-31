@@ -14,7 +14,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const { summary, spaceExposure, hotspots } = result.metrics;
   const spaces = new Map(plan.spaces.map((s) => [s.id, s]));
   const present = result.metrics.perPerson.filter((p) => p.walkingTimeS > 0).length;
-  const { teams, partners } = teamDistances(plan, scenario, run.collaborations);
+  const { teams, partners, unreachablePairs } = teamDistances(plan, scenario, run.collaborations);
   const disturbance = deskDisturbance(plan, scenario, result);
   const avgDisturbance = disturbance.length ? disturbance.reduce((s, d) => s + d.passBys, 0) / disturbance.length : 0;
   const teamName = new Map(scenario.teams.map((t) => [t.id, t.name]));
@@ -127,7 +127,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           <header>
             <div>
               <h2>How close teams sit</h2>
-              <span className="muted">Average straight-line distance between desks</span>
+              <span className="muted">Average walking distance between desks</span>
             </div>
           </header>
           <div className="panel-body">
@@ -147,6 +147,9 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
                 ))}
               </tbody>
             </table>
+            {unreachablePairs > 0 && (
+              <p className="warn">{unreachablePairs} pair(s) of desks have no walking route between them and are left out.</p>
+            )}
             {partners.length === 0 && (
               <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>
             )}

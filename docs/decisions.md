@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Walking-distance helper merged
+- **Reviewed and merged Codex's `walkingDistances` helper; "How close teams sit" now uses walking distance.** Independent checks: open-room desks match straight-line distance; desk to manager's office is 7.2 m walking vs 6.0 m straight; symmetric; a sealed room gives no route. Desk pairs with no route are left out and counted in plain words. *(Claude, approved by product owner)*
+- **Side effect accepted:** Codex's shared routing changes some simulated paths slightly (Office A: average walk 171.4 → 171.8 m per person; pass-bys, queues, room peaks and event counts unchanged). *(Claude)*
+- **Follow-up for the engine:** the 200-desk speed test takes about 0.7 s alone but can pass 1 s when the whole suite runs in parallel; make it robust (e.g. run it on its own or measure the median of a few runs). *(Open)*
+
 ## 2026-11-01: Walking-distance engine API
 - **Export `walkingDistances(plan, points)` alongside `simulate`, with no contract change.** Both use canonical, shared 8-way source searches and the same wall-safe simplification, so one search per source supplies a symmetric distance matrix. Zero takes precedence on the diagonal; blocked/disconnected off-diagonal entries are `null`, and entrances are unnecessary. Queue detours are scenario-dependent and excluded. Source-tree tie choices can slightly change route-derived numbers. Strict unused-code checks now match the app build. *(Codex, implementing the walking-distance brief; API and performance details in `engine/README.md`)*
 

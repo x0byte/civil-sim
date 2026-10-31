@@ -276,7 +276,7 @@ export function Canvas2D() {
   };
 
   useEffect(() => {
-    const typing = (e: KeyboardEvent) => (e.target as HTMLElement).closest("input, select, textarea");
+    const typing = (e: KeyboardEvent) => (e.target as HTMLElement | null)?.closest?.("input, select, textarea");
     const down = (e: KeyboardEvent) => {
       if (typing(e)) return;
       if (e.key === " ") {

@@ -25,7 +25,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 
 **Phase 1: corporate offices**
 1. **Office population profile:** ✓ departments, managers, seating, hybrid attendance, team and joint meetings, lunch breaks, visitors. ✓ saved with the plan in a project file. Next: arrival patterns.
-2. **Office measures that matter:** ✓ queues, room peaks, desk disturbance, team distance (straight-line), meeting-room demand and use. Next: walking distance between teams.
+2. **Office measures that matter:** ✓ queues, room peaks, desk disturbance, team distance (walking), meeting-room demand and use.
 3. **Plain-language messages and assumptions** for builders and clients.
 4. **Smarter input:** ✓ DXF import from AutoCAD, ✓ wall suggestions from plan images.
 
