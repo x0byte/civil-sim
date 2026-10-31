@@ -1,8 +1,9 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
-import type { Heatmaps, Metrics, SpaceExposure, Track } from "../../../contracts/results.ts";
+import type { Heatmaps, Metrics, SimEvent, SpaceExposure, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { cellSpans, distance, EPSILON, openingCentre } from "./geometry.ts";
 import { peakOccupancy } from "./occupancy.ts";
+import { queueMetrics } from "./queues.ts";
 
 export const HEAT_CELL_M = 0.5;
 const EXPOSURE_RADIUS_M = 2;
@@ -67,7 +68,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
   });
 }
 
-export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]): { heatmaps: Heatmaps; metrics: Metrics } {
+export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = []): { heatmaps: Heatmaps; metrics: Metrics } {
   const cols = Math.ceil(plan.bounds.width / HEAT_CELL_M);
   const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
   const footfall = Array<number>(cols * rows).fill(0);
@@ -106,6 +107,6 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]):
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS },
     metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
       meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
-      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: peakOccupancy(plan, tracks) },
+      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: peakOccupancy(plan, tracks), queues: queueMetrics(plan, events) },
   };
 }

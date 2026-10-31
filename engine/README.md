@@ -1,4 +1,4 @@
-# Simulation engine v0.2
+# Simulation engine v0.3
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -28,9 +28,9 @@ results directly. Connecting the viewer to the engine belongs to the app owner.
 
 The engine returns the full results contract: interpolated keyframe tracks, events,
 0.5 m footfall and person-second dwell grids, walking metrics, private-space door
-exposure, exact room peak occupancy, up to five hotspots, warnings, and plain-language
+exposure, exact room peak occupancy, queue metrics, up to five hotspots, warnings, and plain-language
 modelling assumptions. Staff and visitor tracks have an explicit `kind`. For the
-supplied seed 42 office day, the manager's office has **62 pass-bys from 11 people in A,
+supplied seed 42 office day, the manager's office has **60 pass-bys from 11 people in A,
 versus 2 from 1 person in B**. The pantry peaks at **3 people at about 12:53 in both
 layouts**. These are model outputs, not measured occupancy.
 
@@ -45,32 +45,46 @@ layouts**. These are model outputs, not measured occupancy.
 - `lunch.ts`: lunch placement around meetings and their travel reservations.
 - `visitors.ts`: entrance, reception, destination stay, and departure for visitors.
 - `track.ts`: shared keyframe construction and constant 1.3 m/s movement.
+- `spots.ts`: deterministic separate standing spots, reserving assigned desks.
+- `room-trip.ts`: safe outside-door gates and complete doorway travel routes.
+- `queues.ts`: shared chronological capacity reservations, FCFS lines and queue metrics.
+- `movement.ts`: admission on ordinary paths, including transit and resident desks.
 - `occupancy.ts`: exact line–polygon crossings and room occupancy event sweeps.
 - `aggregate.ts`: heatmaps, staff walking metrics, exact door-circle entries, and hotspots.
 
-Modules live under `src/modules/` so collision avoidance, queueing or additional
-behaviour models can be added separately later. They are not modelled in v0.2.
+Modules live under `src/modules/` so collision avoidance or additional behaviour
+models can be added separately later. General pedestrian collision avoidance is not
+modelled: distinct standing spots do not stop walking paths from crossing.
 
 ## Behaviour and limits
 
 Walls are flat-ended rectangles, and any positive-area overlap blocks a grid cell.
 This deliberately avoids thin-wall leaks, including diagonal walls. People have no
 body radius. Openings or destinations smaller than the resolution may be unreachable;
-endpoints are never snapped through a wall. Space outlines only label destinations.
+endpoints are never snapped through a wall. Walls determine walkability; outlines
+label destinations and, for capped toilets/pantries, define the capacity boundary.
 
 Each person uses the shortest reachable exterior-door route to their exact desk and
-returns to that desk between appointments. Space targets are grid centres nearest the
-polygon centroid, selected within the person's connected component. Independent
+returns to that desk between appointments. Each person gets a deterministic standing
+spot in each reachable room, chosen from walkable cell centres near the polygon
+centroid, within their entrance-connected component. IDs are sorted before allocation.
+Spots are at least 0.6 m apart where possible, reserve desk positions, and remain
+separate across overlapping labels. Small rooms use distinct points with the greatest
+available clearance; no available point produces an unreachable-space warning.
+Desks are never moved. The same person reuses their spot across visits. Independent
 per-person streams generate requested arrival/departure times, Poisson-process visit
 times, 3–5 minute durations and facility choices before routing. Layout comparisons
 therefore share random requests; actual fulfilled requests may differ with travel time.
 Lunch draws are appended after the legacy arrival/departure/visit draws, before routing.
-Omitting lunch and visitors preserves all legacy behavioural output, apart from the new
-result version and fields. Regression tests compare hashes captured from `036201f`.
+Removing all capacities disables queues and retains v0.2 timetable requests and
+facility choices. New room positions necessarily change routes, walking times,
+optional-visit arrival times, heatmaps and exposure. Regression profiles captured
+from `f4d7e2a` compare unchanged schedules and facility choice sequences rather than
+requiring old route-derived numbers.
 
 Meetings reserve travel time and take priority over optional visits. Overlapping or
 workday-boundary meetings may be partly attended or skipped, with warnings. Capacity
-warnings do not cancel attendance. Requests that cannot fit a complete trip before the
+warnings for meeting rooms do not cancel attendance. Requests that cannot fit a complete trip before the
 next meeting or departure are skipped. No outside travel is animated: absent positions
 are stationary placeholders, excluded from heatmaps and walking metrics.
 
@@ -83,7 +97,7 @@ including travel, moves lunch after the meeting and its return trip, repeating f
 later clashes. The final start must still be at or before `windowEnd`, the end at or
 before `windowEnd + duration`, and the return before staff departure. Otherwise lunch
 is skipped with a warning. An unavailable pantry also produces a warning and skips
-pantry lunch. Lunch events use destination arrival/departure times; only pantry events
+pantry lunch. Lunch events preserve the original break start and end; only pantry events
 carry `spaceId`. Desk lunch is `at_desk`; time outside is `absent`.
 
 Visitors choose the entrance with the shortest reachable route to their destination,
@@ -98,6 +112,50 @@ Travel is additional to all stated waits/stays. A full trip must fit before the
 workday ends; otherwise it is skipped with an `other` warning rather than shortened.
 Visitors count in heatmaps, pass-bys and room peaks, but never in walking metrics or
 their summary. Every scenario person, including managers, is a `staff` track.
+
+## Capacity and queues
+
+Toilets and pantries with a capacity have a shared chronological FCFS admission
+process for staff and visitors. Capacity must be a finite positive whole number.
+The admission lease begins outside the outline and lasts through entry, use and
+exit walking. Ordinary commutes and pass-through routes are gated too; a desk inside
+a capped facility retains a lease during its occupant's stay. Capacity is never
+enforced by clipping the reported peak. Meeting rooms only warn about capacity, and
+missing-capacity rooms remain unlimited.
+
+Full rooms produce `queue_start`, followed by `queue_end` on admission or give-up.
+Give-up also produces `gave_up`, including early departures to protect meetings.
+The maximum is `queueing.maxWaitMin`, defaulting to 10 minutes. Zero means immediate
+give-up if full, while a free room can still admit immediately. Exact arrival ties
+use person id. A timeout wins a tie with a release at the exact waiting limit.
+Existing queued people take released places before newly arriving people.
+
+Queues use the arrival side of the chosen doorway and an outside-only navigation
+grid. Waiting points are approximately 0.6 m apart (ideals use a 0.75 m step to fit
+the grid); people move up as places free. Movement in line remains `queuing` activity
+at 1.3 m/s. A person moving when admission/timeout occurs is interpolated to their
+actual position, their future queue motion is trimmed, and they walk from there.
+Queue-end events occur when someone decides to leave the line; the walk back to the
+gate is ordinary walking. The lease already reserves that inbound walk.
+
+Line offsets are bounded to a maximum 20-second route to the gate. The manager
+reserves that margin when a request has to wait, in addition to the caller's full
+visit/return-travel deadline. This can make a protected-deadline give-up slightly
+early. Optional visits then return to the desk without emitting a visit event.
+Pantry queue time consumes the original lunch break; a quitter returns to the desk
+for its remainder. Visitors giving up a facility visit leave via their entrance.
+No one switches facilities because a queue is busy. If a mandatory commute or
+pass-through route cannot be admitted in time, remaining attendance is cancelled
+with an unreachable-space warning; the current safe point becomes a stationary
+absent placeholder. If a physical line cannot fit, the person gives up with a warning.
+
+Queue metrics are derived from emitted start/end pairs. Each capped toilet/pantry
+has a row in plan order, even if all values are zero: distinct people who waited,
+total wait seconds, longest wait, and the number of give-up events. Zero-duration
+waits count as people who waited. Queue-motion time is included in waiting totals;
+stationary and moving queue time both contribute to dwell and room occupancy.
+
+## Heatmaps and occupancy
 
 Footfall includes the starting cell of each walking trip. Door exposure counts entries
 into the union of 2 m door circles during walking, excludes all assigned desk owners of

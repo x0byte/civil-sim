@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { Track, TrackPoint } from "../../contracts/results.ts";
@@ -32,7 +31,7 @@ describe("v0.2 sample acceptance", () => {
     const p = plan(id);
     const s = scenario();
     const result = simulate(p, s);
-    expect(result.version).toBe("0.2");
+    expect(result.version).toBe("0.3");
     expect(result.warnings).toEqual([]);
     expect(result.tracks.filter((t) => t.kind === "staff")).toHaveLength(13);
     expect(result.tracks.filter((t) => t.kind === "visitor")).toHaveLength(2);
@@ -108,16 +107,28 @@ describe("v0.2 sample acceptance", () => {
     expect(lunches("office-a")).toEqual(lunches("office-b"));
   });
 
-  it.each([["office-a", "office-day"], ["office-b", "office-day"], ["sealed-room", "sealed-day"]])("preserves v0.1 behaviour without optional fields: %s", (planId, scenarioId) => {
-    // Captured from engine/core (036201f) before the upgrade. Covers every track,
-    // heatmap cell, event, walking metric, exposure, hotspot and warning.
-    const hashes = JSON.parse(readFileSync(new URL("./data/v01-behaviour-sha256.json", import.meta.url), "utf8")) as Record<string, string>;
-    const result = simulate(plan(planId), legacyScenario(scenarioId));
-    const { version, assumptions, ...behaviour } = result;
-    const tracks = behaviour.tracks.map(({ kind, ...track }) => track);
-    const { peakOccupancy, ...metrics } = behaviour.metrics;
-    const normalised = { ...behaviour, tracks, metrics };
-    expect(createHash("sha256").update(JSON.stringify(normalised)).digest("hex")).toBe(hashes[planId]);
+  it.each([["office-a", "office-day"], ["office-b", "office-day"], ["sealed-room", "sealed-day"]])("preserves v0.2 timetables and facility choices with capacities removed: %s", (planId, scenarioId) => {
+    // Captured from engine/v0.2 (f4d7e2a). Different standing positions necessarily
+    // change route lengths, walking totals, and actual optional-visit arrival times.
+    const reference = JSON.parse(readFileSync(new URL("./data/v02-unlimited-profile.json", import.meta.url), "utf8")) as Record<string, {
+      scheduled: { personId: string; type: string; t: number; spaceId?: string }[];
+      visits: { id: string; visits: { type: string; spaceId?: string }[] }[];
+    }>;
+    const p = plan(planId);
+    p.spaces.forEach((space) => { delete space.capacity; });
+    const s = scenario(scenarioId);
+    const result = simulate(p, s);
+    expect(result.metrics.queues).toEqual([]);
+    expect(result.events.some((event) => ["queue_start", "queue_end", "gave_up"].includes(event.type))).toBe(false);
+    for (const personId of result.tracks.map((track) => track.personId)) {
+      const expected = reference[planId].scheduled.filter((event) => event.personId === personId);
+      const actual = result.events.filter((event) => event.personId === personId && ["arrive", "leave", "meeting_start", "meeting_end", "lunch_start", "lunch_end", "visitor_arrive"].includes(event.type));
+      expect(actual.map(({ type, spaceId }) => ({ type, spaceId }))).toEqual(expected.map(({ type, spaceId }) => ({ type, spaceId })));
+      actual.forEach((event, i) => expect(event.t).toBeCloseTo(expected[i].t, 7));
+    }
+    for (const person of reference[planId].visits) {
+      expect(result.events.filter((event) => event.personId === person.id && event.type.endsWith("_visit")).map(({ type, spaceId }) => ({ type, spaceId }))).toEqual(person.visits);
+    }
   });
 });
 
