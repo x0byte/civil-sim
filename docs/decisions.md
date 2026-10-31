@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Building types: offices first, then shopping malls
+- **Order: corporate offices, then shopping malls. Schools later** (bell-time surges and timetables make them trickier). *(Product owner)*
+- **Each building type is a "profile": a population template plus behaviour rules.** The building format, editor and viewer stay shared. Accuracy depends on both who the people are (population) and how they decide (behaviour), and both get checked against measured data from real buildings. *(Agreed)*
+- **Malls will need contract changes:** multiple floors joined by stairs, escalators and lifts, and "attractors" (shops and services with their own pull and visit length). *(Planned, not started)*
+
 ## 2026-11-01: App switched to the real engine
 - **The app now runs `engine/` directly in the browser; the preview engine is deleted.** The app's tests run the real engine on scenarios the editor builds, including a check that nobody walks through a wall. *(Product owner approved)*
 - **Open:** the engine works around the "no exterior door" contradiction in its brief by matching the validator's error text. A contract change (error codes on validation results) would make this robust. *(Awaiting product owner)*

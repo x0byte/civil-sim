@@ -21,12 +21,22 @@ side by side with the same people.
 
 ## Roadmap
 
-1. **M1 Editor:** upload a plan, set the scale, trace walls, add doors and windows, label spaces, 2D and 3D views.
-2. **Engine core (in parallel):** walkable grid, pathfinding, a workday for each person, heatmaps, metrics.
-3. **M2 People in the building:** connect the two. Press Run and watch the day play out, with heatmaps.
-4. **M3 Compare layouts:** same people, two designs, a scorecard.
-5. **M4 Smarter input:** automatic wall suggestions from images, DXF import.
-6. **Then the algorithms:** thermal, light, noise, needs-driven behaviour, the layout optimiser, and calibration against real buildings.
+Done: **M1 editor**, **M2 playback** with the simulation engine.
+
+**Phase 1: corporate offices**
+1. **M3 Compare layouts:** same people, two designs, side by side with a scorecard.
+2. **Office population profile:** departments and their sizes, who works with whom, roles, hybrid attendance, visitors, arrival and lunch patterns, all adjustable in a People panel.
+3. **Office measures that matter:** distance between teams that work together, interruptions at focus areas, meeting-room shortage, queues at toilets and pantries.
+4. **Plain-language messages and assumptions** for builders and clients.
+5. **Smarter input:** automatic wall suggestions from images, DXF import.
+
+**Phase 2: shopping malls**
+- Multiple floors joined by stairs, escalators and lifts.
+- Attractors: shops, food courts and services with their own pull and visit length.
+- Visitor profiles: who comes when (weekday/weekend, peaks), how long they stay, how they browse.
+- Calibration against mall door counters and Wi-Fi data.
+
+**Later:** schools and other building types; thermal, light and noise models; the layout optimiser; calibration against real Sri Lankan buildings.
 
 ## Commands
 
