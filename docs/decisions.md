@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: App switched to the real engine
+- **The app now runs `engine/` directly in the browser; the preview engine is deleted.** The app's tests run the real engine on scenarios the editor builds, including a check that nobody walks through a wall. *(Product owner approved)*
+- **Open:** the engine works around the "no exterior door" contradiction in its brief by matching the validator's error text. A contract change (error codes on validation results) would make this robust. *(Awaiting product owner)*
+- **Open:** the engine's warnings and assumptions mention internal ids and grid details. The app shows them under "Technical assumptions"; builders will need plain-language versions. *(Awaiting product owner)*
+
 ## 2026-11-01: Simulation engine core
 - **Use conservative 0.25 m wall cells, 8-way A* and independent seeded visit requests per person**, with separate navigation, scheduling and aggregation modules and no runtime dependencies. This prevents thin-wall leaks and keeps A/B layouts comparable; exact modelling rules travel with each result's `assumptions`. *(Codex, implementing the engine brief)*
 - **Missing exterior doors are the sole validation exception:** return `no_exterior_door` and absent tracks as the brief requests, although the shared validator rejects this case. All other validation errors throw; contracts stay unchanged. *(Codex resolving the brief's conflicting requirements; see `engine/README.md`)*

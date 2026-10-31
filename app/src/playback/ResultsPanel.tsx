@@ -25,12 +25,6 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
 
   return (
     <>
-      {run.source === "preview" && (
-        <div className="preview-banner">
-          <strong>Preview engine.</strong> These numbers come from a simple stand-in so the viewer can be shown. The real
-          simulation engine is being built separately and will replace it.
-        </div>
-      )}
       {stale && (
         <div className="stale-banner">
           The plan has changed since this run.
@@ -53,7 +47,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           <div className="tiles">
             <div className="tile">
               <div className="tile-value">{present}</div>
-              <div className="tile-label">people came in</div>
+              <div className="tile-label">{present === 1 ? "person came in" : "people came in"}</div>
             </div>
             <div className="tile">
               <div className="tile-value">{minutes(summary.meanWalkingTimeS)}</div>
@@ -144,7 +138,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
 
       <section className="panel">
         <details className="assumptions">
-          <summary>What these numbers assume</summary>
+          <summary>Technical assumptions behind these numbers</summary>
           <ul>
             {result.assumptions.map((a, i) => (
               <li key={i}>{a}</li>

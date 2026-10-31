@@ -591,17 +591,12 @@ button.danger {
   font-weight: 400;
   color: var(--ink-3);
 }
-.preview-banner,
 .stale-banner {
   margin: 12px 12px 0;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 12px;
   line-height: 1.45;
-}
-.preview-banner {
-  background: #fdf6e7;
-  color: #7a5212;
 }
 .stale-banner {
   background: var(--accent-soft);

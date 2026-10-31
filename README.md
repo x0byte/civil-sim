@@ -7,7 +7,7 @@ needs, run a workday, and see how they move and where the layout causes problems
 bottlenecks, a toilet that sends everyone past the manager's door. Then compare two layouts
 side by side with the same people.
 
-**Status:** M1 editor built. M2 playback view built against a stand-in preview engine (`app/src/sim/`); the real engine (`engine/`, Codex) will replace it.
+**Status:** M1 editor and M2 playback built; Run day uses the simulation engine (`engine/`). Next: M3, comparing two layouts.
 
 ## Layout
 
@@ -34,4 +34,5 @@ side by side with the same people.
 npm install && npm run check:contracts   # contracts
 cd app && npm install && npm run dev      # editor at http://localhost:5173
 cd app && npm test                        # editor tests
+cd engine && npm install && npm test      # engine tests
 ```
