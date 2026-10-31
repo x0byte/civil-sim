@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Simulation engine core
+- **Use conservative 0.25 m wall cells, 8-way A* and independent seeded visit requests per person**, with separate navigation, scheduling and aggregation modules and no runtime dependencies. This prevents thin-wall leaks and keeps A/B layouts comparable; exact modelling rules travel with each result's `assumptions`. *(Codex, implementing the engine brief)*
+- **Missing exterior doors are the sole validation exception:** return `no_exterior_door` and absent tracks as the brief requests, although the shared validator rejects this case. All other validation errors throw; contracts stay unchanged. *(Codex resolving the brief's conflicting requirements; see `engine/README.md`)*
+
 ## 2026-11-01: Playback view (M2, before the engine)
 - **Built the viewer before the engine exists, against a stand-in "preview engine"** in `app/src/sim/previewEngine.ts` that writes the contract's results format. Every screen that shows its numbers says "Preview engine" in plain words. Swapping in Codex's engine is one change in `app/src/sim/runSimulation.ts`. *(Product owner approved building the viewer now; Claude chose the stand-in)*
 - **Until there is a scenario editor, people come from the plan:** one person per desk, a team per room (split into groups of up to 6), a manager for each private-office desk, and one 45-minute meeting per team if there's a meeting room (`app/src/sim/autoScenario.ts`). *(Claude)*

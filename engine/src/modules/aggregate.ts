@@ -1,0 +1,109 @@
+import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
+import type { Heatmaps, Metrics, SpaceExposure, Track } from "../../../contracts/results.ts";
+import type { Scenario } from "../../../contracts/scenario.ts";
+import { cellSpans, distance, EPSILON, openingCentre } from "./geometry.ts";
+
+export const HEAT_CELL_M = 0.5;
+const EXPOSURE_RADIUS_M = 2;
+
+/** Union of positive-length portions of a segment within 2 m of any door. */
+function proximityIntervals(a: Vec2, b: Vec2, doors: Vec2[]): { from: number; to: number }[] {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const aa = dx * dx + dy * dy;
+  if (aa < EPSILON * EPSILON) return doors.some((door) => distance(a, door) < EXPOSURE_RADIUS_M) ? [{ from: 0, to: 1 }] : [];
+  const intervals = doors.flatMap((door) => {
+    const fx = a.x - door.x;
+    const fy = a.y - door.y;
+    const bb = 2 * (fx * dx + fy * dy);
+    const cc = fx * fx + fy * fy - EXPOSURE_RADIUS_M * EXPOSURE_RADIUS_M;
+    const discriminant = bb * bb - 4 * aa * cc;
+    const roundoff = Number.EPSILON * 16 * Math.max(bb * bb, Math.abs(4 * aa * cc), 1);
+    if (discriminant <= roundoff) return [];
+    const from = Math.max(0, (-bb - Math.sqrt(discriminant)) / (2 * aa));
+    const to = Math.min(1, (-bb + Math.sqrt(discriminant)) / (2 * aa));
+    return to - from > EPSILON ? [{ from, to }] : [];
+  }).sort((a, b) => a.from - b.from);
+  const merged: { from: number; to: number }[] = [];
+  for (const interval of intervals) {
+    const last = merged.at(-1);
+    if (last && interval.from <= last.to + EPSILON) last.to = Math.max(last.to, interval.to);
+    else merged.push({ ...interval });
+  }
+  return merged;
+}
+
+function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceExposure[] {
+  return plan.spaces.filter((space) => space.privacy === "private").map((space) => {
+    const doors = space.doorIds.map((id) => plan.openings.find((o) => o.id === id)!)
+      .map((door) => openingCentre(plan, door));
+    const ownerIds = new Set(scenario.people.filter((person) => plan.fixtures.some((f) => f.id === person.deskId && f.spaceId === space.id)).map((p) => p.id));
+    let passBys = 0;
+    const people = new Set<string>();
+    for (const track of tracks) {
+      if (ownerIds.has(track.personId)) continue;
+      let inside = false;
+      for (let i = 0; i < track.points.length - 1; i++) {
+        const a = track.points[i];
+        const b = track.points[i + 1];
+        if (a.activity === "absent") { inside = false; continue; }
+        if (a.activity !== "walking") {
+          inside = doors.some((door) => distance(b, door) <= EXPOSURE_RADIUS_M + EPSILON);
+          continue;
+        }
+        const intervals = proximityIntervals(a, b, doors);
+        for (const interval of intervals) {
+          if (interval.from > EPSILON || !inside) {
+            passBys++;
+            people.add(track.personId);
+          }
+          inside = interval.to >= 1 - EPSILON;
+        }
+        if (!intervals.length || intervals.at(-1)!.to < 1 - EPSILON) inside = false;
+      }
+    }
+    return { spaceId: space.id, passBys, distinctPeople: people.size };
+  });
+}
+
+export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]): { heatmaps: Heatmaps; metrics: Metrics } {
+  const cols = Math.ceil(plan.bounds.width / HEAT_CELL_M);
+  const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
+  const footfall = Array<number>(cols * rows).fill(0);
+  const dwellS = Array<number>(cols * rows).fill(0);
+  const perPerson = tracks.map((track) => {
+    let walkingDistanceM = 0;
+    let walkingTimeS = 0;
+    let lastWalkingCell = -1;
+    for (let i = 0; i < track.points.length - 1; i++) {
+      const a = track.points[i];
+      const b = track.points[i + 1];
+      if (a.activity === "absent") { lastWalkingCell = -1; continue; }
+      const dt = b.t - a.t;
+      const spans = cellSpans(a, b, HEAT_CELL_M, cols, rows);
+      for (const span of spans) dwellS[span.index] += dt * (span.to - span.from);
+      if (a.activity !== "walking") { lastWalkingCell = -1; continue; }
+      walkingDistanceM += distance(a, b);
+      walkingTimeS += dt;
+      for (const span of spans) {
+        if (span.index !== lastWalkingCell) footfall[span.index]++;
+        lastWalkingCell = span.index;
+      }
+    }
+    return { personId: track.personId, walkingDistanceM, walkingTimeS };
+  });
+  const totalDistance = perPerson.reduce((sum, p) => sum + p.walkingDistanceM, 0);
+  const totalTime = perPerson.reduce((sum, p) => sum + p.walkingTimeS, 0);
+  const hotspots = footfall.map((value, index) => ({ value, index })).filter((cell) => cell.value > 0)
+    .sort((a, b) => b.value - a.value || a.index - b.index).slice(0, 5).map(({ index, value }) => ({
+      x: ((index % cols) * HEAT_CELL_M + Math.min((index % cols + 1) * HEAT_CELL_M, plan.bounds.width)) / 2,
+      y: (Math.floor(index / cols) * HEAT_CELL_M + Math.min((Math.floor(index / cols) + 1) * HEAT_CELL_M, plan.bounds.height)) / 2,
+      footfall: value,
+    }));
+  return {
+    heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS },
+    metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
+      meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
+      spaceExposure: exposures(plan, scenario, tracks), hotspots },
+  };
+}
