@@ -12,5 +12,6 @@ for (const [planId, scenarioId] of pairs) {
   const start = performance.now();
   const result = simulate(plan, scenario);
   await writeFile(new URL(`${planId}.result.json`, out), JSON.stringify(result, null, 2) + "\n");
-  console.log(`${planId}: ${(performance.now() - start).toFixed(1)} ms; ${result.tracks.length} people; ${result.warnings.length} warnings; exposure ${JSON.stringify(result.metrics.spaceExposure)}`);
+  const pantryPeaks = result.metrics.peakOccupancy.filter((peak) => plan.spaces.some((space) => space.id === peak.spaceId && space.type === "pantry"));
+  console.log(`${planId}: ${(performance.now() - start).toFixed(1)} ms; ${result.tracks.length} people; ${result.warnings.length} warnings; pantry ${JSON.stringify(pantryPeaks)}; exposure ${JSON.stringify(result.metrics.spaceExposure)}`);
 }

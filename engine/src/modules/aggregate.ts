@@ -2,6 +2,7 @@ import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Heatmaps, Metrics, SpaceExposure, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { cellSpans, distance, EPSILON, openingCentre } from "./geometry.ts";
+import { peakOccupancy } from "./occupancy.ts";
 
 export const HEAT_CELL_M = 0.5;
 const EXPOSURE_RADIUS_M = 2;
@@ -71,7 +72,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]):
   const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
   const footfall = Array<number>(cols * rows).fill(0);
   const dwellS = Array<number>(cols * rows).fill(0);
-  const perPerson = tracks.map((track) => {
+  const allWalkingMetrics = tracks.map((track) => {
     let walkingDistanceM = 0;
     let walkingTimeS = 0;
     let lastWalkingCell = -1;
@@ -92,6 +93,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]):
     }
     return { personId: track.personId, walkingDistanceM, walkingTimeS };
   });
+  const perPerson = allWalkingMetrics.filter((_, i) => tracks[i].kind === "staff");
   const totalDistance = perPerson.reduce((sum, p) => sum + p.walkingDistanceM, 0);
   const totalTime = perPerson.reduce((sum, p) => sum + p.walkingTimeS, 0);
   const hotspots = footfall.map((value, index) => ({ value, index })).filter((cell) => cell.value > 0)
@@ -104,6 +106,6 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[]):
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS },
     metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
       meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
-      spaceExposure: exposures(plan, scenario, tracks), hotspots },
+      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: peakOccupancy(plan, tracks) },
   };
 }

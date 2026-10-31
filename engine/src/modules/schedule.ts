@@ -1,12 +1,14 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
-import type { Activity, SimEvent, Track, TrackPoint, Warning } from "../../../contracts/results.ts";
+import type { SimEvent, Track, Warning } from "../../../contracts/results.ts";
 import type { Person, Scenario } from "../../../contracts/scenario.ts";
-import { distance, EPSILON } from "./geometry.ts";
+import { EPSILON } from "./geometry.ts";
+import { placeLunch } from "./lunch.ts";
+import type { LunchAppointment, LunchRequest } from "./lunch.ts";
 import type { Navigation } from "./navigation.ts";
 import { pathLength } from "./pathfinding.ts";
 import { personSeed, seededRandom } from "./random.ts";
+import { absentTrack, TrackBuilder, WALK_SPEED_M_S } from "./track.ts";
 
-export const WALK_SPEED_M_S = 1.3;
 export const clockSeconds = (time: string): number => Number(time.slice(0, 2)) * 3600 + Number(time.slice(3)) * 60;
 
 interface Visit { t: number; activity: "toilet" | "pantry"; duration: number; choice: number }
@@ -26,31 +28,18 @@ function requests(scenario: Scenario, person: Person, duration: number) {
     }
   }
   visits.sort((a, b) => a.t - b.t);
-  return { arrival, departure, visits };
-}
-
-class TrackBuilder {
-  readonly points: TrackPoint[];
-  t = 0;
-  position: Vec2;
-  constructor(position: Vec2) {
-    this.position = position;
-    this.points = [{ t: 0, ...position, activity: "absent" }];
+  let lunch: LunchRequest | undefined;
+  if (scenario.lunch) {
+    const rule = scenario.lunch;
+    const start = clockSeconds(scenario.workday.start);
+    const from = clockSeconds(rule.windowStart) - start;
+    const to = clockSeconds(rule.windowEnd) - start;
+    const at = from + random() * (to - from);
+    const choice = random();
+    lunch = { start: at, latestStart: to, duration: rule.durationMin * 60,
+      kind: choice < rule.pantryShare ? "pantry" : choice < rule.pantryShare + rule.outShare ? "out" : "desk" };
   }
-  mark(activity: Activity): void {
-    const point = { t: this.t, ...this.position, activity };
-    if (this.points.at(-1)!.t === this.t) this.points[this.points.length - 1] = point;
-    else this.points.push(point);
-  }
-  walk(path: Vec2[], activity: Activity): void {
-    this.mark("walking");
-    for (let i = 1; i < path.length; i++) {
-      this.t += distance(path[i - 1], path[i]) / WALK_SPEED_M_S;
-      this.position = path[i];
-      this.mark(i === path.length - 1 ? activity : "walking");
-    }
-    if (path.length === 1) this.mark(activity);
-  }
+  return { arrival, departure, visits, lunch };
 }
 
 export function schedulePerson(plan: FloorPlan, scenario: Scenario, person: Person, duration: number,
@@ -61,11 +50,7 @@ export function schedulePerson(plan: FloorPlan, scenario: Scenario, person: Pers
   const entrancePaths = entrances.map((point) => paths.route(point, desk.position)).filter((path): path is Vec2[] => path !== null);
   entrancePaths.sort((a, b) => pathLength(a) - pathLength(b));
   const arrivalPath = entrancePaths[0];
-  const absent = (): Track => {
-    const safeIndex = grid.blocked.findIndex((blocked) => !blocked);
-    const point = grid.canWalk(desk.position, desk.position) ? desk.position : safeIndex < 0 ? { x: 0, y: 0 } : grid.point(safeIndex);
-    return { personId: person.id, points: [{ t: 0, ...point, activity: "absent" }, { t: duration, ...point, activity: "absent" }] };
-  };
+  const absent = (): Track => absentTrack(person.id, "staff", duration, grid, desk.position);
   if (!arrivalPath) {
     warn({ code: "unreachable_desk", message: `Desk ${desk.id} for ${person.id} cannot be reached from an exterior door; this person stays absent.`, refIds: [desk.id, person.id] });
     return absent();
@@ -105,6 +90,20 @@ export function schedulePerson(plan: FloorPlan, scenario: Scenario, person: Pers
     if (rate > 0 && !destinations.length) warn({ code: "unreachable_space", message: `${person.id} has no reachable ${activity} space; these visits are skipped.`, refIds: [person.id, ...spaces.map((s) => s.id)] });
   }
 
+  let lunch: LunchAppointment | null = null;
+  if (desired.lunch) {
+    const request = desired.lunch;
+    const pantry = [...available.get("pantry")!].sort((a, b) => pathLength(a.path) - pathLength(b.path))[0];
+    if (request.kind === "pantry" && !pantry) warn({ code: "unreachable_space",
+      message: `${person.id} has no reachable pantry for lunch; lunch is skipped.`, refIds: [person.id, ...plan.spaces.filter((s) => s.type === "pantry").map((s) => s.id)] });
+    else {
+      const path = request.kind === "pantry" ? pantry.path : request.kind === "out" ? [...arrivalPath].reverse() : [desk.position];
+      lunch = placeLunch({ ...request, path, travelS: pathLength(path) / WALK_SPEED_M_S,
+        ...(request.kind === "pantry" ? { spaceId: pantry.spaceId } : {}) }, meetings, track.t, deskDeparture);
+      if (!lunch) warn({ code: "other", message: `${person.id}'s lunch cannot fit around meetings, travel and attendance within the lunch window; lunch is skipped.`, refIds: [person.id] });
+    }
+  }
+
   let visitIndex = 0;
   const fillDeskTime = (until: number): void => {
     while (visitIndex < desired.visits.length && desired.visits[visitIndex].t < until) {
@@ -124,7 +123,22 @@ export function schedulePerson(plan: FloorPlan, scenario: Scenario, person: Pers
     track.t = Math.max(track.t, until);
   };
 
+  const takeLunch = (appointment: LunchAppointment): void => {
+    fillDeskTime(appointment.start - appointment.travelS);
+    track.walk(appointment.path, appointment.kind === "pantry" ? "lunch" : appointment.kind === "out" ? "absent" : "at_desk");
+    track.t = appointment.start;
+    track.points.at(-1)!.t = track.t;
+    const location = appointment.spaceId ? { spaceId: appointment.spaceId } : {};
+    events.push({ t: track.t, personId: person.id, type: "lunch_start", ...location });
+    track.t += appointment.duration;
+    events.push({ t: track.t, personId: person.id, type: "lunch_end", ...location });
+    track.walk([...appointment.path].reverse(), "at_desk");
+  };
   for (const appointment of meetings) {
+    if (lunch && lunch.start + lunch.duration + lunch.travelS <= appointment.start - appointment.travelS) {
+      takeLunch(lunch);
+      lunch = null;
+    }
     const { meeting, path, travelS } = appointment;
     const leaveDesk = Math.max(track.t, appointment.start - travelS);
     const reachRoom = leaveDesk + travelS;
@@ -141,11 +155,12 @@ export function schedulePerson(plan: FloorPlan, scenario: Scenario, person: Pers
     events.push({ t: end, personId: person.id, type: "meeting_end", spaceId: meeting.spaceId });
     track.walk([...path].reverse(), "at_desk");
   }
+  if (lunch) takeLunch(lunch);
   fillDeskTime(deskDeparture);
   track.walk([...arrivalPath].reverse(), "absent");
   // Floating-point accumulation may differ by a few ulps from the intended departure.
   track.points.at(-1)!.t = departure;
   events.push({ t: departure, personId: person.id, type: "leave" });
   if (departure < duration) track.points.push({ t: duration, ...track.position, activity: "absent" });
-  return { personId: person.id, points: track.points };
+  return { personId: person.id, kind: "staff", points: track.points };
 }

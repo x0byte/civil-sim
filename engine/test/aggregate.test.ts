@@ -5,7 +5,7 @@ import { plan, scenario } from "./fixtures.ts";
 
 describe("continuous metrics", () => {
   it("splits heatmap occupancy at cell boundaries and avoids duplicate footfall at waypoints", () => {
-    const tracks: Track[] = [{ personId: "p-01", points: [
+    const tracks: Track[] = [{ personId: "p-01", kind: "staff", points: [
       { t: 0, x: 0.25, y: 5.25, activity: "absent" },
       { t: 1, x: 0.25, y: 5.25, activity: "walking" },
       { t: 2, x: 0.4, y: 5.25, activity: "walking" },
@@ -38,13 +38,13 @@ describe("continuous metrics", () => {
       { t: 40, x: 1, y: 4.5, activity: "absent" },
       { t: 50, x: 1, y: 4.5, activity: "absent" },
     ];
-    const tracks = [{ personId: "p-01", points }, { personId: "p-m", points }];
+    const tracks: Track[] = [{ personId: "p-01", kind: "staff", points }, { personId: "p-m", kind: "staff", points }];
     const result = aggregate(p, scenario(), tracks).metrics.spaceExposure[0];
     expect(result).toEqual({ spaceId: "manager", passBys: 2, distinctPeople: 1 });
   });
 
   it("ignores an exactly tangential pass-by", () => {
-    const tracks: Track[] = [{ personId: "p-01", points: [
+    const tracks: Track[] = [{ personId: "p-01", kind: "staff", points: [
       { t: 0, x: 0, y: 6, activity: "walking" },
       { t: 10, x: 10, y: 6, activity: "absent" },
     ] }];
