@@ -12,6 +12,7 @@ import {
   spaceTypeLabel,
   updateItem,
 } from "../model/planOps.ts";
+import { FindWalls } from "../importers/FindWalls.tsx";
 import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "./fields.tsx";
 
@@ -234,6 +235,7 @@ function PlanPanel() {
               }}
             />
           </label>
+          <FindWalls />
           <div className="row-buttons">
             <button onClick={() => useEditor.getState().setTool("calibrate")}>Set scale again</button>
             <button onClick={() => commit((p) => ({ ...p, underlay: undefined }))}>Remove image</button>

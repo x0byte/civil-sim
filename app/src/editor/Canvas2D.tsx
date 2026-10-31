@@ -66,6 +66,7 @@ export function Canvas2D() {
   const spaceHeld = useRef(false);
   const underlaySize = useImageSize(plan.underlay?.image);
   const deskColors = useDeskColors();
+  const suggestions = useEditor((s) => s.wallSuggestions);
 
   useEffect(() => {
     setDraft([]);
@@ -357,7 +358,7 @@ export function Canvas2D() {
         }}
       >
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          <PlanDrawing plan={plan} scale={cam.s} selection={selection} underlaySize={underlaySize} deskColors={deskColors} />
+          <PlanDrawing plan={plan} scale={cam.s} selection={selection} underlaySize={underlaySize} deskColors={deskColors} suggestions={suggestions} />
 
           {/* drafts */}
           {draft.length > 0 && (

@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
+import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
+import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { runDay } from "../sim/runDay.ts";
@@ -22,6 +24,7 @@ export function TopBar() {
   const [newOpen, setNewOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [dxf, setDxf] = useState<{ drawing: DxfDrawing; name: string } | null>(null);
 
   const saveProject = () => {
     const { options, profiles } = useEditor.getState();
@@ -38,6 +41,12 @@ export function TopBar() {
 
   const openFile = async (file: File) => {
     try {
+      if (/\.dxf$/i.test(file.name)) {
+        const drawing = parseDxf(await file.text());
+        if (!drawing.layers.size) throw new Error("it has no straight lines to turn into walls");
+        setDxf({ drawing, name: file.name });
+        return;
+      }
       const opened = parseProjectOrPlan(await file.text());
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
@@ -93,7 +102,7 @@ export function TopBar() {
             </option>
           ))}
         </select>
-        <button onClick={() => importRef.current?.click()} title="Open a civil-sim project or floor plan file">
+        <button onClick={() => importRef.current?.click()} title="Open a civil-sim project, a floor plan, or an AutoCAD DXF drawing">
           Open file
         </button>
         <button onClick={saveProject} title="Save the plan, its People settings and saved options in one file">Save file</button>
@@ -103,7 +112,7 @@ export function TopBar() {
         <input
           ref={importRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,application/json,.dxf"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -166,6 +175,7 @@ export function TopBar() {
       </div>
 
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
+      {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (
         <SaveOptionDialog
           suggested={`Option ${options.length + 1}`}

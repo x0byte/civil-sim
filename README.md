@@ -27,7 +27,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 1. **Office population profile:** ✓ departments, managers, seating, hybrid attendance, team and joint meetings, lunch breaks, visitors. ✓ saved with the plan in a project file. Next: arrival patterns.
 2. **Office measures that matter:** ✓ queues, room peaks, desk disturbance, team distance (straight-line), meeting-room demand and use. Next: walking distance between teams.
 3. **Plain-language messages and assumptions** for builders and clients.
-4. **Smarter input:** automatic wall suggestions from images, DXF import.
+4. **Smarter input:** ✓ DXF import from AutoCAD, ✓ wall suggestions from plan images.
 
 **Phase 2: shopping malls**
 - Multiple floors joined by stairs, escalators and lifts.

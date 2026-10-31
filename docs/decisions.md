@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Smarter plan input
+- **DXF import (AutoCAD) through "Open file".** Straight lines (LINE, LWPOLYLINE, POLYLINE) on the chosen layers become walls; layers named like walls are pre-selected; units come from the file or the user picks them. Walls drawn as two parallel lines 5–60 cm apart become one wall with that thickness, and corners are joined where centre lines cross. Blocks, arcs, text and hatches are skipped. Our own small reader, no dependency (the only library hasn't been updated since 2022). Binary DXF isn't supported. *(Claude)*
+- **"Find walls in image" for traced plans.** Finds thick dark horizontal and vertical bands and suggests them as walls (dashed orange) to add or discard; thin lines (dimensions, text, furniture) are skipped. Straight horizontal and vertical walls only; diagonal and curved walls are still traced by hand. *(Claude)*
+- **Walking-distance helper briefed to Codex** (`docs/codex-brief-routes.md`), so team distance can switch from straight-line to walking. *(Waiting on Codex)*
+
 ## 2026-11-01: Office measures
 - **Desk disturbance: times other people walk within 1.5 m of someone's desk** during the day (the person sitting there doesn't count). The three most-disturbed desks are ringed on the plan. Worked out in the app from the engine's tracks. *(Claude)*
 - **Team distance uses straight-line distance between desks for now**, within each team and between teams set as working together. Walking distance needs a small engine helper (routes between two points); noted as a follow-up. *(Claude)*

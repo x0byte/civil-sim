@@ -17,6 +17,7 @@
   --grid-minor: #eef0f4;
   --grid-major: #dde1e8;
   --bounds: #b4bccb;
+  --suggest: #eb6834;
   --radius: 8px;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
@@ -884,4 +885,16 @@ button.icon {
   margin: 0;
   font-size: 13px;
   line-height: 1.45;
+}
+.dialog label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+.find-walls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
 }

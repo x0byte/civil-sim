@@ -18,6 +18,8 @@ interface Props {
   underWalls?: React.ReactNode;
   /** Fill colour per desk id, e.g. by department. */
   deskColors?: Map<string, string>;
+  /** Suggested walls (e.g. found in the traced image), drawn dashed for review. */
+  suggestions?: { a: Vec2; b: Vec2; thickness: number }[] | null;
 }
 
 const pts = (poly: Vec2[]) => poly.map((p) => `${p.x},${p.y}`).join(" ");
@@ -27,7 +29,7 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions }: Props) {
   const px = (n: number) => n / scale;
   const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
@@ -146,6 +148,21 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
           </g>
         );
       })}
+
+      {suggestions?.map((w, i) => (
+        <line
+          key={`sugg-${i}`}
+          x1={w.a.x}
+          y1={w.a.y}
+          x2={w.b.x}
+          y2={w.b.y}
+          stroke="var(--suggest)"
+          strokeOpacity={0.75}
+          strokeWidth={Math.max(w.thickness, px(3))}
+          strokeDasharray={`${px(8)} ${px(4)}`}
+          style={{ pointerEvents: "none" }}
+        />
+      ))}
 
       {selection?.kind === "wall" &&
         (() => {

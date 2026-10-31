@@ -4,6 +4,7 @@ import { type ItemRef, normalize } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import type { HeatMode } from "../playback/Playback.tsx";
 import type { OfficeProfile } from "../population/officeProfile.ts";
+import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
 export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "calibrate";
@@ -43,6 +44,8 @@ interface EditorState {
   profiles: Record<string, OfficeProfile>;
   /** Which sidebar tab is showing in the editor. */
   sidebarTab: "plan" | "people";
+  /** Walls found in the traced image, waiting for the user to accept or discard them. */
+  wallSuggestions: ThickSegment[] | null;
 
   /** Applies an edit as one undoable step. */
   commit: (fn: (plan: FloorPlan) => FloorPlan) => void;
@@ -68,6 +71,7 @@ interface EditorState {
   setHeat: (heat: HeatMode) => void;
   setProfile: (planId: string, profile: OfficeProfile | null) => void;
   setSidebarTab: (tab: "plan" | "people") => void;
+  setWallSuggestions: (walls: ThickSegment[] | null) => void;
   /**
    * Opens a project: its plan replaces the current one, its People settings are applied,
    * and its options are added to the saved list (existing options are kept).
@@ -143,6 +147,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   heat: "footfall",
   profiles: loadProfiles(),
   sidebarTab: "plan",
+  wallSuggestions: null,
 
   commit: (fn) => {
     const { plan, past } = get();
@@ -162,6 +167,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       selection: null,
       tool: "select",
       run: null,
+      wallSuggestions: null,
       view: get().view === "sim" || get().view === "compare" ? "2d" : get().view,
     }),
   undo: () => {
@@ -195,6 +201,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     }
   },
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+  setWallSuggestions: (wallSuggestions) => set({ wallSuggestions }),
   openProject: ({ plan, options, people }) => {
     const s = get();
     s.load(plan);
