@@ -12,6 +12,10 @@ interface Props {
   scale: number;
   selection: ItemRef | null;
   underlaySize: { w: number; h: number } | null;
+  /** Neutral rooms and no image, so a heatmap and people on top read clearly. */
+  muted?: boolean;
+  /** Drawn above the rooms but below walls and furniture (e.g. a heatmap). */
+  underWalls?: React.ReactNode;
 }
 
 const pts = (poly: Vec2[]) => poly.map((p) => `${p.x},${p.y}`).join(" ");
@@ -21,7 +25,7 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls }: Props) {
   const px = (n: number) => n / scale;
   const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
@@ -42,7 +46,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize }: Props) {
       <rect x={0} y={0} width={width} height={height} fill="var(--paper)" />
       <rect x={0} y={0} width={width} height={height} fill="url(#grid-major)" />
 
-      {plan.underlay && underlaySize && (
+      {plan.underlay && underlaySize && !muted && (
         <image
           href={plan.underlay.image}
           x={plan.underlay.origin.x}
@@ -72,12 +76,14 @@ export function PlanDrawing({ plan, scale, selection, underlaySize }: Props) {
           data-kind="space"
           data-id={s.id}
           points={pts(s.polygon)}
-          fill={SPACE_COLORS[s.type]}
-          fillOpacity={isSel("space", s.id) ? 0.55 : 0.35}
-          stroke={isSel("space", s.id) ? "var(--accent)" : SPACE_COLORS[s.type]}
+          fill={muted ? "var(--room-muted)" : SPACE_COLORS[s.type]}
+          fillOpacity={muted ? 1 : isSel("space", s.id) ? 0.55 : 0.35}
+          stroke={isSel("space", s.id) ? "var(--accent)" : muted ? "var(--line)" : SPACE_COLORS[s.type]}
           strokeWidth={px(isSel("space", s.id) ? 2.5 : 1)}
         />
       ))}
+
+      {underWalls}
 
       {plan.walls.map((w) => (
         <WallShape key={w.id} wall={w} openings={plan.openings} selected={isSel("wall", w.id)} scale={scale} />

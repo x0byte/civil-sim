@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Playback view (M2, before the engine)
+- **Built the viewer before the engine exists, against a stand-in "preview engine"** in `app/src/sim/previewEngine.ts` that writes the contract's results format. Every screen that shows its numbers says "Preview engine" in plain words. Swapping in Codex's engine is one change in `app/src/sim/runSimulation.ts`. *(Product owner approved building the viewer now; Claude chose the stand-in)*
+- **Until there is a scenario editor, people come from the plan:** one person per desk, a team per room (split into groups of up to 6), a manager for each private-office desk, and one 45-minute meeting per team if there's a meeting room (`app/src/sim/autoScenario.ts`). *(Claude)*
+- **Colours:** activities use the first five slots of the shared validated chart palette, in fixed order; heatmaps use a single blue ramp from light (little) to dark (a lot). Rooms turn grey in the simulation view so the heatmap and people stand out. *(Claude)*
+
 ## 2026-11-01: Editor (M1)
 - **Stack: Vite + React + TypeScript, Three.js via react-three-fiber for 3D, zustand for state.** Common, well-documented choices so a future hire can pick it up. *(Claude)*
 - **The editor derives `doorIds` and fixture `spaceId` itself** (`normalize` in `app/src/model/planOps.ts`) after every edit, using the validator's 0.15 m tolerance. Users never set them by hand, and saved plans always pass the contract checks. *(Claude)*

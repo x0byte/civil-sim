@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { dist, pointAlong, projectOntoSegment, samePoint, wallDir } from "../model/geometry.ts";
 import {
@@ -17,14 +17,8 @@ import {
 import { type Tool, useEditor } from "../state/store.ts";
 import { PlanDrawing } from "./PlanDrawing.tsx";
 import { type SnapKind, snapPoint } from "./snap.ts";
+import { type Camera, useCamera } from "./useCamera.ts";
 import { useImageSize } from "./useImageSize.ts";
-
-interface Camera {
-  x: number;
-  y: number;
-  /** Pixels per metre. */
-  s: number;
-}
 
 type Drag =
   | { type: "pan"; startX: number; startY: number; cam: Camera }
@@ -51,9 +45,6 @@ const SNAP_COLORS: Record<SnapKind, string> = {
   free: "var(--ink-3)",
 };
 
-const MIN_SCALE = 4;
-const MAX_SCALE = 400;
-
 export function Canvas2D() {
   const plan = useEditor((s) => s.plan);
   const tool = useEditor((s) => s.tool);
@@ -65,9 +56,7 @@ export function Canvas2D() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [cam, setCam] = useState<Camera>({ x: 40, y: 40, s: 30 });
-  const camRef = useRef(cam);
-  camRef.current = cam;
+  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan);
   const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean } | null>(null);
   const [draft, setDraft] = useState<Vec2[]>([]);
   const [rect, setRect] = useState<{ a: Vec2; b: Vec2 } | null>(null);
@@ -76,63 +65,11 @@ export function Canvas2D() {
   const spaceHeld = useRef(false);
   const underlaySize = useImageSize(plan.underlay?.image);
 
-  const fit = useCallback(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    const pad = 48;
-    const s = Math.max(
-      MIN_SCALE,
-      Math.min(MAX_SCALE, Math.min((width - pad * 2) / plan.bounds.width, (height - pad * 2) / plan.bounds.height)),
-    );
-    setCam({ s, x: (width - plan.bounds.width * s) / 2, y: (height - plan.bounds.height * s) / 2 });
-  }, [plan.bounds.width, plan.bounds.height]);
-
-  // Fit when a new plan opens, and on the first layout where the canvas has a real size.
-  const fittedFor = useRef<string | null>(null);
-  useLayoutEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const tryFit = () => {
-      const { width, height } = el.getBoundingClientRect();
-      if (width < 50 || height < 50 || fittedFor.current === plan.id) return;
-      fittedFor.current = plan.id;
-      fit();
-    };
-    tryFit();
-    const ro = new ResizeObserver(tryFit);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [plan.id, fit]);
-
   useEffect(() => {
     setDraft([]);
     setRect(null);
     setCalib(null);
   }, [tool, plan.id]);
-
-  // Wheel zoom around the cursor. Must be non-passive to stop the page scrolling.
-  useEffect(() => {
-    const el = svgRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const r = el.getBoundingClientRect();
-      const mx = e.clientX - r.left;
-      const my = e.clientY - r.top;
-      const c = camRef.current;
-      const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, c.s * Math.exp(-e.deltaY * 0.0015)));
-      const k = s / c.s;
-      setCam({ s, x: mx - (mx - c.x) * k, y: my - (my - c.y) * k });
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-
-  const toPlan = (e: { clientX: number; clientY: number }): Vec2 => {
-    const r = svgRef.current!.getBoundingClientRect();
-    return { x: (e.clientX - r.left - cam.x) / cam.s, y: (e.clientY - r.top - cam.y) / cam.s };
-  };
 
   const snap = (raw: Vec2, shift: boolean, opts: { walls?: boolean; ignore?: Set<string> } = {}) => {
     const p: FloorPlan = opts.ignore ? { ...plan, walls: plan.walls.filter((w) => !opts.ignore!.has(w.id)) } : plan;
@@ -507,10 +444,10 @@ export function Canvas2D() {
       </svg>
 
       <div className="canvas-zoom">
-        <button onClick={() => setCam((c) => zoomAtCentre(c, 1.25, wrapRef.current))} title="Zoom in">
+        <button onClick={() => zoomBy(1.25)} title="Zoom in">
           +
         </button>
-        <button onClick={() => setCam((c) => zoomAtCentre(c, 0.8, wrapRef.current))} title="Zoom out">
+        <button onClick={() => zoomBy(0.8)} title="Zoom out">
           −
         </button>
         <button onClick={fit} title="Fit plan to screen">
@@ -528,15 +465,6 @@ export function Canvas2D() {
       {calib && <CalibrateDialog measured={dist(calib.a, calib.b)} onApply={applyCalibration} onCancel={() => setCalib(null)} />}
     </div>
   );
-}
-
-function zoomAtCentre(c: Camera, k: number, el: HTMLElement | null): Camera {
-  const r = el?.getBoundingClientRect();
-  const mx = (r?.width ?? 0) / 2;
-  const my = (r?.height ?? 0) / 2;
-  const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, c.s * k));
-  const kk = s / c.s;
-  return { s, x: mx - (mx - c.x) * kk, y: my - (my - c.y) * kk };
 }
 
 function PreviewSegment({ a, b, scale, dashed }: { a: Vec2; b: Vec2; scale: number; dashed?: boolean }) {

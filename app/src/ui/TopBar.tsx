@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
+import { runDay } from "../sim/runDay.ts";
 import { useEditor } from "../state/store.ts";
 import { useProblems } from "./Problems.tsx";
 
@@ -10,6 +11,7 @@ export function TopBar() {
   const view = useEditor((s) => s.view);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
+  const hasRun = useEditor((s) => s.run !== null);
   const { load, undo, redo, setView, commit, notify, setTool } = useEditor.getState();
   const { errors } = useProblems();
   const importRef = useRef<HTMLInputElement>(null);
@@ -118,8 +120,17 @@ export function TopBar() {
       <div className="spacer" />
 
       <span className={errors.length ? "status bad" : "status good"} title={errors.join("\n")}>
-        {errors.length ? `${errors.length} to fix` : "Ready to simulate"}
+        {errors.length ? `${errors.length} to fix` : "Plan is valid"}
       </span>
+
+      <button
+        className="primary"
+        onClick={runDay}
+        disabled={errors.length > 0}
+        title={errors.length ? "Fix the problems listed on the right first" : "Simulate a workday in this layout"}
+      >
+        ▶ Run day
+      </button>
 
       <div className="segmented">
         <button className={view === "2d" ? "active" : ""} onClick={() => setView("2d")}>
@@ -127,6 +138,9 @@ export function TopBar() {
         </button>
         <button className={view === "3d" ? "active" : ""} onClick={() => setView("3d")}>
           3D
+        </button>
+        <button className={view === "sim" ? "active" : ""} onClick={() => setView("sim")} disabled={!hasRun}>
+          Simulation
         </button>
       </div>
 

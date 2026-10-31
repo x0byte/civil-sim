@@ -2,9 +2,10 @@ import { create } from "zustand";
 import type { FixtureType, FloorPlan } from "../../../contracts/floorplan.ts";
 import { type ItemRef, normalize } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
+import type { SimRun } from "../sim/runSimulation.ts";
 
 export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "calibrate";
-export type ViewMode = "2d" | "3d";
+export type ViewMode = "2d" | "3d" | "sim";
 
 const AUTOSAVE_KEY = "civil-sim:plan";
 const HISTORY_LIMIT = 100;
@@ -20,6 +21,8 @@ interface EditorState {
   gridSize: number;
   fixtureType: FixtureType;
   toast: string | null;
+  /** Latest simulation run. Kept when the plan changes so the user can see it's out of date. */
+  run: SimRun | null;
 
   /** Applies an edit as one undoable step. */
   commit: (fn: (plan: FloorPlan) => FloorPlan) => void;
@@ -37,6 +40,7 @@ interface EditorState {
   setGridSize: (size: number) => void;
   setFixtureType: (type: FixtureType) => void;
   notify: (msg: string | null) => void;
+  setRun: (run: SimRun | null) => void;
 }
 
 function loadSaved(): FloorPlan | null {
@@ -74,6 +78,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   gridSize: 0.25,
   fixtureType: "desk",
   toast: null,
+  run: null,
 
   commit: (fn) => {
     const { plan, past } = get();
@@ -85,7 +90,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set({ past: [...past, plan].slice(-HISTORY_LIMIT), future: [] });
   },
   drag: (fn) => set({ plan: normalize(fn(get().plan)) }),
-  load: (plan) => set({ plan: normalize(plan), past: [], future: [], selection: null, tool: "select" }),
+  load: (plan) =>
+    set({ plan: normalize(plan), past: [], future: [], selection: null, tool: "select", run: null, view: get().view === "sim" ? "2d" : get().view }),
   undo: () => {
     const { plan, past, future } = get();
     if (!past.length) return;
@@ -102,6 +108,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setSnap: (snapToGrid) => set({ snapToGrid }),
   setGridSize: (gridSize) => set({ gridSize }),
   setFixtureType: (fixtureType) => set({ fixtureType, tool: "fixture" }),
+  setRun: (run) => set({ run }),
   notify: (toast) => {
     clearTimeout(toastTimer);
     set({ toast });

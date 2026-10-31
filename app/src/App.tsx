@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
+import { Playback } from "./playback/Playback.tsx";
+import { ResultsPanel } from "./playback/ResultsPanel.tsx";
+import { runDay } from "./sim/runDay.ts";
 import { useEditor } from "./state/store.ts";
 import { Inspector } from "./ui/Inspector.tsx";
 import { Problems } from "./ui/Problems.tsx";
@@ -10,6 +13,8 @@ import { View3D } from "./view3d/View3D.tsx";
 export function App() {
   const view = useEditor((s) => s.view);
   const toast = useEditor((s) => s.toast);
+  const run = useEditor((s) => s.run);
+  const sim = view === "sim" && run;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,10 +48,16 @@ export function App() {
       <TopBar />
       <main className="workspace">
         {view === "2d" && <Toolbar />}
-        <div className="stage">{view === "2d" ? <Canvas2D /> : <View3D />}</div>
+        <div className="stage">{sim ? <Playback run={run} /> : view === "3d" ? <View3D /> : <Canvas2D />}</div>
         <aside className="sidebar">
-          <Inspector />
-          <Problems />
+          {sim ? (
+            <ResultsPanel run={run} onRerun={runDay} />
+          ) : (
+            <>
+              <Inspector />
+              <Problems />
+            </>
+          )}
         </aside>
       </main>
       {toast && <div className="toast">{toast}</div>}

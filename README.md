@@ -7,7 +7,7 @@ needs, run a workday, and see how they move and where the layout causes problems
 bottlenecks, a toilet that sends everyone past the manager's door. Then compare two layouts
 side by side with the same people.
 
-**Status:** M1 editor built (`app/`). Engine core in progress (`engine/`, Codex).
+**Status:** M1 editor built. M2 playback view built against a stand-in preview engine (`app/src/sim/`); the real engine (`engine/`, Codex) will replace it.
 
 ## Layout
 
