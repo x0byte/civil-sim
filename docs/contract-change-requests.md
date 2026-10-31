@@ -44,3 +44,27 @@ Template:
 
 **Optional, recommended: also fix the "no entrance" workaround.** The validators would return `{ code, message }` instead of plain text, so the engine can recognise "no exterior door" by its code instead of matching the exact wording. Small change, but it touches every place that shows validation messages.
 
+## v0.3: Queues at toilets and pantries
+- Requested by: Claude, 2026-11-01
+- Status: open
+
+**In plain words.** Today, if a toilet holds 2 people, a third walks straight in anyway. In real life they wait at the door. With queues, the simulation can answer questions clients actually ask: *"Do we have enough toilets for 40 people?"*, *"How long do people wait for the pantry at lunch?"*. People who wait too long give up and go back to their desk (and count as "gave up").
+
+**Change: `floorplan.ts` (no version change, meaning only)**
+- `Space.capacity` already exists. It now also means: for **toilets and pantries**, at most this many people can be inside at once, and anyone else queues at the door. A missing capacity means no limit, exactly as today. Meeting rooms keep capacity as a warning only (meetings aren't queued).
+
+**Change: `scenario.ts` (version "0.2" → "0.3")**
+- New optional `queueing: { maxWaitMin: number }`. How long someone waits at a full toilet or pantry before giving up. Default when omitted: 10 minutes.
+
+**Change: `results.ts` (version "0.2" → "0.3")**
+- `Activity` adds `"queuing"`: standing at the door of a full room.
+- `SimEventType` adds `"queue_start"`, `"queue_end"` and `"gave_up"` (each with `spaceId`).
+- `Metrics` adds `queues: { spaceId; peopleWhoWaited; totalWaitS; longestWaitS; gaveUp }[]`, one entry per toilet or pantry that has a capacity, in plan order.
+
+**Not a contract change (engine only):** people heading to the same room spread out across it instead of all standing on its centre point.
+
+**Breaks**
+- Engine (Codex): queues, waiting positions outside the door, giving up, the new metrics, spreading people in rooms. Brief: `docs/codex-brief-v0.3.md`.
+- App (Claude): capacity for pantries in the side panel, a "Queuing" colour, a "Queues" table in results, queue rows in the comparison scorecard, and a max-wait setting in the People tab.
+- Samples: the pantry gets a capacity; the toilet keeps capacity 2.
+
