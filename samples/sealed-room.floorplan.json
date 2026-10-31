@@ -1,0 +1,163 @@
+{
+  "version": "0.1",
+  "id": "sealed-room",
+  "name": "Sealed room (should warn)",
+  "units": "m",
+  "bounds": {
+    "width": 10,
+    "height": 8
+  },
+  "walls": [
+    {
+      "id": "w-top",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 10,
+        "y": 0
+      },
+      "thickness": 0.25,
+      "height": 3
+    },
+    {
+      "id": "w-right",
+      "a": {
+        "x": 10,
+        "y": 0
+      },
+      "b": {
+        "x": 10,
+        "y": 8
+      },
+      "thickness": 0.25,
+      "height": 3
+    },
+    {
+      "id": "w-bottom",
+      "a": {
+        "x": 0,
+        "y": 8
+      },
+      "b": {
+        "x": 10,
+        "y": 8
+      },
+      "thickness": 0.25,
+      "height": 3
+    },
+    {
+      "id": "w-left",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 0,
+        "y": 8
+      },
+      "thickness": 0.25,
+      "height": 3
+    },
+    {
+      "id": "w-divider",
+      "a": {
+        "x": 6,
+        "y": 0
+      },
+      "b": {
+        "x": 6,
+        "y": 8
+      },
+      "thickness": 0.15,
+      "height": 3
+    }
+  ],
+  "openings": [
+    {
+      "id": "d-entrance",
+      "wallId": "w-left",
+      "kind": "door",
+      "offset": 4,
+      "width": 1.2,
+      "exterior": true
+    }
+  ],
+  "spaces": [
+    {
+      "id": "office",
+      "name": "Office",
+      "type": "open_office",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 8
+        },
+        {
+          "x": 0,
+          "y": 8
+        }
+      ],
+      "doorIds": [
+        "d-entrance"
+      ]
+    },
+    {
+      "id": "back-room",
+      "name": "Back room (no door)",
+      "type": "private_office",
+      "privacy": "private",
+      "polygon": [
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 8
+        },
+        {
+          "x": 6,
+          "y": 8
+        }
+      ],
+      "doorIds": []
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "desk-01",
+      "type": "desk",
+      "position": {
+        "x": 3,
+        "y": 4
+      },
+      "rotation": 0,
+      "spaceId": "office"
+    },
+    {
+      "id": "desk-02",
+      "type": "desk",
+      "position": {
+        "x": 8,
+        "y": 4
+      },
+      "rotation": 0,
+      "spaceId": "back-room"
+    }
+  ]
+}

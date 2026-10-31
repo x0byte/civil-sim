@@ -1,0 +1,140 @@
+{
+  "version": "0.1",
+  "id": "office-day",
+  "name": "Ordinary workday, 13 people",
+  "seed": 42,
+  "workday": {
+    "start": "08:30",
+    "end": "17:30"
+  },
+  "teams": [
+    {
+      "id": "mgmt",
+      "name": "Management"
+    },
+    {
+      "id": "ops",
+      "name": "Operations"
+    },
+    {
+      "id": "sales",
+      "name": "Sales"
+    }
+  ],
+  "people": [
+    {
+      "id": "p-m",
+      "teamId": "mgmt",
+      "role": "manager",
+      "deskId": "desk-m"
+    },
+    {
+      "id": "p-01",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-01"
+    },
+    {
+      "id": "p-02",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-02"
+    },
+    {
+      "id": "p-03",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-03"
+    },
+    {
+      "id": "p-04",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-04"
+    },
+    {
+      "id": "p-05",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-05"
+    },
+    {
+      "id": "p-06",
+      "teamId": "ops",
+      "role": "staff",
+      "deskId": "desk-06"
+    },
+    {
+      "id": "p-07",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-07"
+    },
+    {
+      "id": "p-08",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-08"
+    },
+    {
+      "id": "p-09",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-09"
+    },
+    {
+      "id": "p-10",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-10"
+    },
+    {
+      "id": "p-11",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-11"
+    },
+    {
+      "id": "p-12",
+      "teamId": "sales",
+      "role": "staff",
+      "deskId": "desk-12"
+    }
+  ],
+  "meetings": [
+    {
+      "id": "m-ops",
+      "spaceId": "meeting",
+      "start": "10:00",
+      "durationMin": 45,
+      "attendeeIds": [
+        "p-m",
+        "p-01",
+        "p-02",
+        "p-03",
+        "p-04",
+        "p-05",
+        "p-06"
+      ]
+    },
+    {
+      "id": "m-sales",
+      "spaceId": "meeting",
+      "start": "14:00",
+      "durationMin": 60,
+      "attendeeIds": [
+        "p-m",
+        "p-07",
+        "p-08",
+        "p-09",
+        "p-10",
+        "p-11",
+        "p-12"
+      ]
+    }
+  ],
+  "rates": {
+    "toiletVisitsPerDay": 4,
+    "pantryVisitsPerDay": 3
+  }
+}

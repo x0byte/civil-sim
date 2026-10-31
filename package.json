@@ -1,0 +1,14 @@
+{
+  "name": "civil-sim",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "samples": "node samples/generate.ts",
+    "check:contracts": "node contracts/check-samples.ts",
+    "typecheck:contracts": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "22.15.3"
+  }
+}

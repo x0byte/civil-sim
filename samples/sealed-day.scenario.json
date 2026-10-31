@@ -1,0 +1,35 @@
+{
+  "version": "0.1",
+  "id": "sealed-day",
+  "name": "Two people, one unreachable desk",
+  "seed": 7,
+  "workday": {
+    "start": "09:00",
+    "end": "12:00"
+  },
+  "teams": [
+    {
+      "id": "t",
+      "name": "Team"
+    }
+  ],
+  "people": [
+    {
+      "id": "p-01",
+      "teamId": "t",
+      "role": "staff",
+      "deskId": "desk-01"
+    },
+    {
+      "id": "p-02",
+      "teamId": "t",
+      "role": "staff",
+      "deskId": "desk-02"
+    }
+  ],
+  "meetings": [],
+  "rates": {
+    "toiletVisitsPerDay": 0,
+    "pantryVisitsPerDay": 0
+  }
+}
