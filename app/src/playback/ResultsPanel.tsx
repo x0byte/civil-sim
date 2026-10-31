@@ -1,6 +1,7 @@
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { useEditor } from "../state/store.ts";
+import { DESK_PASS_RADIUS_M, deskDisturbance, meetingRoomUse, teamDistances } from "../sim/officeMeasures.ts";
 import { clockAt } from "./tracks.ts";
 
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
@@ -13,6 +14,14 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const { summary, spaceExposure, hotspots } = result.metrics;
   const spaces = new Map(plan.spaces.map((s) => [s.id, s]));
   const present = result.metrics.perPerson.filter((p) => p.walkingTimeS > 0).length;
+  const { teams, partners } = teamDistances(plan, scenario, run.collaborations);
+  const disturbance = deskDisturbance(plan, scenario, result);
+  const avgDisturbance = disturbance.length ? disturbance.reduce((s, d) => s + d.passBys, 0) / disturbance.length : 0;
+  const teamName = new Map(scenario.teams.map((t) => [t.id, t.name]));
+  const roomUse = meetingRoomUse(plan, scenario);
+  const demand = run.meetingDemand;
+  const deskRoom = new Map(plan.fixtures.map((f) => [f.id, spaces.get(f.spaceId)?.name ?? ""]));
+  const deskLabel = (id: string) => `${id.replace(/^desk-?0*/i, "Desk ")} · ${deskRoom.get(id)}`;
 
   // Smallest room containing a point, for naming hotspots.
   const roomAt = (x: number, y: number) =>
@@ -77,6 +86,110 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           </div>
         </div>
       </section>
+
+      <section className="panel">
+        <header>
+          <div>
+            <h2>Desks and focus</h2>
+            <span className="muted">People walking within {DESK_PASS_RADIUS_M} m of someone's desk</span>
+          </div>
+        </header>
+        <div className="panel-body">
+          <p className="lead">
+            The average desk is walked past <strong>{Math.round(avgDisturbance)}</strong> times a day.
+          </p>
+          {disturbance.length > 0 && (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Most disturbed</th>
+                  <th>Team</th>
+                  <th>Walk-pasts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {disturbance.slice(0, 3).map((d) => (
+                  <tr key={d.deskId}>
+                    <td>{deskLabel(d.deskId)}</td>
+                    <td>{teamName.get(d.teamId) ?? d.teamId}</td>
+                    <td>{d.passBys}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="muted">These desks are ringed on the plan.</p>
+        </div>
+      </section>
+
+      {(teams.length > 0 || partners.length > 0) && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>How close teams sit</h2>
+              <span className="muted">Average straight-line distance between desks</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            <table className="table">
+              <tbody>
+                {partners.map((p) => (
+                  <tr key={`${p.a}-${p.b}`}>
+                    <td>{p.label}</td>
+                    <td>{p.meanDistanceM.toFixed(1)} m</td>
+                  </tr>
+                ))}
+                {teams.map((t) => (
+                  <tr key={t.teamId}>
+                    <td>Within {t.name}</td>
+                    <td>{t.meanDistanceM.toFixed(1)} m</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {partners.length === 0 && (
+              <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {roomUse.length > 0 && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>Meeting rooms</h2>
+              <span className="muted">Bookings across the workday</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            {demand && (
+              <p className={demand.booked < demand.requested ? "warn" : "lead"}>
+                {demand.booked} of {demand.requested} meetings got a room
+                {demand.booked < demand.requested ? `: ${demand.requested - demand.booked} couldn't be booked.` : "."}
+              </p>
+            )}
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Meetings</th>
+                  <th>Booked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomUse.map((r) => (
+                  <tr key={r.spaceId}>
+                    <td>{r.name}</td>
+                    <td>{r.meetings}</td>
+                    <td>{Math.round(r.bookedShare * 100)}% of the day</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {spaceExposure.length > 0 && (
         <section className="panel">

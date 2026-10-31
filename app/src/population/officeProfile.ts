@@ -80,6 +80,8 @@ export interface Expansion {
   seating: Map<string, string>;
   /** Per department: people in today and desks available in its rooms. */
   demand: { departmentId: string; present: number; desks: number }[];
+  /** Meetings the departments wanted today, and how many got a room and a time. */
+  meetingDemand: { requested: number; booked: number };
 }
 
 const TEAM_MEETING_MIN = 45;
@@ -212,7 +214,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     if (unseated) notes.push(`${unseated} ${dept.name} ${unseated === 1 ? "person has" : "people have"} no desk at all, so they're left out.`);
   }
 
-  const meetings = scheduleMeetings(profile, plan, people, rnd, deptNames, notes);
+  const { meetings, requested } = scheduleMeetings(profile, plan, people, rnd, deptNames, notes);
   const visitors = planVisitors(profile, plan, meetings, rnd, notes);
   const lunch = profile.lunch?.enabled
     ? {
@@ -245,6 +247,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     notes,
     seating,
     demand,
+    meetingDemand: { requested, booked: meetings.length },
   };
 }
 
@@ -265,7 +268,7 @@ function scheduleMeetings(
   rnd: () => number,
   deptNames: Map<string, string>,
   notes: string[],
-): Meeting[] {
+): { meetings: Meeting[]; requested: number } {
   const rooms = plan.spaces
     .filter((s) => s.type === "meeting_room")
     .sort((a, b) => (a.capacity ?? 8) - (b.capacity ?? 8) || (a.id < b.id ? -1 : 1));
@@ -293,10 +296,10 @@ function scheduleMeetings(
       requests.push({ label: `${deptNames.get(c.a)} + ${deptNames.get(c.b)}`, attendees, durationMin: JOINT_MEETING_MIN });
     }
   }
-  if (!requests.length) return [];
+  if (!requests.length) return { meetings: [], requested: 0 };
   if (!rooms.length) {
     notes.push(`There's no meeting room, so ${requests.length} meeting${requests.length > 1 ? "s" : ""} can't happen.`);
-    return [];
+    return { meetings: [], requested: requests.length };
   }
 
   const dayStart = toMin(profile.workday.start) + 60;
@@ -328,7 +331,7 @@ function scheduleMeetings(
     if (!placed) unplaced++;
   }
   if (unplaced) notes.push(`${unplaced} meeting${unplaced > 1 ? "s" : ""} couldn't be booked: the meeting rooms are full all day.`);
-  return meetings;
+  return { meetings, requested: requests.length };
 }
 
 /**

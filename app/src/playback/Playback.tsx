@@ -6,6 +6,7 @@ import { type Camera, type Insets, useCamera } from "../editor/useCamera.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { useEditor } from "../state/store.ts";
 import { ACTIVITY_STYLE, HEAT_GRADIENT, heatColor } from "./colors.ts";
+import { deskDisturbance } from "../sim/officeMeasures.ts";
 import { type Pose, clockAt, poseAt } from "./tracks.ts";
 
 export type HeatMode = "off" | "footfall" | "dwell";
@@ -30,10 +31,15 @@ export function Playback({ run }: { run: SimRun }) {
   const heat = useEditor((s) => s.heat);
   const setHeat = useEditor((s) => s.setHeat);
   const values = heatValues(run.result, heat);
+  const ringed = useMemo(
+    () => deskDisturbance(run.plan, run.scenario, run.result).filter((d) => d.passBys > 0).slice(0, 3).map((d) => d.deskId),
+    [run],
+  );
   return (
     <div className="canvas-wrap">
       <PlanPlayer
         run={run}
+        ringDesks={ringed}
         t={clock.t}
         heat={heat}
         heatMax={values ? Math.max(1, ...values) : 1}
@@ -160,6 +166,7 @@ export function PlanPlayer({
   insets,
   legend,
   title,
+  ringDesks,
 }: {
   run: SimRun;
   t: number;
@@ -168,6 +175,8 @@ export function PlanPlayer({
   insets: Insets;
   legend?: boolean;
   title?: string;
+  /** Desks to circle, e.g. the most disturbed ones. */
+  ringDesks?: string[];
 }) {
   const { plan, result, scenario } = run;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -262,6 +271,22 @@ export function PlanPlayer({
               )
             }
           />
+          {ringDesks?.map((id) => {
+            const f = plan.fixtures.find((x) => x.id === id);
+            return f ? (
+              <circle
+                key={`ring-${id}`}
+                cx={f.position.x}
+                cy={f.position.y}
+                r={1.1}
+                fill="none"
+                stroke="var(--danger)"
+                strokeWidth={2 / cam.s}
+                strokeDasharray={`${5 / cam.s} ${3 / cam.s}`}
+                style={{ pointerEvents: "none" }}
+              />
+            ) : null;
+          })}
           {poses.map(({ id, visitor, pose }) => {
             const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
             // Visitors are diamonds, so they're told apart by shape as well as colour.

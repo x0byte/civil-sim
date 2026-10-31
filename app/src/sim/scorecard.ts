@@ -1,5 +1,6 @@
 // Turns two runs into a side-by-side scorecard and a few plain sentences.
 
+import { deskDisturbance, teamDistances } from "./officeMeasures.ts";
 import type { SimRun } from "./runSimulation.ts";
 
 export interface ScoreRow {
@@ -68,6 +69,19 @@ export function scoreRows(a: SimRun, b: SimRun): ScoreRow[] {
     rows.push({ label: `Queued at ${name} (people)`, a: x?.peopleWhoWaited ?? 0, b: y?.peopleWhoWaited ?? 0, format: count, better: "lower" });
     rows.push({ label: `Gave up at ${name}`, a: x?.gaveUp ?? 0, b: y?.gaveUp ?? 0, format: count, better: "lower" });
   }
+  // Office measures: partner-team distance and desk disturbance.
+  const partners = (r: SimRun) => new Map(teamDistances(r.plan, r.scenario, r.collaborations).partners.map((p) => [p.label, p.meanDistanceM]));
+  const da = partners(a);
+  const db = partners(b);
+  for (const label of new Set([...da.keys(), ...db.keys()])) {
+    rows.push({ label: `Distance ${label}`, a: da.get(label) ?? 0, b: db.get(label) ?? 0, format: metres, better: "lower" });
+  }
+  const disturb = (r: SimRun) => deskDisturbance(r.plan, r.scenario, r.result);
+  const avg = (d: ReturnType<typeof disturb>) => (d.length ? d.reduce((s, x) => s + x.passBys, 0) / d.length : 0);
+  const xa = disturb(a);
+  const xb = disturb(b);
+  rows.push({ label: "Desk walk-pasts (average)", a: avg(xa), b: avg(xb), format: count, better: "lower" });
+  rows.push({ label: "Most-disturbed desk", a: xa[0]?.passBys ?? 0, b: xb[0]?.passBys ?? 0, format: count, better: "lower" });
   const peak = (r: SimRun) => r.result.metrics.hotspots[0]?.footfall ?? 0;
   rows.push({ label: "Busiest spot (walk-throughs)", a: peak(a), b: peak(b), format: count, better: "lower" });
   rows.push({ label: "Problems found", a: a.result.warnings.length, b: b.result.warnings.length, format: count, better: "lower" });
