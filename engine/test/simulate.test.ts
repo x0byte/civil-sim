@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { simulate, SimulationInputError } from "../src/index.ts";
 import { pointInPolygon } from "../src/modules/geometry.ts";
 import { rasterise } from "../src/modules/grid.ts";
-import { plan, scenario } from "./fixtures.ts";
+import { plan, legacyScenario as scenario } from "./fixtures.ts";
 
 describe("contract sample acceptance", () => {
   it.each([["office-a", "office-day"], ["office-b", "office-day"], ["sealed-room", "sealed-day"]])("is deterministic and leaves inputs unchanged: %s", (planId, scenarioId) => {

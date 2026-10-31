@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Engine v0.2
+- **Lunch reserves travel around meetings; visitor waits/stays start after walking to each destination.** Lunch requests are drawn before routing without changing legacy random draws. Unreachable visits, or full visitor trips that cannot fit before closing, stay absent with warnings. Room peaks use exact outline crossings and a simultaneous-event sweep, counting staff and visitors; outline-only contact is excluded. Validation now matches stable issue codes, and results explain behaviour in plain language. *(Codex, implementing the approved v0.2 brief; numerical details in `engine/README.md`)*
+
 ## 2026-11-01: Contract v0.2
 - **Approved: lunch breaks, visitors and room peak occupancy** (see `docs/contract-change-requests.md`). Scenario and results move to v0.2; the floor plan stays at v0.1. *(Product owner)*
 - **Approved: validation issues carry codes.** `checkFloorPlan` / `checkScenario` return `{ code, message }`; the old `validate*` functions remain as message-only wrappers so nothing breaks while callers move over. *(Product owner)*
