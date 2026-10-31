@@ -1,5 +1,5 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
-import { cellSpans, distance, EPSILON } from "./geometry.ts";
+import { distance, EPSILON } from "./geometry.ts";
 
 export const WALK_CELL_M = 0.25;
 
@@ -30,7 +30,7 @@ export class WalkableGrid {
   }
 
   indexAt(p: Vec2): number {
-    if (p.x < 0 || p.y < 0 || p.x > this.width || p.y > this.height) return -1;
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.y < 0 || p.x > this.width || p.y > this.height) return -1;
     return Math.min(this.rows - 1, Math.floor(p.y / this.cellSize)) * this.cols + Math.min(this.cols - 1, Math.floor(p.x / this.cellSize));
   }
 
@@ -45,24 +45,46 @@ export class WalkableGrid {
   }
 
   /** Includes every cell touched at a boundary/corner, preventing diagonal corner cuts. */
-  private clearAt(p: Vec2): boolean {
-    if (this.indexAt(p) < 0) return false;
-    const boundaryX = Math.round(p.x / this.cellSize);
-    const boundaryY = Math.round(p.y / this.cellSize);
-    const xs = Math.abs(p.x / this.cellSize - boundaryX) < EPSILON
-      ? [boundaryX - 1, boundaryX] : [Math.floor(p.x / this.cellSize)];
-    const ys = Math.abs(p.y / this.cellSize - boundaryY) < EPSILON
-      ? [boundaryY - 1, boundaryY] : [Math.floor(p.y / this.cellSize)];
-    return xs.every((x) => ys.every((y) => x < 0 || y < 0 || x >= this.cols || y >= this.rows || !this.blocked[y * this.cols + x]));
+  private clearXY(x: number, y: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > this.width || y > this.height) return false;
+    const sx = x / this.cellSize;
+    const sy = y / this.cellSize;
+    const bx = Math.round(sx);
+    const by = Math.round(sy);
+    const onX = Math.abs(sx - bx) < EPSILON;
+    const onY = Math.abs(sy - by) < EPSILON;
+    const x0 = onX ? bx - 1 : Math.floor(sx);
+    const x1 = onX ? bx : x0;
+    const y0 = onY ? by - 1 : Math.floor(sy);
+    const y1 = onY ? by : y0;
+    for (let row = y0; row <= y1; row++) for (let col = x0; col <= x1; col++) {
+      if (col >= 0 && row >= 0 && col < this.cols && row < this.rows && this.blocked[row * this.cols + col]) return false;
+    }
+    return true;
   }
 
   canWalk(a: Vec2, b: Vec2): boolean {
-    if (!this.clearAt(a) || !this.clearAt(b)) return false;
-    for (const span of cellSpans(a, b, this.cellSize, this.cols, this.rows)) {
-      if (this.blocked[span.index]) return false;
-      for (const t of [span.from, (span.from + span.to) / 2, span.to]) {
-        if (!this.clearAt({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })) return false;
-      }
+    if (!this.clearXY(a.x, a.y) || !this.clearXY(b.x, b.y)) return false;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    if (dx === 0 && dy === 0) return true;
+    const deltaX = dx === 0 ? Infinity : this.cellSize / Math.abs(dx);
+    const deltaY = dy === 0 ? Infinity : this.cellSize / Math.abs(dy);
+    let col = Math.floor(a.x / this.cellSize);
+    let row = Math.floor(a.y / this.cellSize);
+    if (dx < 0 && a.x === col * this.cellSize) col--;
+    if (dy < 0 && a.y === row * this.cellSize) row--;
+    let nextX = dx === 0 ? Infinity : (((dx > 0 ? col + 1 : col) * this.cellSize) - a.x) / dx;
+    let nextY = dy === 0 ? Infinity : (((dy > 0 ? row + 1 : row) * this.cellSize) - a.y) / dy;
+    let from = 0;
+    while (from < 1) {
+      const to = Math.min(1, nextX, nextY);
+      const mid = (from + to) / 2;
+      if (!this.clearXY(a.x + dx * mid, a.y + dy * mid)) return false;
+      if (to < 1 && !this.clearXY(a.x + dx * to, a.y + dy * to)) return false;
+      if (nextX <= to) nextX += deltaX;
+      if (nextY <= to) nextY += deltaY;
+      from = to;
     }
     return true;
   }

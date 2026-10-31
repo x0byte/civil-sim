@@ -12,6 +12,43 @@ import { simulate } from "./engine/src/index.ts";
 const result = simulate(plan, scenario);
 ```
 
+## Walking distances
+
+The engine also exports a pure, synchronous distance helper for comparing desk or
+team locations. It needs only a floor plan and exact points in metres:
+
+```ts
+import { walkingDistances } from "./engine/src/index.ts";
+
+const desks = plan.fixtures.filter((fixture) => fixture.type === "desk");
+const distances = walkingDistances(plan, desks.map((desk) => desk.position));
+const metres = distances[0][1]; // number, or null when there is no walkable route
+```
+
+`walkingDistances(plan: FloorPlan, points: Vec2[]): (number | null)[][]` returns a
+symmetric matrix in input order. The diagonal is always zero, including for invalid
+endpoints. Every other entry involving a blocked, non-finite or out-of-bounds endpoint
+is `null`; disconnected endpoints also give `null`. Points are never snapped through
+a wall. Duplicate valid points have distance zero. Empty input returns `[]`.
+
+The helper validates through `checkFloorPlan`, ignoring only issue code
+`no_exterior_door`, and throws `SimulationInputError` with the remaining messages.
+Geometry must also be finite, as for simulation. No entrance is required: two points
+inside the same sealed room can have a route, while a point inside that room cannot
+reach a desk outside it. Capacity and privacy settings do not change geometric routes.
+
+Distances are lengths of the same simplified `Pathfinder` routes used by simulation,
+with the same grid, endpoint checks and wall clearance. The helper has no timetable
+or people: queue-line detours, capacity waits and an actual visit's chosen doorway
+approach are not part of its static distance.
+
+Each canonical source runs at most one shared search for all its remaining targets.
+The matrix streams source trees instead of retaining all pairwise paths. On the
+200-point 60 × 40 m fixture with five vertical and two horizontal partitions and
+27 doorways, the helper takes about **0.4 seconds in Node** on the development machine;
+the test enforces a one-second limit. `npm run typecheck --prefix engine` also enables
+`noUnusedLocals` and `noUnusedParameters`, matching the app's checks.
+
 From the worktree root:
 
 ```sh
@@ -38,7 +75,8 @@ layouts**. These are model outputs, not measured occupancy.
 
 - `grid.ts`: conservative 0.25 m wall rasterisation, door cuts, connected components,
   and segment visibility including boundary/corner checks. Windows stay solid.
-- `pathfinding.ts`: deterministic 8-way A*, waypoint simplification, and route caching.
+- `pathfinding.ts`: deterministic 8-way source searches, shared distance queries,
+  waypoint simplification, and bounded source/visibility caches.
 - `navigation.ts`: exterior-door access and reachable space destinations.
 - `random.ts`: local Mulberry32 streams keyed by scenario seed and person id.
 - `schedule.ts`: staff requests, desk time, meetings, visits, lunch, and departure.
@@ -168,6 +206,19 @@ order for destinations/doors and row-major order for grid targets and hotspots. 
 staff, including absent staff, are included in walking averages. Arrival/departure
 windows are `min(1800 s, day duration / 4)`; meeting accommodation retains a 1-second
 desk margin where feasible. The PRNG is Mulberry32, keyed by seed and person id.
+
+Routing orders endpoint pairs canonically by grid cell, then exact coordinates, so
+reversing a query or reordering a matrix cannot select a different equal-cost route.
+Source trees use Dijkstra over the original 8-way walkable graph, with precomputed
+physical edge lengths and a deterministic FIFO bucket queue. Bucket width is half
+the smallest edge length; predecessors are always in earlier buckets. Collinear
+parent runs are compressed before farthest-visible simplification. The scalar and
+matrix APIs share this exact extraction and simplification. This replaces the old
+target-specific A* tie choices, so equally short grid alternatives may produce small
+route-derived metric changes. No collision, behaviour or capacity rule is changed.
+Scalar routing retains up to 64 source trees and 128 visibility-anchor arrays; matrix
+search scratch buffers are reused per source. Visibility walks the same conservative
+supercover cells without allocating intermediate segment objects.
 
 Room occupancy is derived from every non-absent keyframe segment, including walking.
 Segments are split at all outline intersections, including repeated entries into
