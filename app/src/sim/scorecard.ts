@@ -17,6 +17,7 @@ const hours = (s: number) => `${(s / 3600).toFixed(1)} h`;
 const count = (n: number) => String(Math.round(n));
 
 const present = (r: SimRun) => r.result.metrics.perPerson.filter((p) => p.walkingTimeS > 0).length;
+const visitorsIn = (r: SimRun) => r.result.tracks.filter((t) => t.kind === "visitor" && t.points.some((p) => p.activity !== "absent")).length;
 
 /** Pass-bys keyed by room name, so the same room is matched across layouts even if its id differs. */
 function exposureByName(r: SimRun): Map<string, number> {
@@ -29,6 +30,7 @@ export function scoreRows(a: SimRun, b: SimRun): ScoreRow[] {
   const sb = b.result.metrics.summary;
   const rows: ScoreRow[] = [
     { label: "People included", a: present(a), b: present(b), format: count, better: null },
+    { label: "Visitors who got in", a: visitorsIn(a), b: visitorsIn(b), format: count, better: "higher" },
     { label: "Walking per person", a: sa.meanWalkingTimeS, b: sb.meanWalkingTimeS, format: mins, better: "lower" },
     { label: "Distance per person", a: sa.meanWalkingDistanceM, b: sb.meanWalkingDistanceM, format: metres, better: "lower" },
     { label: "Team walking per day", a: sa.totalWalkingTimeS, b: sb.totalWalkingTimeS, format: hours, better: "lower" },
@@ -37,6 +39,21 @@ export function scoreRows(a: SimRun, b: SimRun): ScoreRow[] {
   const eb = exposureByName(b);
   for (const name of new Set([...ea.keys(), ...eb.keys()])) {
     rows.push({ label: `Pass-bys at ${name}`, a: ea.get(name) ?? 0, b: eb.get(name) ?? 0, format: count, better: "lower" });
+  }
+  // Peak headcount in rooms people gather in (pantry, meeting rooms, reception, toilets), matched by name.
+  const gather = new Set(["pantry", "meeting_room", "reception", "toilet"]);
+  const peaksByName = (r: SimRun) => {
+    const spaces = new Map(r.plan.spaces.map((s) => [s.id, s]));
+    return new Map(
+      (r.result.metrics.peakOccupancy ?? [])
+        .filter((p) => gather.has(spaces.get(p.spaceId)?.type ?? ""))
+        .map((p) => [spaces.get(p.spaceId)!.name, p.peak]),
+    );
+  };
+  const pa = peaksByName(a);
+  const pb = peaksByName(b);
+  for (const name of new Set([...pa.keys(), ...pb.keys()])) {
+    rows.push({ label: `Most at once in ${name}`, a: pa.get(name) ?? 0, b: pb.get(name) ?? 0, format: count, better: null });
   }
   const peak = (r: SimRun) => r.result.metrics.hotspots[0]?.footfall ?? 0;
   rows.push({ label: "Busiest spot (walk-throughs)", a: peak(a), b: peak(b), format: count, better: "lower" });

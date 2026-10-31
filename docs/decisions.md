@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Lunch and visitors in the People tab
+- **Default lunch: 12:00–13:15 start, 45 minutes; 40% eat in the pantry, 20% go out, the rest at their desk.** A typical Sri Lankan office pattern as a starting point; every value is editable. *(Claude, to be checked with real offices)*
+- **Visitors join booked meetings first** (arriving in time to wait at reception), then visit a manager's office. Default is 0 visitors so existing results don't change. *(Claude)*
+- **Visitors are drawn as diamonds**, so they're told apart by shape as well as colour; lunch and waiting take the next two slots of the shared palette. *(Claude)*
+
 ## 2026-11-01: Contract v0.2
 - **Approved: lunch breaks, visitors and room peak occupancy** (see `docs/contract-change-requests.md`). Scenario and results move to v0.2; the floor plan stays at v0.1. *(Product owner)*
 - **Approved: validation issues carry codes.** `checkFloorPlan` / `checkScenario` return `{ code, message }`; the old `validate*` functions remain as message-only wrappers so nothing breaks while callers move over. *(Product owner)*

@@ -179,8 +179,8 @@ export function PlanPlayer({
   const people = useMemo(() => new Map(scenario.people.map((p) => [p.id, p])), [scenario]);
   const teams = useMemo(() => new Map(scenario.teams.map((x) => [x.id, x.name])), [scenario]);
   const poses = result.tracks
-    .map((tr) => ({ id: tr.personId, pose: poseAt(tr, t) }))
-    .filter((p): p is { id: string; pose: Pose } => p.pose !== null);
+    .map((tr) => ({ id: tr.personId, visitor: tr.kind === "visitor", pose: poseAt(tr, t) }))
+    .filter((p): p is { id: string; visitor: boolean; pose: Pose } => p.pose !== null);
 
   const counts = new Map<Activity, number>();
   for (const p of poses) counts.set(p.pose.activity, (counts.get(p.pose.activity) ?? 0) + 1);
@@ -203,7 +203,7 @@ export function PlanPlayer({
         x: e.clientX - r.left,
         y: e.clientY - r.top,
         text: [
-          `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`,
+          near.visitor ? "Visitor" : `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`,
           ACTIVITY_STYLE[near.pose.activity as keyof typeof ACTIVITY_STYLE]?.label ?? near.pose.activity,
         ],
       });
@@ -262,17 +262,25 @@ export function PlanPlayer({
               )
             }
           />
-          {poses.map(({ id, pose }) => (
-            <circle
-              key={id}
-              cx={pose.x}
-              cy={pose.y}
-              r={0.3}
-              fill={ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888"}
-              stroke="var(--paper)"
-              strokeWidth={2 / cam.s}
-            />
-          ))}
+          {poses.map(({ id, visitor, pose }) => {
+            const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
+            // Visitors are diamonds, so they're told apart by shape as well as colour.
+            return visitor ? (
+              <rect
+                key={id}
+                x={pose.x - 0.24}
+                y={pose.y - 0.24}
+                width={0.48}
+                height={0.48}
+                transform={`rotate(45 ${pose.x} ${pose.y})`}
+                fill={fill}
+                stroke="var(--ink)"
+                strokeWidth={1.5 / cam.s}
+              />
+            ) : (
+              <circle key={id} cx={pose.x} cy={pose.y} r={0.3} fill={fill} stroke="var(--paper)" strokeWidth={2 / cam.s} />
+            );
+          })}
         </g>
       </svg>
 
@@ -325,7 +333,7 @@ export function Legend({
     <div className="legend">
       {present !== null && (
         <div className="legend-title">
-          {present} of {total} people in the building
+          {present} of {total} people and visitors in the building
         </div>
       )}
       {Object.entries(ACTIVITY_STYLE).map(([key, s]) => (
@@ -335,6 +343,10 @@ export function Legend({
           {counts && <span className="legend-count">{counts.get(key as Activity) ?? 0}</span>}
         </div>
       ))}
+      <div className="legend-row">
+        <span className="swatch diamond" />
+        <span>Visitor (any colour)</span>
+      </div>
       {heat !== "off" && (
         <div className="legend-heat">
           <div className="legend-title">{HEAT_LABEL[heat].title} over the day</div>
@@ -349,8 +361,8 @@ export function Legend({
   );
 }
 
-function nearest(poses: { id: string; pose: Pose }[], at: Vec2, maxDist: number) {
-  let best: { id: string; pose: Pose } | null = null;
+function nearest<T extends { pose: Pose }>(poses: T[], at: Vec2, maxDist: number): T | null {
+  let best: T | null = null;
   let bestD = maxDist;
   for (const p of poses) {
     const d = Math.hypot(p.pose.x - at.x, p.pose.y - at.y);

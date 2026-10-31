@@ -5,7 +5,7 @@
 // Kept in the app for now. When malls arrive it becomes a shared contract.
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
-import type { Meeting, Person, Scenario } from "../../../contracts/scenario.ts";
+import type { Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
 
 export interface Department {
   id: string;
@@ -35,8 +35,39 @@ export interface OfficeProfile {
   departments: Department[];
   collaborations: Collaboration[];
   rates: { toiletVisitsPerDay: number; pantryVisitsPerDay: number };
+  /** Lunch break. Missing means none (older saved profiles). */
+  lunch?: LunchSettings;
+  /** Visitors per day. Missing means none. */
+  visitors?: VisitorSettings;
   seed: number;
 }
+
+export interface LunchSettings {
+  enabled: boolean;
+  windowStart: string;
+  windowEnd: string;
+  durationMin: number;
+  /** Share who eat in a pantry, and who go out; the rest eat at their desk. */
+  pantryShare: number;
+  outShare: number;
+}
+
+export interface VisitorSettings {
+  perDay: number;
+  /** Minutes each visitor waits at reception before being collected. */
+  waitMin: number;
+}
+
+/** Typical Sri Lankan office lunch: 12:00–13:30, about 45 minutes. */
+export const DEFAULT_LUNCH: LunchSettings = {
+  enabled: true,
+  windowStart: "12:00",
+  windowEnd: "13:15",
+  durationMin: 45,
+  pantryShare: 0.4,
+  outShare: 0.2,
+};
+export const DEFAULT_VISITORS: VisitorSettings = { perDay: 2, waitMin: 5 };
 
 export interface Expansion {
   scenario: Scenario;
@@ -122,6 +153,8 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
     departments,
     collaborations: [],
     rates: { toiletVisitsPerDay: 4, pantryVisitsPerDay: plan.spaces.some((s) => s.type === "pantry") ? 3 : 0 },
+    lunch: DEFAULT_LUNCH,
+    visitors: { ...DEFAULT_VISITORS, perDay: 0 },
     seed: 42,
   };
 }
@@ -177,10 +210,23 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
   }
 
   const meetings = scheduleMeetings(profile, plan, people, rnd, deptNames, notes);
+  const visitors = planVisitors(profile, plan, meetings, rnd, notes);
+  const lunch = profile.lunch?.enabled
+    ? {
+        windowStart: profile.lunch.windowStart,
+        windowEnd: profile.lunch.windowEnd,
+        durationMin: profile.lunch.durationMin,
+        pantryShare: plan.spaces.some((s) => s.type === "pantry") ? profile.lunch.pantryShare : 0,
+        outShare: profile.lunch.outShare,
+      }
+    : undefined;
+  if (lunch && profile.lunch!.pantryShare > 0 && lunch.pantryShare === 0) {
+    notes.push("There's no pantry, so everyone who would eat there eats at their desk instead.");
+  }
 
   return {
     scenario: {
-      version: "0.1",
+      version: "0.2",
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,
@@ -189,6 +235,8 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       people,
       meetings,
       rates: profile.rates,
+      ...(lunch ? { lunch } : {}),
+      ...(visitors.length ? { visitors } : {}),
     },
     notes,
     seating,
@@ -277,4 +325,47 @@ function scheduleMeetings(
   }
   if (unplaced) notes.push(`${unplaced} meeting${unplaced > 1 ? "s" : ""} couldn't be booked: the meeting rooms are full all day.`);
   return meetings;
+}
+
+/**
+ * Visitors join booked meetings first (one per meeting, while there's a free seat), arriving
+ * in time to wait at reception. Any left over visit a manager's office. Mutates meeting attendees.
+ */
+function planVisitors(
+  profile: OfficeProfile,
+  plan: FloorPlan,
+  meetings: Meeting[],
+  rnd: () => number,
+  notes: string[],
+): Visitor[] {
+  const n = Math.max(0, Math.round(profile.visitors?.perDay ?? 0));
+  if (!n) return [];
+  const waitMin = Math.max(0, Math.round(profile.visitors!.waitMin));
+  const walkMin = 3;
+  const dayStart = toMin(profile.workday.start);
+  const dayEnd = toMin(profile.workday.end);
+  const rooms = new Map(plan.spaces.map((s) => [s.id, s]));
+  const offices = plan.spaces.filter((s) => s.type === "private_office");
+  const visitors: Visitor[] = [];
+
+  const open = meetings.filter((m) => m.attendeeIds.length < (rooms.get(m.spaceId)?.capacity ?? 8));
+  for (const m of open) {
+    if (visitors.length >= n) break;
+    const arrive = toMin(m.start) - waitMin - walkMin;
+    if (arrive < dayStart) continue;
+    const id = `visitor-${visitors.length + 1}`;
+    visitors.push({ id, arrive: toClock(arrive), waitMin, spaceId: m.spaceId, durationMin: m.durationMin });
+    m.attendeeIds = [...m.attendeeIds, id];
+  }
+  while (visitors.length < n && offices.length) {
+    const office = offices[visitors.length % offices.length];
+    const durationMin = 30;
+    const latest = dayEnd - 60 - waitMin - durationMin;
+    const arrive = dayStart + 60 + Math.floor((rnd() * Math.max(0, latest - dayStart - 60)) / 15) * 15;
+    visitors.push({ id: `visitor-${visitors.length + 1}`, arrive: toClock(arrive), waitMin, spaceId: office.id, durationMin });
+  }
+  if (visitors.length < n) {
+    notes.push(`Only ${visitors.length} of ${n} visitors have somewhere to go: add a meeting room or a private office.`);
+  }
+  return visitors.sort((a, b) => (a.arrive < b.arrive ? -1 : a.arrive > b.arrive ? 1 : 0));
 }

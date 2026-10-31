@@ -1,7 +1,14 @@
 import { useMemo } from "react";
 import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "../ui/fields.tsx";
-import { type Department, type OfficeProfile, defaultProfile, expandProfile } from "./officeProfile.ts";
+import {
+  DEFAULT_LUNCH,
+  DEFAULT_VISITORS,
+  type Department,
+  type OfficeProfile,
+  defaultProfile,
+  expandProfile,
+} from "./officeProfile.ts";
 
 /** Categorical palette, fixed order. Departments past the eighth share a neutral grey. */
 const DEPT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
@@ -213,9 +220,11 @@ export function PeoplePanel() {
             value={profile.rates.pantryVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, pantryVisitsPerDay: v } })}
           />
-          <p className="muted">Lunch breaks and visitors without desks are coming in the next step.</p>
         </div>
       </section>
+
+      <LunchSection profile={profile} setProfile={setProfile} />
+      <VisitorsSection profile={profile} setProfile={setProfile} booked={x.scenario.visitors?.length ?? 0} />
     </>
   );
 }
@@ -260,6 +269,82 @@ function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function Share({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <span className="input-unit">
+        <input type="range" min={0} max={1} step={0.05} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+        <strong className="pct">{Math.round(value * 100)}%</strong>
+      </span>
+    </label>
+  );
+}
+
+function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void }) {
+  const lunch = profile.lunch ?? { ...DEFAULT_LUNCH, enabled: false };
+  const upd = (patch: Partial<typeof lunch>) => setProfile({ ...profile, lunch: { ...lunch, ...patch } });
+  const atDesk = Math.max(0, 1 - lunch.pantryShare - lunch.outShare);
+  return (
+    <section className="panel">
+      <header>
+        <div>
+          <h2>Lunch</h2>
+          <span className="muted">Where people eat, and when</span>
+        </div>
+        <label className="check">
+          <input type="checkbox" checked={lunch.enabled} onChange={(e) => upd({ enabled: e.target.checked })} />
+          On
+        </label>
+      </header>
+      {lunch.enabled && (
+        <div className="panel-body">
+          <div className="row2">
+            <TimeField label="Lunch from" value={lunch.windowStart} onChange={(windowStart) => upd({ windowStart })} />
+            <TimeField label="Last start" value={lunch.windowEnd} onChange={(windowEnd) => upd({ windowEnd })} />
+          </div>
+          <NumField label="Lasts" unit="min" step={5} min={5} value={lunch.durationMin} onCommit={(v) => upd({ durationMin: Math.round(v) })} />
+          <Share label="In the pantry" value={lunch.pantryShare} onChange={(v) => upd({ pantryShare: Math.min(v, 1 - lunch.outShare) })} />
+          <Share label="Go out" value={lunch.outShare} onChange={(v) => upd({ outShare: Math.min(v, 1 - lunch.pantryShare) })} />
+          <p className="muted">The other {Math.round(atDesk * 100)}% eat at their desk.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisitorsSection({
+  profile,
+  setProfile,
+  booked,
+}: {
+  profile: OfficeProfile;
+  setProfile: (p: OfficeProfile) => void;
+  booked: number;
+}) {
+  const v = profile.visitors ?? { ...DEFAULT_VISITORS, perDay: 0 };
+  const upd = (patch: Partial<typeof v>) => setProfile({ ...profile, visitors: { ...v, ...patch } });
+  return (
+    <section className="panel">
+      <header>
+        <div>
+          <h2>Visitors</h2>
+          <span className="muted">Clients and suppliers without desks</span>
+        </div>
+      </header>
+      <div className="panel-body">
+        <NumField label="Visitors" unit="/ day" step={1} min={0} value={v.perDay} onCommit={(n) => upd({ perDay: Math.round(n) })} />
+        <NumField label="Wait at reception" unit="min" step={1} min={0} value={v.waitMin} onCommit={(n) => upd({ waitMin: Math.round(n) })} />
+        {v.perDay > 0 && (
+          <p className="muted">
+            Visitors join booked meetings first, then visit a manager's office. {booked} of {v.perDay} have somewhere to go.
+          </p>
+        )}
       </div>
     </section>
   );

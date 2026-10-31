@@ -865,3 +865,17 @@ button.icon {
 .panel header button {
   white-space: nowrap;
 }
+.swatch.diamond {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: var(--paper);
+  box-shadow: 0 0 0 1.5px var(--ink);
+  margin: 0 1px;
+}
+.over {
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+}

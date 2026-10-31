@@ -76,3 +76,40 @@ describe("expandProfile", () => {
 });
 
 const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+
+describe("lunch and visitors", () => {
+  const withExtras: OfficeProfile = {
+    ...company,
+    lunch: { enabled: true, windowStart: "12:00", windowEnd: "13:00", durationMin: 45, pantryShare: 0.5, outShare: 0.2 },
+    visitors: { perDay: 3, waitMin: 5 },
+  };
+
+  it("adds a lunch break and seats visitors in meetings, then the manager's office", () => {
+    const x = expandProfile(withExtras, officeA);
+    expect(x.scenario.version).toBe("0.2");
+    expect(x.scenario.lunch).toMatchObject({ windowStart: "12:00", pantryShare: 0.5, outShare: 0.2 });
+    const visitors = x.scenario.visitors!;
+    expect(visitors).toHaveLength(3);
+    const inMeetings = x.scenario.meetings.filter((m) => m.attendeeIds.some((id) => id.startsWith("visitor-")));
+    expect(inMeetings.length).toBeGreaterThan(0);
+    for (const m of inMeetings) {
+      const v = visitors.find((q) => m.attendeeIds.includes(q.id))!;
+      // arrives, waits, walks over, and is there by the start
+      expect(toMin(v.arrive) + v.waitMin).toBeLessThanOrEqual(toMin(m.start));
+      expect(v.spaceId).toBe(m.spaceId);
+    }
+    expect(validateScenario(x.scenario, officeA)).toEqual([]);
+  });
+
+  it("leaves lunch out when it's switched off", () => {
+    const x = expandProfile({ ...withExtras, lunch: { ...withExtras.lunch!, enabled: false } }, officeA);
+    expect(x.scenario.lunch).toBeUndefined();
+  });
+
+  it("says when visitors have nowhere to go", () => {
+    const noRooms = { ...officeA, spaces: officeA.spaces.filter((s) => s.type !== "meeting_room" && s.type !== "private_office") };
+    const x = expandProfile({ ...withExtras, collaborations: [] }, noRooms);
+    expect(x.scenario.visitors).toBeUndefined();
+    expect(x.notes.join(" ")).toMatch(/Only 0 of 3 visitors have somewhere to go/);
+  });
+});

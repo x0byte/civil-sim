@@ -1,6 +1,7 @@
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { useEditor } from "../state/store.ts";
+import { clockAt } from "./tracks.ts";
 
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
 
@@ -22,6 +23,15 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const busiestRooms = [...new Map(hotspots.map((h) => [roomAt(h.x, h.y), h.footfall])).entries()]
     .map(([room, footfall]) => ({ room, footfall }))
     .sort((a, b) => b.footfall - a.footfall);
+
+  // Shared rooms people gather in; open-plan areas and corridors are left out to keep this short.
+  const peaks = (result.metrics.peakOccupancy ?? [])
+    .map((p) => {
+      const s = spaces.get(p.spaceId);
+      return { ...p, name: s?.name ?? p.spaceId, type: s?.type, capacity: s?.capacity, over: s?.capacity !== undefined && p.peak > s.capacity };
+    })
+    .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
+    .sort((a, b) => b.peak - a.peak);
 
   return (
     <>
@@ -88,6 +98,40 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
                     <td>{spaces.get(e.spaceId)?.name ?? e.spaceId}</td>
                     <td>{e.passBys}</td>
                     <td>{e.distinctPeople}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {peaks.length > 0 && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>How full rooms get</h2>
+              <span className="muted">Most people at once, and when</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Peak</th>
+                  <th>At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {peaks.map((p) => (
+                  <tr key={p.spaceId}>
+                    <td>
+                      {p.name}
+                      {p.over && <span className="over"> over capacity ({p.capacity})</span>}
+                    </td>
+                    <td>{p.peak}</td>
+                    <td>{clockAt(scenario.workday.start, p.t)}</td>
                   </tr>
                 ))}
               </tbody>

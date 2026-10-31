@@ -52,11 +52,23 @@ export function recastScenario(base: Scenario, plan: FloorPlan): Recast {
   const room =
     plan.spaces.find((s) => s.type === "meeting_room" && base.meetings.some((m) => m.spaceId === s.id)) ??
     plan.spaces.find((s) => s.type === "meeting_room");
+  // Visitors go to the same room if it exists here, otherwise the equivalent kind of room.
+  const office = plan.spaces.find((s) => s.type === "private_office");
+  const baseVisitors = base.visitors ?? [];
+  const visitors = baseVisitors.flatMap((v) => {
+    const spaceId = spaces.has(v.spaceId) ? v.spaceId : (room ?? office)?.id;
+    return spaceId ? [{ ...v, spaceId }] : [];
+  });
+  if (visitors.length < baseVisitors.length) {
+    notes.push(`${baseVisitors.length - visitors.length} visitor(s) have nowhere to go in this layout and are left out.`);
+  }
+  const visitorIds = new Set(visitors.map((v) => v.id));
+
   const meetings = room
     ? base.meetings.map((m) => ({
         ...m,
         spaceId: spaces.get(m.spaceId)?.type === "meeting_room" ? m.spaceId : room.id,
-        attendeeIds: m.attendeeIds.filter((id) => seatedIds.has(id)),
+        attendeeIds: m.attendeeIds.filter((id) => seatedIds.has(id) || visitorIds.has(id)),
       }))
     : [];
   if (!room && base.meetings.length) notes.push("This layout has no meeting room, so meetings are left out.");
@@ -67,6 +79,7 @@ export function recastScenario(base: Scenario, plan: FloorPlan): Recast {
       id: `${base.id}-in-${plan.id}`,
       people: seated,
       meetings: meetings.filter((m) => m.attendeeIds.length > 0),
+      ...(visitors.length ? { visitors } : { visitors: undefined }),
       rates: {
         ...base.rates,
         pantryVisitsPerDay: plan.spaces.some((s) => s.type === "pantry") ? base.rates.pantryVisitsPerDay : 0,
