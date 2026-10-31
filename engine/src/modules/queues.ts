@@ -168,7 +168,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   const event = (waiter: Waiter, t: number, type: "queue_start" | "queue_end" | "gave_up") =>
     events.push({ t, personId: waiter.request.personId, type, spaceId: waiter.request.spaceId });
   const noRelease = (): void => {};
-  const resume = (runner: Runner, request: RoomRequest, room: Room | undefined, admitted: boolean, toGate: Vec2[]): void => {
+  const resume = (runner: Runner, _request: RoomRequest, room: Room | undefined, admitted: boolean, toGate: Vec2[]): void => {
     if (admitted && room) room.used++;
     let released = false;
     advance(runner, { admitted, toGate, release: admitted && room ? (t: number) => {

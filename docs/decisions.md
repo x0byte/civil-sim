@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Engine v0.3 merged
+- **Reviewed and merged Codex's engine v0.3.** Independent checks: sampling every 5 seconds, no toilet or pantry ever holds more than its capacity; nobody shares a spot; no path crosses a wall; results repeat exactly. Stress test (toilet holds 1, 10 visits each, give up after 3 min): longest wait exactly 3 min, 31 gave up. *(Claude, approved by product owner)*
+- **One-line fix made by Claude in `engine/` with the product owner's OK:** an unused parameter in `engine/src/modules/queues.ts` failed the app's stricter type check (production build). Renamed to `_request`; no behaviour change. *(Product owner)*
+- **Follow-up for the engine:** run its type check with `noUnusedLocals` and `noUnusedParameters` too, so the engine and app agree. *(Open)*
+
 ## 2026-11-01: Queues in the app
 - **Pantries can now have a capacity** ("Limit how many fit at once", off by default so existing pantries never queue); toilets and meeting rooms keep theirs. The side panel says what capacity does for each room type. *(Claude)*
 - **"Give up after" (default 10 minutes) lives in the People tab** next to toilet and pantry visits. *(Claude)*
