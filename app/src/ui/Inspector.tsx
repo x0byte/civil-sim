@@ -21,7 +21,7 @@ const PRIVACY: { value: Privacy; label: string }[] = [
   { value: "public", label: "Public" },
 ];
 
-/** Capacity only applies to meeting rooms and toilets; give them a sensible starting value. */
+/** Capacity applies to meeting rooms, toilets and pantries; meeting rooms and toilets start with one. */
 function defaultCapacity(type: SpaceType, current: number | undefined): number | undefined {
   if (type === "meeting_room") return current ?? 8;
   if (type === "toilet") return current ?? 1;
@@ -127,15 +127,41 @@ export function Inspector() {
           }}
         />
         <SelectField<Privacy> label="Privacy" value={s.privacy} options={PRIVACY} onChange={(privacy) => upd((x) => ({ ...x, privacy }))} />
-        {(s.type === "meeting_room" || s.type === "toilet") && (
-          <NumField
-            label="Capacity"
-            unit="people"
-            step={1}
-            min={1}
-            value={s.capacity ?? 1}
-            onCommit={(v) => upd((x) => ({ ...x, capacity: Math.round(v) }))}
-          />
+        {(s.type === "meeting_room" || s.type === "toilet" || s.type === "pantry") && (
+          <>
+            {s.type === "pantry" && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={s.capacity !== undefined}
+                  onChange={(e) =>
+                    upd((x) => {
+                      const { capacity: _, ...rest } = x;
+                      return e.target.checked ? { ...rest, capacity: 6 } : rest;
+                    })
+                  }
+                />
+                Limit how many fit at once
+              </label>
+            )}
+            {s.capacity !== undefined && (
+              <NumField
+                label="Capacity"
+                unit="people"
+                step={1}
+                min={1}
+                value={s.capacity}
+                onCommit={(v) => upd((x) => ({ ...x, capacity: Math.round(v) }))}
+              />
+            )}
+            <p className="muted">
+              {s.type === "meeting_room"
+                ? "Meetings bigger than this get a warning."
+                : s.capacity !== undefined
+                  ? "When it's full, people queue at the door."
+                  : "No limit: nobody ever queues here."}
+            </p>
+          </>
         )}
         <dl className="stats">
           <dt>Area</dt>

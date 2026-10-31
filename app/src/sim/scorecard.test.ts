@@ -29,3 +29,27 @@ describe("comparing Office A and Office B", () => {
     expect(s[1]).toMatch(/each person walks \d+ m more a day than in Office A/);
   });
 });
+
+describe("queues in the comparison", () => {
+  const out = runComparison(plan("office-a"), plan("office-b"), ["A", "B"]);
+  if ("errors" in out) throw new Error(out.errors.join("\n"));
+  const withQueues = (run: typeof out.comparison.a, waited: number, gaveUp: number, totalWaitS: number) => ({
+    ...run,
+    result: {
+      ...run.result,
+      metrics: {
+        ...run.result.metrics,
+        queues: [{ spaceId: "toilet", peopleWhoWaited: waited, totalWaitS, longestWaitS: 300, gaveUp }],
+      },
+    },
+  });
+
+  it("scores fewer people queuing and giving up as better, and mentions the time lost", () => {
+    const a = withQueues(out.comparison.a, 6, 2, 1800);
+    const b = withQueues(out.comparison.b, 1, 0, 120);
+    const rows = scoreRows(a, b);
+    expect(verdict(rows.find((r) => r.label === "Queued at Toilet (people)")!)).toBe("b");
+    expect(verdict(rows.find((r) => r.label === "Gave up at Toilet")!)).toBe("b");
+    expect(summarySentences(a, b, ["A", "B"]).join(" ")).toMatch(/Time lost queuing: 30 min a day in A, 2 min in B\./);
+  });
+});

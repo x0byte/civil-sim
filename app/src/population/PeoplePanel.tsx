@@ -3,6 +3,7 @@ import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "../ui/fields.tsx";
 import {
   DEFAULT_LUNCH,
+  DEFAULT_MAX_QUEUE_WAIT_MIN,
   DEFAULT_VISITORS,
   type Department,
   type OfficeProfile,
@@ -220,6 +221,15 @@ export function PeoplePanel() {
             value={profile.rates.pantryVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, pantryVisitsPerDay: v } })}
           />
+          <NumField
+            label="Give up after"
+            unit="min"
+            step={1}
+            min={0}
+            value={profile.maxQueueWaitMin ?? DEFAULT_MAX_QUEUE_WAIT_MIN}
+            onCommit={(v) => upd({ maxQueueWaitMin: Math.round(v) })}
+          />
+          <p className="muted">How long people wait at a full toilet or pantry before going back to their desk.</p>
         </div>
       </section>
 

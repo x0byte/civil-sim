@@ -1,6 +1,6 @@
 import type { Activity } from "../../../contracts/results.ts";
 
-/** Categorical slots 1–7 of the shared chart palette, in fixed order (validated for colour-blind separation). */
+/** All 8 categorical slots of the shared chart palette, in fixed order (validated for colour-blind separation). */
 export const ACTIVITY_STYLE: Record<Exclude<Activity, "absent">, { label: string; color: string }> = {
   at_desk: { label: "At desk", color: "#2a78d6" },
   walking: { label: "Walking", color: "#eb6834" },
@@ -9,6 +9,7 @@ export const ACTIVITY_STYLE: Record<Exclude<Activity, "absent">, { label: string
   pantry: { label: "Pantry", color: "#e87ba4" },
   lunch: { label: "Lunch (pantry)", color: "#008300" },
   waiting: { label: "Visitor waiting", color: "#6250d6" },
+  queuing: { label: "Queuing", color: "#e34948" },
 };
 
 /** Single-hue sequential ramp, light (little) to dark (a lot). */

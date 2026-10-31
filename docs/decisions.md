@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Queues in the app
+- **Pantries can now have a capacity** ("Limit how many fit at once", off by default so existing pantries never queue); toilets and meeting rooms keep theirs. The side panel says what capacity does for each room type. *(Claude)*
+- **"Give up after" (default 10 minutes) lives in the People tab** next to toilet and pantry visits. *(Claude)*
+- **Queuing takes the 8th and last slot of the shared palette (red).** Any further activity will need a shape or label, not a new colour. *(Claude)*
+- **Results add a Queues table; comparisons add "Queued at" and "Gave up at" rows and a "Time lost queuing" sentence**, ranked ahead of walking distance in the summary. *(Claude)*
+
 ## 2026-11-01: Contract v0.3 (queues)
 - **Approved: toilets and pantries with a capacity make people queue at the door; they give up after a set wait** (default 10 minutes) and go back to their desk. Results gain a `queues` measure (who waited, total and longest wait, how many gave up). Meeting rooms keep capacity as a warning only. *(Product owner)*
 - **Spreading people across a room** (instead of everyone on its centre point) goes to the engine without a contract change. *(Claude)*

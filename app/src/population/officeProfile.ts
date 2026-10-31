@@ -39,6 +39,8 @@ export interface OfficeProfile {
   lunch?: LunchSettings;
   /** Visitors per day. Missing means none. */
   visitors?: VisitorSettings;
+  /** Minutes someone waits at a full toilet or pantry before giving up. Missing means 10. */
+  maxQueueWaitMin?: number;
   seed: number;
 }
 
@@ -68,6 +70,7 @@ export const DEFAULT_LUNCH: LunchSettings = {
   outShare: 0.2,
 };
 export const DEFAULT_VISITORS: VisitorSettings = { perDay: 2, waitMin: 5 };
+export const DEFAULT_MAX_QUEUE_WAIT_MIN = 10;
 
 export interface Expansion {
   scenario: Scenario;
@@ -226,7 +229,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
 
   return {
     scenario: {
-      version: "0.2",
+      version: "0.3",
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,
@@ -237,6 +240,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       rates: profile.rates,
       ...(lunch ? { lunch } : {}),
       ...(visitors.length ? { visitors } : {}),
+      queueing: { maxWaitMin: Math.max(0, profile.maxQueueWaitMin ?? DEFAULT_MAX_QUEUE_WAIT_MIN) },
     },
     notes,
     seating,

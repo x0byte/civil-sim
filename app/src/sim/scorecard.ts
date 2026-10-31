@@ -55,6 +55,19 @@ export function scoreRows(a: SimRun, b: SimRun): ScoreRow[] {
   for (const name of new Set([...pa.keys(), ...pb.keys()])) {
     rows.push({ label: `Most at once in ${name}`, a: pa.get(name) ?? 0, b: pb.get(name) ?? 0, format: count, better: null });
   }
+  // Queues, matched by room name.
+  const queuesByName = (r: SimRun) => {
+    const names = new Map(r.plan.spaces.map((s) => [s.id, s.name]));
+    return new Map((r.result.metrics.queues ?? []).map((q) => [names.get(q.spaceId) ?? q.spaceId, q]));
+  };
+  const qa = queuesByName(a);
+  const qb = queuesByName(b);
+  for (const name of new Set([...qa.keys(), ...qb.keys()])) {
+    const x = qa.get(name);
+    const y = qb.get(name);
+    rows.push({ label: `Queued at ${name} (people)`, a: x?.peopleWhoWaited ?? 0, b: y?.peopleWhoWaited ?? 0, format: count, better: "lower" });
+    rows.push({ label: `Gave up at ${name}`, a: x?.gaveUp ?? 0, b: y?.gaveUp ?? 0, format: count, better: "lower" });
+  }
   const peak = (r: SimRun) => r.result.metrics.hotspots[0]?.footfall ?? 0;
   rows.push({ label: "Busiest spot (walk-throughs)", a: peak(a), b: peak(b), format: count, better: "lower" });
   rows.push({ label: "Problems found", a: a.result.warnings.length, b: b.result.warnings.length, format: count, better: "lower" });
@@ -85,6 +98,12 @@ export function summarySentences(a: SimRun, b: SimRun, labels: [string, string])
         ? `${lb} cuts people passing ${name} from ${pa} to ${pb} times a day.`
         : `${lb} raises people passing ${name} from ${pa} to ${pb} times a day.`,
     );
+  }
+  const waits = (r: SimRun) => (r.result.metrics.queues ?? []).reduce((sum, q) => sum + q.totalWaitS, 0) / 60;
+  const wa = waits(a);
+  const wb = waits(b);
+  if (Math.abs(wb - wa) >= 1) {
+    out.push(`Time lost queuing: ${Math.round(wa)} min a day in ${la}, ${Math.round(wb)} min in ${lb}.`);
   }
   const sa = a.result.metrics.summary;
   const sb = b.result.metrics.summary;

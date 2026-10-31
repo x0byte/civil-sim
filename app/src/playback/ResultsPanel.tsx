@@ -4,6 +4,7 @@ import { useEditor } from "../state/store.ts";
 import { clockAt } from "./tracks.ts";
 
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
+const waitText = (s: number) => (s <= 0 ? "–" : s < 60 ? `${Math.round(s)} s` : `${(s / 60).toFixed(1)} min`);
 
 export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => void }) {
   const currentPlan = useEditor((s) => s.plan);
@@ -23,6 +24,8 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const busiestRooms = [...new Map(hotspots.map((h) => [roomAt(h.x, h.y), h.footfall])).entries()]
     .map(([room, footfall]) => ({ room, footfall }))
     .sort((a, b) => b.footfall - a.footfall);
+
+  const queues = result.metrics.queues ?? [];
 
   // Shared rooms people gather in; open-plan areas and corridors are left out to keep this short.
   const peaks = (result.metrics.peakOccupancy ?? [])
@@ -102,6 +105,44 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+      {queues.length > 0 && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>Queues</h2>
+              <span className="muted">Waiting at full toilets and pantries</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Waited</th>
+                  <th>Longest</th>
+                  <th>Gave up</th>
+                </tr>
+              </thead>
+              <tbody>
+                {queues.map((q) => (
+                  <tr key={q.spaceId}>
+                    <td>{spaces.get(q.spaceId)?.name ?? q.spaceId}</td>
+                    <td>{q.peopleWhoWaited}</td>
+                    <td>{waitText(q.longestWaitS)}</td>
+                    <td className={q.gaveUp ? "over" : undefined}>{q.gaveUp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              {queues.some((q) => q.peopleWhoWaited)
+                ? `${minutes(queues.reduce((sum, q) => sum + q.totalWaitS, 0))} spent queuing across the team.`
+                : "Nobody had to wait."}
+            </p>
           </div>
         </section>
       )}
