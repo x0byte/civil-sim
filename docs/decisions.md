@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Engine v0.2 merged
+- **Reviewed and merged Codex's engine v0.2.** Independent checks: no path crosses a wall (staff or visitors), results repeat exactly, visitors follow reception → meeting → leave, lunch splits between pantry, out and desk, assumptions now read in plain language. *(Claude, approved by product owner)*
+- **Follow-up for the engine:** people going to the same room all stand on its centre point, so five people at lunch look like one dot. Spread them across the room's usable area. *(Open)*
+- **Default lunch is on for plans without saved People settings**, so default results now include a lunch break. Saved settings from before keep no lunch until it's switched on. *(Claude)*
+
 ## 2026-11-01: Lunch and visitors in the People tab
 - **Default lunch: 12:00–13:15 start, 45 minutes; 40% eat in the pantry, 20% go out, the rest at their desk.** A typical Sri Lankan office pattern as a starting point; every value is editable. *(Claude, to be checked with real offices)*
 - **Visitors join booked meetings first** (arriving in time to wait at reception), then visit a manager's office. Default is 0 visitors so existing results don't change. *(Claude)*

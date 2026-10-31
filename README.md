@@ -7,7 +7,7 @@ needs, run a workday, and see how they move and where the layout causes problems
 bottlenecks, a toilet that sends everyone past the manager's door. Then compare two layouts
 side by side with the same people.
 
-**Status:** M1 editor, M2 playback and M3 layout comparison built, running on the simulation engine (`engine/`). Office population profile v1 built (People tab). Next: lunch and visitors, then office measures.
+**Status:** M1 editor, M2 playback and M3 layout comparison built, running on the simulation engine (`engine/`). Office population profile with lunch breaks and visitors (People tab), on contract v0.2. Next: office measures.
 
 ## Layout
 
@@ -24,7 +24,7 @@ side by side with the same people.
 Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare layouts**.
 
 **Phase 1: corporate offices**
-1. **Office population profile:** ✓ v1 (departments, managers, seating, hybrid attendance, team and joint meetings). Next: lunch breaks, visitors, arrival patterns; save people with the plan in a project file.
+1. **Office population profile:** ✓ departments, managers, seating, hybrid attendance, team and joint meetings, lunch breaks, visitors. Next: arrival patterns; save people with the plan in a project file.
 2. **Office measures that matter:** distance between teams that work together, interruptions at focus areas, meeting-room shortage, queues at toilets and pantries.
 3. **Plain-language messages and assumptions** for builders and clients.
 4. **Smarter input:** automatic wall suggestions from images, DXF import.
