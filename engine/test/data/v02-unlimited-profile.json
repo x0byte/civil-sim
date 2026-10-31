@@ -1,0 +1,1518 @@
+{
+  "office-a": {
+    "scheduled": [
+      {
+        "t": 4.893787996843457,
+        "personId": "p-12",
+        "type": "arrive"
+      },
+      {
+        "t": 380.32743190415204,
+        "personId": "p-09",
+        "type": "arrive"
+      },
+      {
+        "t": 502.6713636238128,
+        "personId": "p-02",
+        "type": "arrive"
+      },
+      {
+        "t": 641.7635872028768,
+        "personId": "p-04",
+        "type": "arrive"
+      },
+      {
+        "t": 916.3587789516896,
+        "personId": "p-10",
+        "type": "arrive"
+      },
+      {
+        "t": 988.0717139225453,
+        "personId": "p-m",
+        "type": "arrive"
+      },
+      {
+        "t": 1213.83240474388,
+        "personId": "p-05",
+        "type": "arrive"
+      },
+      {
+        "t": 1266.1946207284927,
+        "personId": "p-08",
+        "type": "arrive"
+      },
+      {
+        "t": 1340.1329141110182,
+        "personId": "p-11",
+        "type": "arrive"
+      },
+      {
+        "t": 1404.1943742893636,
+        "personId": "p-03",
+        "type": "arrive"
+      },
+      {
+        "t": 1487.3385395854712,
+        "personId": "p-06",
+        "type": "arrive"
+      },
+      {
+        "t": 1526.0449015069753,
+        "personId": "p-01",
+        "type": "arrive"
+      },
+      {
+        "t": 1714.8034100420773,
+        "personId": "p-07",
+        "type": "arrive"
+      },
+      {
+        "t": 4800,
+        "personId": "v-client",
+        "type": "visitor_arrive"
+      },
+      {
+        "t": 5399.999999999999,
+        "personId": "p-05",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-03",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-04",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-06",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-01",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-02",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-m",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-01",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-02",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-03",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-04",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-05",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-06",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-m",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 13045.725678652525,
+        "personId": "p-m",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13192.417625896633,
+        "personId": "p-09",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 13433.642337564379,
+        "personId": "p-04",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13436.474109906703,
+        "personId": "p-08",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13713.065758254379,
+        "personId": "p-11",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14139.02184907347,
+        "personId": "p-06",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14577.055013459176,
+        "personId": "p-01",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14757.277965545654,
+        "personId": "p-05",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15008.095737732947,
+        "personId": "p-10",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15554.926987644285,
+        "personId": "p-12",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 15694.387913960963,
+        "personId": "p-03",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15745.725678652525,
+        "personId": "p-m",
+        "type": "lunch_end"
+      },
+      {
+        "t": 15783.066799957305,
+        "personId": "p-07",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 15892.417625896633,
+        "personId": "p-09",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 16011.00259507075,
+        "personId": "p-02",
+        "type": "lunch_start"
+      },
+      {
+        "t": 16133.642337564379,
+        "personId": "p-04",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16136.474109906703,
+        "personId": "p-08",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16413.06575825438,
+        "personId": "p-11",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16839.02184907347,
+        "personId": "p-06",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17277.055013459176,
+        "personId": "p-01",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17457.277965545654,
+        "personId": "p-05",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17708.095737732947,
+        "personId": "p-10",
+        "type": "lunch_end"
+      },
+      {
+        "t": 18254.926987644285,
+        "personId": "p-12",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 18394.387913960963,
+        "personId": "p-03",
+        "type": "lunch_end"
+      },
+      {
+        "t": 18483.066799957305,
+        "personId": "p-07",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 18711.00259507075,
+        "personId": "p-02",
+        "type": "lunch_end"
+      },
+      {
+        "t": 19799.999999999996,
+        "personId": "p-07",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19799.999999999996,
+        "personId": "p-m",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-09",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-10",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-11",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-12",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800.000000000004,
+        "personId": "p-08",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-07",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-08",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-09",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-10",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-11",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-12",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-m",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "v-supplier",
+        "type": "visitor_arrive"
+      },
+      {
+        "t": 30647.92922269553,
+        "personId": "p-02",
+        "type": "leave"
+      },
+      {
+        "t": 30737.277320679277,
+        "personId": "p-12",
+        "type": "leave"
+      },
+      {
+        "t": 30896.466164616868,
+        "personId": "p-10",
+        "type": "leave"
+      },
+      {
+        "t": 31020.30540271662,
+        "personId": "p-m",
+        "type": "leave"
+      },
+      {
+        "t": 31092.11899889633,
+        "personId": "p-09",
+        "type": "leave"
+      },
+      {
+        "t": 31157.58452550508,
+        "personId": "p-04",
+        "type": "leave"
+      },
+      {
+        "t": 31200.902002863586,
+        "personId": "p-07",
+        "type": "leave"
+      },
+      {
+        "t": 31340.154043771327,
+        "personId": "p-11",
+        "type": "leave"
+      },
+      {
+        "t": 31855.349762365222,
+        "personId": "p-03",
+        "type": "leave"
+      },
+      {
+        "t": 31989.24104310572,
+        "personId": "p-08",
+        "type": "leave"
+      },
+      {
+        "t": 32130.19161131233,
+        "personId": "p-01",
+        "type": "leave"
+      },
+      {
+        "t": 32339.941633259878,
+        "personId": "p-05",
+        "type": "leave"
+      },
+      {
+        "t": 32390.802728338167,
+        "personId": "p-06",
+        "type": "leave"
+      }
+    ],
+    "visits": [
+      {
+        "id": "p-m",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-01",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-02",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-03",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-04",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-05",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-06",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-07",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-08",
+        "visits": []
+      },
+      {
+        "id": "p-09",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-10",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-11",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-12",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      }
+    ]
+  },
+  "office-b": {
+    "scheduled": [
+      {
+        "t": 4.893787996843457,
+        "personId": "p-12",
+        "type": "arrive"
+      },
+      {
+        "t": 380.32743190415204,
+        "personId": "p-09",
+        "type": "arrive"
+      },
+      {
+        "t": 502.6713636238128,
+        "personId": "p-02",
+        "type": "arrive"
+      },
+      {
+        "t": 641.7635872028768,
+        "personId": "p-04",
+        "type": "arrive"
+      },
+      {
+        "t": 916.3587789516896,
+        "personId": "p-10",
+        "type": "arrive"
+      },
+      {
+        "t": 988.0717139225453,
+        "personId": "p-m",
+        "type": "arrive"
+      },
+      {
+        "t": 1213.83240474388,
+        "personId": "p-05",
+        "type": "arrive"
+      },
+      {
+        "t": 1266.1946207284927,
+        "personId": "p-08",
+        "type": "arrive"
+      },
+      {
+        "t": 1340.1329141110182,
+        "personId": "p-11",
+        "type": "arrive"
+      },
+      {
+        "t": 1404.1943742893636,
+        "personId": "p-03",
+        "type": "arrive"
+      },
+      {
+        "t": 1487.3385395854712,
+        "personId": "p-06",
+        "type": "arrive"
+      },
+      {
+        "t": 1526.0449015069753,
+        "personId": "p-01",
+        "type": "arrive"
+      },
+      {
+        "t": 1714.8034100420773,
+        "personId": "p-07",
+        "type": "arrive"
+      },
+      {
+        "t": 4800,
+        "personId": "v-client",
+        "type": "visitor_arrive"
+      },
+      {
+        "t": 5399.999999999999,
+        "personId": "p-05",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-03",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-04",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400,
+        "personId": "p-06",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-01",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-02",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 5400.000000000001,
+        "personId": "p-m",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-01",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-02",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-03",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-04",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-05",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-06",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 8100,
+        "personId": "p-m",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 13045.725678652525,
+        "personId": "p-m",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13192.417625896633,
+        "personId": "p-09",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 13433.642337564379,
+        "personId": "p-04",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13436.474109906703,
+        "personId": "p-08",
+        "type": "lunch_start"
+      },
+      {
+        "t": 13713.065758254379,
+        "personId": "p-11",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14139.02184907347,
+        "personId": "p-06",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14577.055013459176,
+        "personId": "p-01",
+        "type": "lunch_start"
+      },
+      {
+        "t": 14757.277965545654,
+        "personId": "p-05",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15008.095737732947,
+        "personId": "p-10",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15554.926987644285,
+        "personId": "p-12",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 15694.387913960963,
+        "personId": "p-03",
+        "type": "lunch_start"
+      },
+      {
+        "t": 15745.725678652525,
+        "personId": "p-m",
+        "type": "lunch_end"
+      },
+      {
+        "t": 15783.066799957305,
+        "personId": "p-07",
+        "type": "lunch_start",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 15892.417625896633,
+        "personId": "p-09",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 16011.00259507075,
+        "personId": "p-02",
+        "type": "lunch_start"
+      },
+      {
+        "t": 16133.642337564379,
+        "personId": "p-04",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16136.474109906703,
+        "personId": "p-08",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16413.06575825438,
+        "personId": "p-11",
+        "type": "lunch_end"
+      },
+      {
+        "t": 16839.02184907347,
+        "personId": "p-06",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17277.055013459176,
+        "personId": "p-01",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17457.277965545654,
+        "personId": "p-05",
+        "type": "lunch_end"
+      },
+      {
+        "t": 17708.095737732947,
+        "personId": "p-10",
+        "type": "lunch_end"
+      },
+      {
+        "t": 18254.926987644285,
+        "personId": "p-12",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 18394.387913960963,
+        "personId": "p-03",
+        "type": "lunch_end"
+      },
+      {
+        "t": 18483.066799957305,
+        "personId": "p-07",
+        "type": "lunch_end",
+        "spaceId": "pantry"
+      },
+      {
+        "t": 18711.00259507075,
+        "personId": "p-02",
+        "type": "lunch_end"
+      },
+      {
+        "t": 19799.999999999996,
+        "personId": "p-07",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19799.999999999996,
+        "personId": "p-m",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-09",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-10",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-11",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800,
+        "personId": "p-12",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 19800.000000000004,
+        "personId": "p-08",
+        "type": "meeting_start",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-07",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-08",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-09",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-10",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-11",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-12",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "p-m",
+        "type": "meeting_end",
+        "spaceId": "meeting"
+      },
+      {
+        "t": 23400,
+        "personId": "v-supplier",
+        "type": "visitor_arrive"
+      },
+      {
+        "t": 30647.92922269553,
+        "personId": "p-02",
+        "type": "leave"
+      },
+      {
+        "t": 30737.277320679277,
+        "personId": "p-12",
+        "type": "leave"
+      },
+      {
+        "t": 30896.466164616868,
+        "personId": "p-10",
+        "type": "leave"
+      },
+      {
+        "t": 31020.30540271662,
+        "personId": "p-m",
+        "type": "leave"
+      },
+      {
+        "t": 31092.11899889633,
+        "personId": "p-09",
+        "type": "leave"
+      },
+      {
+        "t": 31157.58452550508,
+        "personId": "p-04",
+        "type": "leave"
+      },
+      {
+        "t": 31200.902002863586,
+        "personId": "p-07",
+        "type": "leave"
+      },
+      {
+        "t": 31340.154043771327,
+        "personId": "p-11",
+        "type": "leave"
+      },
+      {
+        "t": 31855.349762365222,
+        "personId": "p-03",
+        "type": "leave"
+      },
+      {
+        "t": 31989.24104310572,
+        "personId": "p-08",
+        "type": "leave"
+      },
+      {
+        "t": 32130.19161131233,
+        "personId": "p-01",
+        "type": "leave"
+      },
+      {
+        "t": 32339.941633259878,
+        "personId": "p-05",
+        "type": "leave"
+      },
+      {
+        "t": 32390.802728338167,
+        "personId": "p-06",
+        "type": "leave"
+      }
+    ],
+    "visits": [
+      {
+        "id": "p-m",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-01",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-02",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-03",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-04",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-05",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-06",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-07",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-08",
+        "visits": []
+      },
+      {
+        "id": "p-09",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          }
+        ]
+      },
+      {
+        "id": "p-10",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-11",
+        "visits": [
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      },
+      {
+        "id": "p-12",
+        "visits": [
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          },
+          {
+            "type": "pantry_visit",
+            "spaceId": "pantry"
+          },
+          {
+            "type": "toilet_visit",
+            "spaceId": "toilet"
+          }
+        ]
+      }
+    ]
+  },
+  "sealed-room": {
+    "scheduled": [
+      {
+        "t": 1772.2043526358902,
+        "personId": "p-01",
+        "type": "arrive"
+      },
+      {
+        "t": 10408.723005931824,
+        "personId": "p-01",
+        "type": "leave"
+      }
+    ],
+    "visits": [
+      {
+        "id": "p-01",
+        "visits": []
+      },
+      {
+        "id": "p-02",
+        "visits": []
+      }
+    ]
+  }
+}

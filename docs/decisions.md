@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Engine v0.3
+- **Use deterministic separate standing spots and a shared chronological capacity scheduler**, including staff, visitors, doorway travel, pass-through routes and desks inside capped facilities. Queues are FCFS with person-id ties; timeout wins exact-limit ties. Meeting deadlines reserve return travel, pantry lunch keeps its original end, and failed mandatory admission cancels remaining attendance with a warning. Standing separation does not add pedestrian collision avoidance. Route-dependent timings and metrics change with the new spots; unlimited-room regression tests preserve timetable requests and facility choices. *(Codex, implementing the approved v0.3 brief; numerical details in `engine/README.md`)*
+
 ## 2026-11-01: Contract v0.3 (queues)
 - **Approved: toilets and pantries with a capacity make people queue at the door; they give up after a set wait** (default 10 minutes) and go back to their desk. Results gain a `queues` measure (who waited, total and longest wait, how many gave up). Meeting rooms keep capacity as a warning only. *(Product owner)*
 - **Spreading people across a room** (instead of everyone on its centre point) goes to the engine without a contract change. *(Claude)*

@@ -25,7 +25,7 @@ function inside(point: Vec2, polygon: Vec2[]): boolean {
 }
 
 /** Split at every polygon-edge crossing, including concave polygons and collinear edges. */
-function interiorIntervals(a: Vec2, b: Vec2, polygon: Vec2[]): Interval[] {
+export function interiorIntervals(a: Vec2, b: Vec2, polygon: Vec2[]): Interval[] {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lengthSq = dx * dx + dy * dy;
