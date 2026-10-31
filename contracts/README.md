@@ -1,4 +1,4 @@
-# Contracts (v0.1)
+# Contracts (v0.2)
 
 These files define how the parts of civil-sim talk to each other. The editor and the
 engine are built separately, by different agents, and only ever meet here.
@@ -14,7 +14,7 @@ engine are built separately, by different agents, and only ever meet here.
 | `floorplan.ts` | The building: walls, doors, windows, labelled spaces, desks and other fixtures |
 | `scenario.ts` | The people and their day: teams, desks, meetings, how often they visit the toilet or pantry |
 | `results.ts` | What the engine returns: everyone's path through the day, heatmaps, events, metrics, warnings |
-| `validate.ts` | Shared checks. The editor runs them before saving; the engine runs them before simulating |
+| `validate.ts` | Shared checks. `checkFloorPlan` / `checkScenario` return issues with a stable `code` and a readable `message`; match on codes, never on wording |
 | `check-samples.ts` | Runs the checks on everything in `samples/` |
 
 ## Ground rules
@@ -23,6 +23,10 @@ engine are built separately, by different agents, and only ever meet here.
 - **Walls decide where people can walk.** Space outlines are labels only.
 - **Same seed, same plan, same scenario → identical results.** Needed so two layouts can be compared fairly.
 - **Every number shown to a user is traceable.** Results carry an `assumptions` list in plain language.
+
+## Version history
+- **v0.2** (scenario, results): lunch break, visitors, `Track.kind`, `peakOccupancy`; validation issues with codes. Floor plan unchanged at v0.1.
+- **v0.1**: first version.
 
 ## Changing a contract
 

@@ -1,7 +1,7 @@
 {
-  "version": "0.1",
+  "version": "0.2",
   "id": "office-day",
-  "name": "Ordinary workday, 13 people",
+  "name": "Ordinary workday, 13 people, lunch and 2 visitors",
   "seed": 42,
   "workday": {
     "start": "08:30",
@@ -114,7 +114,8 @@
         "p-03",
         "p-04",
         "p-05",
-        "p-06"
+        "p-06",
+        "v-client"
       ]
     },
     {
@@ -136,5 +137,28 @@
   "rates": {
     "toiletVisitsPerDay": 4,
     "pantryVisitsPerDay": 3
-  }
+  },
+  "lunch": {
+    "windowStart": "12:00",
+    "windowEnd": "13:00",
+    "durationMin": 45,
+    "pantryShare": 0.4,
+    "outShare": 0.3
+  },
+  "visitors": [
+    {
+      "id": "v-client",
+      "arrive": "09:50",
+      "waitMin": 5,
+      "spaceId": "meeting",
+      "durationMin": 50
+    },
+    {
+      "id": "v-supplier",
+      "arrive": "15:00",
+      "waitMin": 10,
+      "spaceId": "manager",
+      "durationMin": 30
+    }
+  ]
 }

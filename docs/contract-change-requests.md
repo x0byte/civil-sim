@@ -16,7 +16,7 @@ Template:
 
 ## v0.2: Lunch breaks, visitors, and how full rooms get
 - Requested by: Claude, 2026-11-01
-- Status: open
+- Status: **approved** by the product owner, 2026-11-01, including the optional validation-codes fix
 
 **In plain words.** Offices need two more things to feel real: a **lunch break** (some people eat in the pantry, some go out, the rest eat at their desk) and **visitors** (they come in, wait at reception, go to a meeting or an office, and leave; they have no desk). To show the effect, the results also report **how full each room gets at its busiest moment**, e.g. "Pantry: 11 people at 12:40".
 

@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Contract v0.2
+- **Approved: lunch breaks, visitors and room peak occupancy** (see `docs/contract-change-requests.md`). Scenario and results move to v0.2; the floor plan stays at v0.1. *(Product owner)*
+- **Approved: validation issues carry codes.** `checkFloorPlan` / `checkScenario` return `{ code, message }`; the old `validate*` functions remain as message-only wrappers so nothing breaks while callers move over. *(Product owner)*
+- **v0.2 lives on branch `contracts/v0.2-lunch-visitors` until the engine supports it**, so `master` always runs. *(Claude)*
+
 ## 2026-11-01: Office population profile (v1)
 - **People are described per department** (headcount, managers, which rooms they sit in, team meetings per day), plus which departments meet each other, share of staff in the office (hybrid), workday hours and break rates. The app expands this into the contract's individual people and a meeting timetable, so the engine and contracts are unchanged. *(Claude)*
 - **Default profile when none is set:** one person per desk, rooms split into teams of up to 6 (so a team fits a meeting room), managers for private-office desks. This replaces the old "auto scenario". *(Claude)*

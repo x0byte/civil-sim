@@ -1,8 +1,8 @@
-// Simulation results contract, v0.1.
+// Simulation results contract, v0.2.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.1";
+export const RESULTS_VERSION = "0.2";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -26,7 +26,11 @@ export type Activity =
   | "at_desk"
   | "in_meeting"
   | "toilet"
-  | "pantry";
+  | "pantry"
+  /** Eating lunch in a pantry. Lunch outside is "absent"; lunch at the desk is "at_desk". */
+  | "lunch"
+  /** Visitor waiting at reception. */
+  | "waiting";
 
 /**
  * A person's path through the day, as keyframes.
@@ -35,7 +39,9 @@ export type Activity =
  * Points are sorted by t. Every segment between consecutive points must not cross a wall.
  */
 export interface Track {
+  /** Staff person id or visitor id. */
   personId: string;
+  kind: "staff" | "visitor";
   points: TrackPoint[];
 }
 
@@ -61,7 +67,11 @@ export type SimEventType =
   | "toilet_visit"
   | "pantry_visit"
   | "meeting_start"
-  | "meeting_end";
+  | "meeting_end"
+  | "lunch_start"
+  | "lunch_end"
+  | "visitor_arrive"
+  | "visitor_leave";
 
 export interface SimEvent {
   t: number;
@@ -71,6 +81,7 @@ export interface SimEvent {
 }
 
 export interface Metrics {
+  /** Staff only: visitors are left out of walking metrics and the summary, but count everywhere else. */
   perPerson: PersonMetrics[];
   summary: {
     meanWalkingDistanceM: number;
@@ -85,6 +96,11 @@ export interface Metrics {
   spaceExposure: SpaceExposure[];
   /** Up to 5 cells with the highest footfall, highest first. */
   hotspots: { x: number; y: number; footfall: number }[];
+  /**
+   * For every space in the plan, in plan order: the most people (staff and visitors)
+   * inside its outline at once, and the first time `t` that happened. 0 and t = 0 if never used.
+   */
+  peakOccupancy: { spaceId: string; peak: number; t: number }[];
 }
 
 export interface PersonMetrics {

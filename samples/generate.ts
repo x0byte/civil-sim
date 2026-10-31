@@ -181,9 +181,9 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.1",
+  version: "0.2",
   id: "office-day",
-  name: "Ordinary workday, 13 people",
+  name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
   workday: { start: "08:30", end: "17:30" },
   teams: [
@@ -193,14 +193,21 @@ const officeScenario: Scenario = {
   ],
   people,
   meetings: [
-    { id: "m-ops", spaceId: "meeting", start: "10:00", durationMin: 45, attendeeIds: ["p-m", ...team("ops")] },
+    { id: "m-ops", spaceId: "meeting", start: "10:00", durationMin: 45, attendeeIds: ["p-m", ...team("ops"), "v-client"] },
     { id: "m-sales", spaceId: "meeting", start: "14:00", durationMin: 60, attendeeIds: ["p-m", ...team("sales")] },
   ],
   rates: { toiletVisitsPerDay: 4, pantryVisitsPerDay: 3 },
+  // 40% eat in the pantry, 30% go out, the rest at their desk.
+  lunch: { windowStart: "12:00", windowEnd: "13:00", durationMin: 45, pantryShare: 0.4, outShare: 0.3 },
+  visitors: [
+    // A client for the ops meeting, and a supplier who sees the manager in their office.
+    { id: "v-client", arrive: "09:50", waitMin: 5, spaceId: "meeting", durationMin: 50 },
+    { id: "v-supplier", arrive: "15:00", waitMin: 10, spaceId: "manager", durationMin: 30 },
+  ],
 };
 
 const sealedScenario: Scenario = {
-  version: "0.1",
+  version: "0.2",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
