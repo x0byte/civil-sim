@@ -327,7 +327,8 @@
       ],
       "doorIds": [
         "d-pantry"
-      ]
+      ],
+      "capacity": 4
     },
     {
       "id": "toilet",

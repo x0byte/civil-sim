@@ -1,8 +1,8 @@
-// Simulation results contract, v0.2.
+// Simulation results contract, v0.3.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.2";
+export const RESULTS_VERSION = "0.3";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -30,7 +30,9 @@ export type Activity =
   /** Eating lunch in a pantry. Lunch outside is "absent"; lunch at the desk is "at_desk". */
   | "lunch"
   /** Visitor waiting at reception. */
-  | "waiting";
+  | "waiting"
+  /** Waiting at the door of a full toilet or pantry. */
+  | "queuing";
 
 /**
  * A person's path through the day, as keyframes.
@@ -71,7 +73,11 @@ export type SimEventType =
   | "lunch_start"
   | "lunch_end"
   | "visitor_arrive"
-  | "visitor_leave";
+  | "visitor_leave"
+  | "queue_start"
+  | "queue_end"
+  /** Waited the maximum time at a full room and went back without using it. */
+  | "gave_up";
 
 export interface SimEvent {
   t: number;
@@ -101,6 +107,20 @@ export interface Metrics {
    * inside its outline at once, and the first time `t` that happened. 0 and t = 0 if never used.
    */
   peakOccupancy: { spaceId: string; peak: number; t: number }[];
+  /** One entry per toilet or pantry that has a capacity, in plan order. */
+  queues: QueueMetrics[];
+}
+
+export interface QueueMetrics {
+  spaceId: string;
+  /** Distinct people who had to queue at least once. */
+  peopleWhoWaited: number;
+  /** Total seconds spent queuing, everyone together. */
+  totalWaitS: number;
+  /** The single longest wait, in seconds. */
+  longestWaitS: number;
+  /** Times someone waited the maximum and gave up. */
+  gaveUp: number;
 }
 
 export interface PersonMetrics {

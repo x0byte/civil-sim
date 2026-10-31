@@ -1,9 +1,9 @@
-// Scenario contract, v0.2: who is in the building and what their day looks like.
+// Scenario contract, v0.3: who is in the building and what their day looks like.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.2";
+export const SCENARIO_VERSION = "0.3";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -27,6 +27,13 @@ export interface Scenario {
   lunch?: Lunch;
   /** People without desks who come in for part of the day. Omitted means none. */
   visitors?: Visitor[];
+  /** How queues at full toilets and pantries behave. Omitted means maxWaitMin 10. */
+  queueing?: Queueing;
+}
+
+/** Someone who finds a toilet or pantry full waits at its door for up to `maxWaitMin`, then gives up and returns. */
+export interface Queueing {
+  maxWaitMin: number;
 }
 
 /**

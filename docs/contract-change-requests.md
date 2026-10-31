@@ -46,7 +46,7 @@ Template:
 
 ## v0.3: Queues at toilets and pantries
 - Requested by: Claude, 2026-11-01
-- Status: open
+- Status: **approved** by the product owner, 2026-11-01
 
 **In plain words.** Today, if a toilet holds 2 people, a third walks straight in anyway. In real life they wait at the door. With queues, the simulation can answer questions clients actually ask: *"Do we have enough toilets for 40 people?"*, *"How long do people wait for the pantry at lunch?"*. People who wait too long give up and go back to their desk (and count as "gave up").
 

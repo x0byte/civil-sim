@@ -79,7 +79,11 @@ export interface Space {
    * onto its neighbour with no wall (e.g. reception into open office).
    */
   doorIds: string[];
-  /** Max people at once (meeting rooms, toilets). Optional. */
+  /**
+   * Max people at once. Optional; missing means no limit.
+   * Toilets and pantries: anyone beyond this queues at the door (contract v0.3).
+   * Meeting rooms: a warning only; meetings are not queued.
+   */
   capacity?: number;
 }
 

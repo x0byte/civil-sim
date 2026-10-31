@@ -44,7 +44,8 @@ export type IssueCode =
   | "unknown_desk"
   | "not_a_meeting_room"
   | "lunch"
-  | "visitor";
+  | "visitor"
+  | "queueing";
 
 export interface ValidationIssue {
   code: IssueCode;
@@ -201,6 +202,8 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
       err("lunch", "lunch pantryShare and outShare must be 0–1 and add up to at most 1");
     }
   }
+
+  if (scenario.queueing && !(scenario.queueing.maxWaitMin >= 0)) err("queueing", "queueing maxWaitMin must be zero or more");
 
   if (plan) {
     const desks = new Set(plan.fixtures.filter((f) => f.type === "desk").map((f) => f.id));

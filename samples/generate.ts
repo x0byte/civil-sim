@@ -135,7 +135,16 @@ const meeting: StripRoom = {
   doorWidth: 1.2,
   capacity: 8,
 };
-const pantry: StripRoom = { id: "pantry", name: "Pantry", type: "pantry", privacy: "shared", x0: 14, x1: 18, doorOffset: 16 };
+const pantry: StripRoom = {
+  id: "pantry",
+  name: "Pantry",
+  type: "pantry",
+  privacy: "shared",
+  x0: 14,
+  x1: 18,
+  doorOffset: 16,
+  capacity: 4,
+};
 
 const officeA = office("office-a", "Office A: toilet beside manager", [
   manager,
@@ -181,7 +190,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.2",
+  version: "0.3",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -204,10 +213,11 @@ const officeScenario: Scenario = {
     { id: "v-client", arrive: "09:50", waitMin: 5, spaceId: "meeting", durationMin: 50 },
     { id: "v-supplier", arrive: "15:00", waitMin: 10, spaceId: "manager", durationMin: 30 },
   ],
+  queueing: { maxWaitMin: 10 },
 };
 
 const sealedScenario: Scenario = {
-  version: "0.2",
+  version: "0.3",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,

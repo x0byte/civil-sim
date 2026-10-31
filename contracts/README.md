@@ -1,4 +1,4 @@
-# Contracts (v0.2)
+# Contracts (v0.3)
 
 These files define how the parts of civil-sim talk to each other. The editor and the
 engine are built separately, by different agents, and only ever meet here.
@@ -25,6 +25,7 @@ engine are built separately, by different agents, and only ever meet here.
 - **Every number shown to a user is traceable.** Results carry an `assumptions` list in plain language.
 
 ## Version history
+- **v0.3** (scenario, results): queues at full toilets and pantries (`queueing`, `"queuing"`, queue events, `queues` metrics). Floor plan v0.1: `capacity` now limits toilets and pantries.
 - **v0.2** (scenario, results): lunch break, visitors, `Track.kind`, `peakOccupancy`; validation issues with codes. Floor plan unchanged at v0.1.
 - **v0.1**: first version.
 

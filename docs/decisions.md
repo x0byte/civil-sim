@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Contract v0.3 (queues)
+- **Approved: toilets and pantries with a capacity make people queue at the door; they give up after a set wait** (default 10 minutes) and go back to their desk. Results gain a `queues` measure (who waited, total and longest wait, how many gave up). Meeting rooms keep capacity as a warning only. *(Product owner)*
+- **Spreading people across a room** (instead of everyone on its centre point) goes to the engine without a contract change. *(Claude)*
+- **v0.3 lives on branch `contracts/v0.3-queues` until the engine supports it.** Sample pantry now holds 4. *(Claude)*
+
 ## 2026-11-01: Project files
 - **"Save file" now saves a project (`.civilsim.json`): the plan with its traced image, its People settings, and the saved options.** It's an app format, not a contract; the engine only sees the plan and scenario inside it. *(Product owner asked for it; Claude designed it)*
 - **"Open file" opens projects and plain floor plans**, so older saves and the sample files still work. Damaged parts are left out with a note instead of refusing the whole file. *(Claude)*
