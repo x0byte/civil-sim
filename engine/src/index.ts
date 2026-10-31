@@ -1,4 +1,4 @@
-import type { FloorPlan } from "../../contracts/floorplan.ts";
+import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import { RESULTS_VERSION } from "../../contracts/results.ts";
 import type { SimEvent, SimulationResult, Track, Warning } from "../../contracts/results.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
@@ -11,6 +11,8 @@ import { runSchedules } from "./modules/queues.ts";
 import type { Admission, PersonSchedule, RoomRequest } from "./modules/queues.ts";
 import { RoomMovementDenied } from "./modules/movement.ts";
 import { RoomSpots } from "./modules/spots.ts";
+import { rasterise } from "./modules/grid.ts";
+import { Pathfinder } from "./modules/pathfinding.ts";
 
 export class SimulationInputError extends Error {
   readonly errors: string[];
@@ -21,19 +23,36 @@ export class SimulationInputError extends Error {
   }
 }
 
-/** Pure, synchronous, browser-compatible simulation. Neither input is mutated. */
-export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult {
-  // The brief explicitly requires a warning for missing exterior doors; the shared
-  // validator classifies this single condition as an error. All other errors throw.
-  const errors = [
-    ...checkFloorPlan(plan).filter((issue) => issue.code !== "no_exterior_door").map((issue) => `Floor plan: ${issue.message}`),
-    ...checkScenario(scenario, plan).map((issue) => `Scenario: ${issue.message}`),
-  ];
+/**
+ * Symmetric walking distances in metres between exact endpoints. The diagonal is
+ * zero; other entries are null when either endpoint is blocked or disconnected.
+ * Entrances and attendance are not needed. Queue waiting/detours are not included.
+ */
+export function walkingDistances(plan: FloorPlan, points: Vec2[]): (number | null)[][] {
+  const errors = floorPlanErrors(plan);
+  if (errors.length) throw new SimulationInputError(errors);
+  return new Pathfinder(rasterise(plan)).distances(points);
+}
+
+function floorPlanErrors(plan: FloorPlan): string[] {
+  const errors = checkFloorPlan(plan).filter((issue) => issue.code !== "no_exterior_door").map((issue) => `Floor plan: ${issue.message}`);
   const finite = (value: number, label: string) => { if (!Number.isFinite(value)) errors.push(`${label} must be finite`); };
   finite(plan.bounds.width, "Plan width");
   finite(plan.bounds.height, "Plan height");
   for (const wall of plan.walls) { finite(wall.thickness, `Wall ${wall.id} thickness`); finite(wall.height, `Wall ${wall.id} height`); }
   for (const opening of plan.openings) { finite(opening.offset, `Opening ${opening.id} offset`); finite(opening.width, `Opening ${opening.id} width`); }
+  return errors;
+}
+
+/** Pure, synchronous, browser-compatible simulation. Neither input is mutated. */
+export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult {
+  // The brief explicitly requires a warning for missing exterior doors; the shared
+  // validator classifies this single condition as an error. All other errors throw.
+  const errors = [
+    ...floorPlanErrors(plan),
+    ...checkScenario(scenario, plan).map((issue) => `Scenario: ${issue.message}`),
+  ];
+  const finite = (value: number, label: string) => { if (!Number.isFinite(value)) errors.push(`${label} must be finite`); };
   for (const meeting of scenario.meetings) finite(meeting.durationMin, `Meeting ${meeting.id} duration`);
   finite(scenario.rates.toiletVisitsPerDay, "Toilet visit rate");
   finite(scenario.rates.pantryVisitsPerDay, "Pantry visit rate");

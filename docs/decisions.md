@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Walking-distance engine API
+- **Export `walkingDistances(plan, points)` alongside `simulate`, with no contract change.** Both use canonical, shared 8-way source searches and the same wall-safe simplification, so one search per source supplies a symmetric distance matrix. Zero takes precedence on the diagonal; blocked/disconnected off-diagonal entries are `null`, and entrances are unnecessary. Queue detours are scenario-dependent and excluded. Source-tree tie choices can slightly change route-derived numbers. Strict unused-code checks now match the app build. *(Codex, implementing the walking-distance brief; API and performance details in `engine/README.md`)*
+
 ## 2026-11-01: Smarter plan input
 - **DXF import (AutoCAD) through "Open file".** Straight lines (LINE, LWPOLYLINE, POLYLINE) on the chosen layers become walls; layers named like walls are pre-selected; units come from the file or the user picks them. Walls drawn as two parallel lines 5–60 cm apart become one wall with that thickness, and corners are joined where centre lines cross. Blocks, arcs, text and hatches are skipped. Our own small reader, no dependency (the only library hasn't been updated since 2022). Binary DXF isn't supported. *(Claude)*
 - **"Find walls in image" for traced plans.** Finds thick dark horizontal and vertical bands and suggests them as walls (dashed orange) to add or discard; thin lines (dimensions, text, furniture) are skipped. Straight horizontal and vertical walls only; diagonal and curved walls are still traced by hand. *(Claude)*
