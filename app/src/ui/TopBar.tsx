@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
+import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { runDay } from "../sim/runDay.ts";
@@ -23,21 +23,30 @@ export function TopBar() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
 
-  const exportPlan = () => {
-    const blob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" });
+  const saveProject = () => {
+    const { options, profiles } = useEditor.getState();
+    const file = buildProject(plan, options, profiles);
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${plan.name.replace(/[^\w-]+/g, "-").toLowerCase() || "floor-plan"}.floorplan.json`;
+    a.download = projectFileName(plan);
     a.click();
     URL.revokeObjectURL(a.href);
+    const n = options.length;
+    notify(`Saved ${a.download}: the plan, its People settings${n ? ` and ${n} saved option${n > 1 ? "s" : ""}` : ""}.`);
   };
 
-  const importPlan = async (file: File) => {
+  const openFile = async (file: File) => {
     try {
-      const data = JSON.parse(await file.text()) as FloorPlan;
-      if (data?.version !== "0.1" || !Array.isArray(data.walls)) throw new Error("not a civil-sim floor plan");
-      load(data);
-      notify(`Opened ${data.name}.`);
+      const opened = parseProjectOrPlan(await file.text());
+      if (opened.kind === "project") {
+        useEditor.getState().openProject(opened.project);
+        const n = opened.project.options.length;
+        notify([`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "));
+      } else {
+        load(opened.plan);
+        notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
+      }
     } catch (e) {
       notify(`Couldn't open that file: ${(e as Error).message}.`);
     }
@@ -84,8 +93,10 @@ export function TopBar() {
             </option>
           ))}
         </select>
-        <button onClick={() => importRef.current?.click()}>Open file</button>
-        <button onClick={exportPlan}>Save file</button>
+        <button onClick={() => importRef.current?.click()} title="Open a civil-sim project or floor plan file">
+          Open file
+        </button>
+        <button onClick={saveProject} title="Save the plan, its People settings and saved options in one file">Save file</button>
         <button onClick={() => imageRef.current?.click()} className="primary-ghost" title="Upload a floor plan image to trace over">
           Trace image
         </button>
@@ -96,7 +107,7 @@ export function TopBar() {
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) importPlan(f);
+            if (f) openFile(f);
             e.target.value = "";
           }}
         />

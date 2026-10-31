@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Project files
+- **"Save file" now saves a project (`.civilsim.json`): the plan with its traced image, its People settings, and the saved options.** It's an app format, not a contract; the engine only sees the plan and scenario inside it. *(Product owner asked for it; Claude designed it)*
+- **"Open file" opens projects and plain floor plans**, so older saves and the sample files still work. Damaged parts are left out with a note instead of refusing the whole file. *(Claude)*
+- **Opening a project adds its options to the saved list instead of replacing it**, so nothing already saved in the browser is lost. *(Claude)*
+
 ## 2026-11-01: Engine v0.2 merged
 - **Reviewed and merged Codex's engine v0.2.** Independent checks: no path crosses a wall (staff or visitors), results repeat exactly, visitors follow reception → meeting → leave, lunch splits between pantry, out and desk, assumptions now read in plain language. *(Claude, approved by product owner)*
 - **Follow-up for the engine:** people going to the same room all stand on its centre point, so five people at lunch look like one dot. Spread them across the room's usable area. *(Open)*

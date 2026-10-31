@@ -68,6 +68,11 @@ interface EditorState {
   setHeat: (heat: HeatMode) => void;
   setProfile: (planId: string, profile: OfficeProfile | null) => void;
   setSidebarTab: (tab: "plan" | "people") => void;
+  /**
+   * Opens a project: its plan replaces the current one, its People settings are applied,
+   * and its options are added to the saved list (existing options are kept).
+   */
+  openProject: (project: { plan: FloorPlan; options: LayoutOption[]; people: Record<string, OfficeProfile> }) => void;
 }
 
 function loadSaved(): FloorPlan | null {
@@ -190,6 +195,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
     }
   },
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+  openProject: ({ plan, options, people }) => {
+    const s = get();
+    s.load(plan);
+    for (const [planId, profile] of Object.entries(people)) s.setProfile(planId, profile);
+    const known = new Set(s.options.map((o) => o.id));
+    const merged = [...s.options, ...options.filter((o) => !known.has(o.id))];
+    set({ options: merged });
+    saveOptions(merged);
+  },
   saveOption: (name) => {
     const { plan, options, notify } = get();
     const option: LayoutOption = { id: `opt-${Date.now().toString(36)}`, name, plan, savedAt: Date.now() };

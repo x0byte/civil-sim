@@ -24,7 +24,7 @@ side by side with the same people.
 Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare layouts**.
 
 **Phase 1: corporate offices**
-1. **Office population profile:** ✓ departments, managers, seating, hybrid attendance, team and joint meetings, lunch breaks, visitors. Next: arrival patterns; save people with the plan in a project file.
+1. **Office population profile:** ✓ departments, managers, seating, hybrid attendance, team and joint meetings, lunch breaks, visitors. ✓ saved with the plan in a project file. Next: arrival patterns.
 2. **Office measures that matter:** distance between teams that work together, interruptions at focus areas, meeting-room shortage, queues at toilets and pantries.
 3. **Plain-language messages and assumptions** for builders and clients.
 4. **Smarter input:** automatic wall suggestions from images, DXF import.
