@@ -7,7 +7,7 @@ needs, run a workday, and see how they move and where the layout causes problems
 bottlenecks, a toilet that sends everyone past the manager's door. Then compare two layouts
 side by side with the same people.
 
-**Status:** setup. Contracts v0.1 and sample buildings are in place; the editor and the engine have not been built yet.
+**Status:** M1 editor built (`app/`). Engine core in progress (`engine/`, Codex).
 
 ## Layout
 
@@ -31,6 +31,7 @@ side by side with the same people.
 ## Commands
 
 ```bash
-npm install
-npm run check:contracts
+npm install && npm run check:contracts   # contracts
+cd app && npm install && npm run dev      # editor at http://localhost:5173
+cd app && npm test                        # editor tests
 ```
