@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
-import type { Activity } from "../../../contracts/results.ts";
+import type { Activity, SimulationResult } from "../../../contracts/results.ts";
 import { PlanDrawing } from "../editor/PlanDrawing.tsx";
-import { type Camera, useCamera } from "../editor/useCamera.ts";
+import { type Camera, type Insets, useCamera } from "../editor/useCamera.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
+import { useEditor } from "../state/store.ts";
 import { ACTIVITY_STYLE, HEAT_GRADIENT, heatColor } from "./colors.ts";
 import { type Pose, clockAt, poseAt } from "./tracks.ts";
 
-type HeatMode = "off" | "footfall" | "dwell";
-
-/** Room for the legend (left), the heatmap switch (top) and the timeline (bottom). */
-const PLAYBACK_INSETS = { top: 64, right: 32, bottom: 84, left: 220 };
+export type HeatMode = "off" | "footfall" | "dwell";
 
 const SPEEDS = [
   { label: "1 min/s", value: 60 },
@@ -23,23 +21,53 @@ const HEAT_LABEL: Record<Exclude<HeatMode, "off">, { title: string; unit: string
   dwell: { title: "Time spent", unit: "person-minutes" },
 };
 
+export const heatValues = (r: SimulationResult, mode: HeatMode) =>
+  mode === "off" ? null : mode === "footfall" ? r.heatmaps.footfall : r.heatmaps.dwellS;
+
+/** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
-  const { plan, result, scenario } = run;
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan, PLAYBACK_INSETS);
+  const clock = usePlayClock(run.result.durationS, run.result);
+  const heat = useEditor((s) => s.heat);
+  const setHeat = useEditor((s) => s.setHeat);
+  const values = heatValues(run.result, heat);
+  return (
+    <div className="canvas-wrap">
+      <PlanPlayer
+        run={run}
+        t={clock.t}
+        heat={heat}
+        heatMax={values ? Math.max(1, ...values) : 1}
+        insets={{ top: 64, right: 32, bottom: 84, left: 220 }}
+        legend
+      />
+      <div className="view-controls">
+        <HeatToggle value={heat} onChange={setHeat} />
+      </div>
+      <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} />
+    </div>
+  );
+}
+
+export interface PlayClock {
+  t: number;
+  setT: (t: number) => void;
+  playing: boolean;
+  toggle: () => void;
+  speed: number;
+  setSpeed: (s: number) => void;
+  durationS: number;
+}
+
+/** Simulation time that plays in real time at `speed` simulated seconds per second. Restarts when `resetKey` changes. */
+export function usePlayClock(durationS: number, resetKey: unknown): PlayClock {
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(300);
-  const [heat, setHeat] = useState<HeatMode>("footfall");
-  const [hover, setHover] = useState<{ x: number; y: number; text: string[] } | null>(null);
-  const pan = useRef<{ x: number; y: number; cam: Camera } | null>(null);
 
-  // Restart from the beginning whenever a new run arrives.
   useEffect(() => {
     setT(0);
     setPlaying(true);
-  }, [result]);
+  }, [resetKey]);
 
   useEffect(() => {
     if (!playing) return;
@@ -49,29 +77,104 @@ export function Playback({ run }: { run: SimRun }) {
       last = now;
       setT((prev) => {
         const next = prev + dt * speed;
-        if (next >= result.durationS) {
+        if (next >= durationS) {
           setPlaying(false);
-          return result.durationS;
+          return durationS;
         }
         return next;
       });
       raf = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, result.durationS]);
+  }, [playing, speed, durationS]);
+
+  const toggle = () => {
+    if (t >= durationS) setT(0);
+    setPlaying((p) => !p);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input, select, textarea, button")) return;
       if (e.key === " ") {
         e.preventDefault();
-        if (t >= result.durationS) setT(0);
-        setPlaying((p) => !p);
+        toggle();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, result.durationS]);
+  });
+
+  return { t, setT, playing, toggle, speed, setSpeed, durationS };
+}
+
+export function HeatToggle({ value, onChange }: { value: HeatMode; onChange: (m: HeatMode) => void }) {
+  return (
+    <div className="segmented">
+      {(["footfall", "dwell", "off"] as HeatMode[]).map((m) => (
+        <button key={m} className={value === m ? "active" : ""} onClick={() => onChange(m)}>
+          {m === "off" ? "No heatmap" : HEAT_LABEL[m].title}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Timeline({ clock, start, end }: { clock: PlayClock; start: string; end: string }) {
+  return (
+    <div className="timeline">
+      <button className="play" onClick={clock.toggle} title="Play / pause (Space)">
+        {clock.playing ? "❚❚" : "▶"}
+      </button>
+      <span className="clock">{clockAt(start, clock.t)}</span>
+      <input
+        type="range"
+        min={0}
+        max={clock.durationS}
+        step={30}
+        value={clock.t}
+        onChange={(e) => clock.setT(Number(e.target.value))}
+        aria-label="Time of day"
+      />
+      <span className="clock muted">{end}</span>
+      <select value={clock.speed} onChange={(e) => clock.setSpeed(Number(e.target.value))} aria-label="Playback speed">
+        {SPEEDS.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * One plan with its people at time `t` and an optional heatmap. Pans and zooms on its own.
+ * `heatMax` is passed in so two layouts side by side can share one colour scale.
+ */
+export function PlanPlayer({
+  run,
+  t,
+  heat,
+  heatMax,
+  insets,
+  legend,
+  title,
+}: {
+  run: SimRun;
+  t: number;
+  heat: HeatMode;
+  heatMax: number;
+  insets: Insets;
+  legend?: boolean;
+  title?: string;
+}) {
+  const { plan, result, scenario } = run;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan, insets);
+  const [hover, setHover] = useState<{ x: number; y: number; text: string[] } | null>(null);
+  const pan = useRef<{ x: number; y: number; cam: Camera } | null>(null);
 
   const people = useMemo(() => new Map(scenario.people.map((p) => [p.id, p])), [scenario]);
   const teams = useMemo(() => new Map(scenario.teams.map((x) => [x.id, x.name])), [scenario]);
@@ -82,8 +185,7 @@ export function Playback({ run }: { run: SimRun }) {
   const counts = new Map<Activity, number>();
   for (const p of poses) counts.set(p.pose.activity, (counts.get(p.pose.activity) ?? 0) + 1);
 
-  const heatValues = heat === "off" ? null : heat === "footfall" ? result.heatmaps.footfall : result.heatmaps.dwellS;
-  const heatMax = heatValues ? Math.max(1, ...heatValues) : 1;
+  const values = heatValues(result, heat);
   const g = result.heatmaps.grid;
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -107,10 +209,10 @@ export function Playback({ run }: { run: SimRun }) {
       });
       return;
     }
-    if (heatValues) {
+    if (values) {
       const c = Math.floor((at.x - g.originX) / g.cellSize);
       const row = Math.floor((at.y - g.originY) / g.cellSize);
-      const v = c >= 0 && row >= 0 && c < g.cols && row < g.rows ? heatValues[row * g.cols + c] : 0;
+      const v = c >= 0 && row >= 0 && c < g.cols && row < g.rows ? values[row * g.cols + c] : 0;
       if (v > 0) {
         const label = HEAT_LABEL[heat as Exclude<HeatMode, "off">];
         const shown = heat === "dwell" ? Math.round(v / 60) : v;
@@ -126,7 +228,6 @@ export function Playback({ run }: { run: SimRun }) {
       <svg
         ref={svgRef}
         className="canvas"
-        style={{ cursor: pan.current ? "grabbing" : "default" }}
         onPointerDown={(e) => {
           svgRef.current!.setPointerCapture(e.pointerId);
           pan.current = { x: e.clientX, y: e.clientY, cam };
@@ -143,9 +244,9 @@ export function Playback({ run }: { run: SimRun }) {
             underlaySize={null}
             muted
             underWalls={
-              heatValues && (
+              values && (
                 <g style={{ pointerEvents: "none" }} opacity={0.85}>
-                  {heatValues.map((v, i) =>
+                  {values.map((v, i) =>
                     v > 0 ? (
                       <rect
                         key={i}
@@ -175,6 +276,13 @@ export function Playback({ run }: { run: SimRun }) {
         </g>
       </svg>
 
+      {title && (
+        <div className="player-title">
+          {title}
+          <span className="muted"> · {poses.length} in the building</span>
+        </div>
+      )}
+
       {hover && (
         <div className="tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           {hover.text.map((line, i) => (
@@ -185,14 +293,7 @@ export function Playback({ run }: { run: SimRun }) {
         </div>
       )}
 
-      <div className="canvas-zoom">
-        <div className="segmented">
-          {(["footfall", "dwell", "off"] as HeatMode[]).map((m) => (
-            <button key={m} className={heat === m ? "active" : ""} onClick={() => setHeat(m)}>
-              {m === "off" ? "No heatmap" : HEAT_LABEL[m].title}
-            </button>
-          ))}
-        </div>
+      <div className="player-zoom">
         <button onClick={() => zoomBy(1.25)} title="Zoom in">
           +
         </button>
@@ -204,59 +305,46 @@ export function Playback({ run }: { run: SimRun }) {
         </button>
       </div>
 
-      <div className="legend">
-        <div className="legend-title">
-          {poses.length} of {result.tracks.length} people in the building
-        </div>
-        {Object.entries(ACTIVITY_STYLE).map(([key, s]) => (
-          <div key={key} className="legend-row">
-            <span className="swatch" style={{ background: s.color }} />
-            <span>{s.label}</span>
-            <span className="legend-count">{counts.get(key as Activity) ?? 0}</span>
-          </div>
-        ))}
-        {heatValues && (
-          <div className="legend-heat">
-            <div className="legend-title">{HEAT_LABEL[heat as Exclude<HeatMode, "off">].title} over the day</div>
-            <div className="heat-bar" style={{ background: HEAT_GRADIENT }} />
-            <div className="heat-scale">
-              <span>less</span>
-              <span>more</span>
-            </div>
-          </div>
-        )}
-      </div>
+      {legend && <Legend counts={counts} present={poses.length} total={result.tracks.length} heat={heat} />}
+    </div>
+  );
+}
 
-      <div className="timeline">
-        <button
-          className="play"
-          onClick={() => {
-            if (t >= result.durationS) setT(0);
-            setPlaying(!playing);
-          }}
-          title="Play / pause (Space)"
-        >
-          {playing ? "❚❚" : "▶"}
-        </button>
-        <span className="clock">{clockAt(scenario.workday.start, t)}</span>
-        <input
-          type="range"
-          min={0}
-          max={result.durationS}
-          step={30}
-          value={t}
-          onChange={(e) => setT(Number(e.target.value))}
-          aria-label="Time of day"
-        />
-        <span className="clock muted">{scenario.workday.end}</span>
-        <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Playback speed">
-          {SPEEDS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </div>
+export function Legend({
+  counts,
+  present,
+  total,
+  heat,
+}: {
+  counts: Map<Activity, number> | null;
+  present: number | null;
+  total: number | null;
+  heat: HeatMode;
+}) {
+  return (
+    <div className="legend">
+      {present !== null && (
+        <div className="legend-title">
+          {present} of {total} people in the building
+        </div>
+      )}
+      {Object.entries(ACTIVITY_STYLE).map(([key, s]) => (
+        <div key={key} className="legend-row">
+          <span className="swatch" style={{ background: s.color }} />
+          <span>{s.label}</span>
+          {counts && <span className="legend-count">{counts.get(key as Activity) ?? 0}</span>}
+        </div>
+      ))}
+      {heat !== "off" && (
+        <div className="legend-heat">
+          <div className="legend-title">{HEAT_LABEL[heat].title} over the day</div>
+          <div className="heat-bar" style={{ background: HEAT_GRADIENT }} />
+          <div className="heat-scale">
+            <span>less</span>
+            <span>more</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,12 +2,22 @@ import { create } from "zustand";
 import type { FixtureType, FloorPlan } from "../../../contracts/floorplan.ts";
 import { type ItemRef, normalize } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
-import type { SimRun } from "../sim/runSimulation.ts";
+import type { HeatMode } from "../playback/Playback.tsx";
+import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
 export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "calibrate";
-export type ViewMode = "2d" | "3d" | "sim";
+export type ViewMode = "2d" | "3d" | "sim" | "compare";
+
+/** A saved copy of a layout, so design options can be compared. */
+export interface LayoutOption {
+  id: string;
+  name: string;
+  plan: FloorPlan;
+  savedAt: number;
+}
 
 const AUTOSAVE_KEY = "civil-sim:plan";
+const OPTIONS_KEY = "civil-sim:options";
 const HISTORY_LIMIT = 100;
 
 interface EditorState {
@@ -23,6 +33,10 @@ interface EditorState {
   toast: string | null;
   /** Latest simulation run. Kept when the plan changes so the user can see it's out of date. */
   run: SimRun | null;
+  comparison: Comparison | null;
+  options: LayoutOption[];
+  /** Heatmap shown in the simulation and compare views. */
+  heat: HeatMode;
 
   /** Applies an edit as one undoable step. */
   commit: (fn: (plan: FloorPlan) => FloorPlan) => void;
@@ -41,6 +55,11 @@ interface EditorState {
   setFixtureType: (type: FixtureType) => void;
   notify: (msg: string | null) => void;
   setRun: (run: SimRun | null) => void;
+  setComparison: (comparison: Comparison | null) => void;
+  /** Saves a copy of the current plan under `name`. */
+  saveOption: (name: string) => void;
+  deleteOption: (id: string) => void;
+  setHeat: (heat: HeatMode) => void;
 }
 
 function loadSaved(): FloorPlan | null {
@@ -49,6 +68,25 @@ function loadSaved(): FloorPlan | null {
     return raw ? (JSON.parse(raw) as FloorPlan) : null;
   } catch {
     return null;
+  }
+}
+
+function loadOptions(): LayoutOption[] {
+  try {
+    const raw = localStorage.getItem(OPTIONS_KEY);
+    return raw ? (JSON.parse(raw) as LayoutOption[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Options are saved without their traced image to stay inside browser storage limits. */
+function saveOptions(options: LayoutOption[]): boolean {
+  try {
+    localStorage.setItem(OPTIONS_KEY, JSON.stringify(options.map((o) => ({ ...o, plan: { ...o.plan, underlay: undefined } }))));
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -79,6 +117,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
   fixtureType: "desk",
   toast: null,
   run: null,
+  comparison: null,
+  options: loadOptions(),
+  heat: "footfall",
 
   commit: (fn) => {
     const { plan, past } = get();
@@ -91,7 +132,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
   },
   drag: (fn) => set({ plan: normalize(fn(get().plan)) }),
   load: (plan) =>
-    set({ plan: normalize(plan), past: [], future: [], selection: null, tool: "select", run: null, view: get().view === "sim" ? "2d" : get().view }),
+    set({
+      plan: normalize(plan),
+      past: [],
+      future: [],
+      selection: null,
+      tool: "select",
+      run: null,
+      view: get().view === "sim" || get().view === "compare" ? "2d" : get().view,
+    }),
   undo: () => {
     const { plan, past, future } = get();
     if (!past.length) return;
@@ -109,6 +158,20 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setGridSize: (gridSize) => set({ gridSize }),
   setFixtureType: (fixtureType) => set({ fixtureType, tool: "fixture" }),
   setRun: (run) => set({ run }),
+  setComparison: (comparison) => set({ comparison }),
+  setHeat: (heat) => set({ heat }),
+  saveOption: (name) => {
+    const { plan, options, notify } = get();
+    const option: LayoutOption = { id: `opt-${Date.now().toString(36)}`, name, plan, savedAt: Date.now() };
+    const next = [...options, option];
+    set({ options: next });
+    notify(saveOptions(next) ? `Saved "${name}". Use Compare to put it side by side with another layout.` : `Saved "${name}" for this session only (browser storage is full).`);
+  },
+  deleteOption: (id) => {
+    const next = get().options.filter((o) => o.id !== id);
+    set({ options: next });
+    saveOptions(next);
+  },
   notify: (toast) => {
     clearTimeout(toastTimer);
     set({ toast });

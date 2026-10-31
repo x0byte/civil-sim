@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
+import { CompareDialog } from "../playback/Compare.tsx";
 import { runDay } from "../sim/runDay.ts";
 import { useEditor } from "../state/store.ts";
 import { useProblems } from "./Problems.tsx";
@@ -12,11 +13,15 @@ export function TopBar() {
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const hasRun = useEditor((s) => s.run !== null);
+  const hasComparison = useEditor((s) => s.comparison !== null);
+  const options = useEditor((s) => s.options);
   const { load, undo, redo, setView, commit, notify, setTool } = useEditor.getState();
   const { errors } = useProblems();
   const importRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const exportPlan = () => {
     const blob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" });
@@ -81,8 +86,8 @@ export function TopBar() {
         </select>
         <button onClick={() => importRef.current?.click()}>Open file</button>
         <button onClick={exportPlan}>Save file</button>
-        <button onClick={() => imageRef.current?.click()} className="primary-ghost">
-          Upload plan image
+        <button onClick={() => imageRef.current?.click()} className="primary-ghost" title="Upload a floor plan image to trace over">
+          Trace image
         </button>
         <input
           ref={importRef}
@@ -119,15 +124,17 @@ export function TopBar() {
 
       <div className="spacer" />
 
-      <span className={errors.length ? "status bad" : "status good"} title={errors.join("\n")}>
-        {errors.length ? `${errors.length} to fix` : "Plan is valid"}
-      </span>
-
+      <button onClick={() => setSaveOpen(true)} title="Keep a copy of this layout to compare against later">
+        Save option
+      </button>
+      <button onClick={() => setCompareOpen(true)} title="Run the same people through two layouts side by side">
+        Compare
+      </button>
       <button
         className="primary"
         onClick={runDay}
         disabled={errors.length > 0}
-        title={errors.length ? "Fix the problems listed on the right first" : "Simulate a workday in this layout"}
+        title={errors.length ? `Fix ${errors.length} problem${errors.length > 1 ? "s" : ""} first (listed on the right)` : "Simulate a workday in this layout"}
       >
         ▶ Run day
       </button>
@@ -142,8 +149,22 @@ export function TopBar() {
         <button className={view === "sim" ? "active" : ""} onClick={() => setView("sim")} disabled={!hasRun}>
           Simulation
         </button>
+        <button className={view === "compare" ? "active" : ""} onClick={() => setView("compare")} disabled={!hasComparison}>
+          Comparison
+        </button>
       </div>
 
+      {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
+      {saveOpen && (
+        <SaveOptionDialog
+          suggested={`Option ${options.length + 1}`}
+          onCancel={() => setSaveOpen(false)}
+          onSave={(name) => {
+            useEditor.getState().saveOption(name);
+            setSaveOpen(false);
+          }}
+        />
+      )}
       {newOpen && (
         <NewPlanDialog
           onCancel={() => setNewOpen(false)}
@@ -200,6 +221,63 @@ function NewPlanDialog({ onCreate, onCancel }: { onCreate: (name: string, w: num
           </button>
           <button type="submit" className="primary" disabled={!ok}>
             Create
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SaveOptionDialog({ suggested, onSave, onCancel }: { suggested: string; onSave: (name: string) => void; onCancel: () => void }) {
+  const [name, setName] = useState(suggested);
+  const options = useEditor((s) => s.options);
+  const { deleteOption, load } = useEditor.getState();
+  return (
+    <div className="backdrop" onClick={onCancel}>
+      <form
+        className="dialog"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onSave(name.trim());
+        }}
+      >
+        <h3>Save this layout as an option</h3>
+        <p>Keeps a copy of the plan as it is now. Keep editing, save another option, then compare them.</p>
+        <label>
+          Name
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        {options.length > 0 && (
+          <div className="option-list">
+            <span className="muted">Saved options</span>
+            {options.map((o) => (
+              <div key={o.id} className="option-row">
+                <span>{o.name}</span>
+                <span className="row-buttons">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      load(o.plan);
+                      onCancel();
+                    }}
+                  >
+                    Open
+                  </button>
+                  <button type="button" className="danger" onClick={() => deleteOption(o.id)}>
+                    Delete
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="dialog-actions">
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="submit" className="primary" disabled={!name.trim()}>
+            Save option
           </button>
         </div>
       </form>

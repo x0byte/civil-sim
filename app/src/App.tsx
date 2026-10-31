@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
+import { CompareResults, CompareView } from "./playback/Compare.tsx";
 import { Playback } from "./playback/Playback.tsx";
 import { ResultsPanel } from "./playback/ResultsPanel.tsx";
 import { runDay } from "./sim/runDay.ts";
@@ -15,6 +16,8 @@ export function App() {
   const toast = useEditor((s) => s.toast);
   const run = useEditor((s) => s.run);
   const sim = view === "sim" && run;
+  const comparison = useEditor((s) => s.comparison);
+  const cmp = view === "compare" && comparison;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,10 +51,14 @@ export function App() {
       <TopBar />
       <main className="workspace">
         {view === "2d" && <Toolbar />}
-        <div className="stage">{sim ? <Playback run={run} /> : view === "3d" ? <View3D /> : <Canvas2D />}</div>
-        <aside className="sidebar">
-          {sim ? (
-            <ResultsPanel run={run} onRerun={runDay} />
+        <div className="stage">
+          {cmp ? <CompareView comparison={cmp} /> : sim ? <Playback run={sim} /> : view === "3d" ? <View3D /> : <Canvas2D />}
+        </div>
+        <aside className={cmp ? "sidebar wide" : "sidebar"}>
+          {cmp ? (
+            <CompareResults comparison={cmp} />
+          ) : sim ? (
+            <ResultsPanel run={sim} onRerun={runDay} />
           ) : (
             <>
               <Inspector />

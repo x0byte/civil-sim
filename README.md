@@ -7,7 +7,7 @@ needs, run a workday, and see how they move and where the layout causes problems
 bottlenecks, a toilet that sends everyone past the manager's door. Then compare two layouts
 side by side with the same people.
 
-**Status:** M1 editor and M2 playback built; Run day uses the simulation engine (`engine/`). Next: M3, comparing two layouts.
+**Status:** M1 editor, M2 playback and M3 layout comparison built, running on the simulation engine (`engine/`). Next: the office population profile.
 
 ## Layout
 
@@ -21,14 +21,13 @@ side by side with the same people.
 
 ## Roadmap
 
-Done: **M1 editor**, **M2 playback** with the simulation engine.
+Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare layouts**.
 
 **Phase 1: corporate offices**
-1. **M3 Compare layouts:** same people, two designs, side by side with a scorecard.
-2. **Office population profile:** departments and their sizes, who works with whom, roles, hybrid attendance, visitors, arrival and lunch patterns, all adjustable in a People panel.
-3. **Office measures that matter:** distance between teams that work together, interruptions at focus areas, meeting-room shortage, queues at toilets and pantries.
-4. **Plain-language messages and assumptions** for builders and clients.
-5. **Smarter input:** automatic wall suggestions from images, DXF import.
+1. **Office population profile:** departments and their sizes, who works with whom, roles, hybrid attendance, visitors, arrival and lunch patterns, all adjustable in a People panel.
+2. **Office measures that matter:** distance between teams that work together, interruptions at focus areas, meeting-room shortage, queues at toilets and pantries.
+3. **Plain-language messages and assumptions** for builders and clients.
+4. **Smarter input:** automatic wall suggestions from images, DXF import.
 
 **Phase 2: shopping malls**
 - Multiple floors joined by stairs, escalators and lifts.

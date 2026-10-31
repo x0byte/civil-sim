@@ -673,3 +673,97 @@ button.danger {
   padding-left: 16px;
   line-height: 1.5;
 }
+
+/* comparison */
+.view-controls {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.view-controls .segmented {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+.view-controls .segmented button {
+  font-size: 12px;
+}
+.player-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 76px;
+  display: flex;
+  gap: 4px;
+}
+.player-zoom button {
+  min-width: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.player-title {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.player-title .muted {
+  font-weight: 400;
+}
+.compare-panes {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.compare-panes > .canvas-wrap {
+  position: relative;
+}
+.compare-panes > .canvas-wrap + .canvas-wrap {
+  border-left: 1px solid var(--line);
+}
+.compare-panes .player-title {
+  top: 56px;
+}
+.sidebar.wide {
+  width: 340px;
+}
+.sentences {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.scorecard td.win {
+  font-weight: 700;
+}
+.tick {
+  color: var(--good);
+}
+.legend-static .legend {
+  position: static;
+  border: none;
+  padding: 0;
+  background: none;
+}
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.option-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.dialog label > select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+}

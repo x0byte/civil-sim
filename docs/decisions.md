@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Comparing layouts (M3)
+- **Comparisons use the same people:** they're built from layout A's desks and seated in layout B (same desk if the id exists, otherwise a free desk, managers preferring private offices). Same seed and person ids mean the engine gives everyone the same random requests in both, so differences come from the layout. Anything that couldn't carry over is listed in plain words. *(Claude)*
+- **Both layouts share one heatmap colour scale**, so the same colour means the same amount in each. *(Claude)*
+- **"Save option" keeps copies of the current plan in the browser (without the traced image)** so design options can be compared without files. *(Claude)*
+- **The scorecard marks a winner only when a measure differs by 3% or more**, with a ✓ and bold text rather than colour alone. *(Claude)*
+
 ## 2026-11-01: Building types: offices first, then shopping malls
 - **Order: corporate offices, then shopping malls. Schools later** (bell-time surges and timetables make them trickier). *(Product owner)*
 - **Each building type is a "profile": a population template plus behaviour rules.** The building format, editor and viewer stay shared. Accuracy depends on both who the people are (population) and how they decide (behaviour), and both get checked against measured data from real buildings. *(Agreed)*
