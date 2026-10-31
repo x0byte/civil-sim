@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
 import { CompareResults, CompareView } from "./playback/Compare.tsx";
 import { Playback } from "./playback/Playback.tsx";
+import { PeoplePanel } from "./population/PeoplePanel.tsx";
 import { ResultsPanel } from "./playback/ResultsPanel.tsx";
 import { runDay } from "./sim/runDay.ts";
 import { useEditor } from "./state/store.ts";
@@ -18,6 +19,7 @@ export function App() {
   const sim = view === "sim" && run;
   const comparison = useEditor((s) => s.comparison);
   const cmp = view === "compare" && comparison;
+  const tab = useEditor((s) => s.sidebarTab);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,8 +63,22 @@ export function App() {
             <ResultsPanel run={sim} onRerun={runDay} />
           ) : (
             <>
-              <Inspector />
-              <Problems />
+              <div className="tabs">
+                <button className={tab === "plan" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("plan")}>
+                  Plan
+                </button>
+                <button className={tab === "people" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("people")}>
+                  People
+                </button>
+              </div>
+              {tab === "people" ? (
+                <PeoplePanel />
+              ) : (
+                <>
+                  <Inspector />
+                  <Problems />
+                </>
+              )}
             </>
           )}
         </aside>

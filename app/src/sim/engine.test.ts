@@ -3,12 +3,12 @@ import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { SimulationResult } from "../../../contracts/results.ts";
 import { pointAlong, solidSpans } from "../model/geometry.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
-import { autoScenario } from "./autoScenario.ts";
+import { defaultProfile, expandProfile } from "../population/officeProfile.ts";
 import { simulate } from "../../../engine/src/index.ts";
 
 const plan = (id: string) => SAMPLE_PLANS.find((s) => s.id === id)!.plan;
 // The editor sends the engine people built from its desks; check that pairing end to end.
-const run = (p: FloorPlan) => simulate(p, autoScenario(p));
+const run = (p: FloorPlan) => simulate(p, expandProfile(defaultProfile(p), p).scenario);
 
 function crosses(p1: Vec2, p2: Vec2, q1: Vec2, q2: Vec2): boolean {
   const o = (a: Vec2, b: Vec2, c: Vec2) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));

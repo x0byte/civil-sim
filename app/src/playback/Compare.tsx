@@ -37,7 +37,7 @@ export function CompareResults({ comparison }: { comparison: Comparison }) {
   const heat = useEditor((s) => s.heat);
   const rows = scoreRows(a, b);
   const sentences = summarySentences(a, b, labels);
-  const notes = [...a.notes, ...b.notes];
+  const notes = [...a.notes.map((n) => `${labels[0]}: ${n}`), ...b.notes.map((n) => `${labels[1]}: ${n}`)];
   return (
     <>
       <section className="panel">
@@ -59,7 +59,7 @@ export function CompareResults({ comparison }: { comparison: Comparison }) {
             <ul className="problems">
               {notes.map((n, i) => (
                 <li key={i} className="warning">
-                  {labels[1]}: {n}
+                  {n}
                 </li>
               ))}
             </ul>
@@ -137,7 +137,7 @@ export function CompareDialog({ onClose }: { onClose: () => void }) {
   const run = () => {
     const sa = sources.find((s) => s.key === aKey)!;
     const sb = sources.find((s) => s.key === bKey)!;
-    const out = runComparison(sa.plan, sb.plan, [short(sa), short(sb)]);
+    const out = runComparison(sa.plan, sb.plan, [short(sa), short(sb)], useEditor.getState().profiles[sa.plan.id]);
     if ("errors" in out) {
       notify(`Can't compare yet: ${out.errors[0]}`);
       return;
@@ -159,8 +159,8 @@ export function CompareDialog({ onClose }: { onClose: () => void }) {
       >
         <h3>Compare two layouts</h3>
         <p>
-          The same people spend the same day in both. They're taken from layout A's desks, so any difference in the
-          results comes from the layout.
+          The same people spend the same day in both. They come from layout A's People settings, so any difference
+          in the results comes from the layout.
         </p>
         <label>
           Layout A

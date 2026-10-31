@@ -19,6 +19,7 @@ import { PlanDrawing } from "./PlanDrawing.tsx";
 import { type SnapKind, snapPoint } from "./snap.ts";
 import { type Camera, useCamera } from "./useCamera.ts";
 import { useImageSize } from "./useImageSize.ts";
+import { useDeskColors } from "../population/PeoplePanel.tsx";
 
 type Drag =
   | { type: "pan"; startX: number; startY: number; cam: Camera }
@@ -64,6 +65,7 @@ export function Canvas2D() {
   const dragRef = useRef<Drag | null>(null);
   const spaceHeld = useRef(false);
   const underlaySize = useImageSize(plan.underlay?.image);
+  const deskColors = useDeskColors();
 
   useEffect(() => {
     setDraft([]);
@@ -355,7 +357,7 @@ export function Canvas2D() {
         }}
       >
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          <PlanDrawing plan={plan} scale={cam.s} selection={selection} underlaySize={underlaySize} />
+          <PlanDrawing plan={plan} scale={cam.s} selection={selection} underlaySize={underlaySize} deskColors={deskColors} />
 
           {/* drafts */}
           {draft.length > 0 && (

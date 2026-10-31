@@ -1,0 +1,280 @@
+// Office population profile: who works in the building, described the way a client
+// would ("Sales, 12 people, sits in the open office, 60% in today"), expanded into the
+// contract's Scenario (individual people at desks, scheduled meetings) for the engine.
+//
+// Kept in the app for now. When malls arrive it becomes a shared contract.
+
+import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
+import type { Meeting, Person, Scenario } from "../../../contracts/scenario.ts";
+
+export interface Department {
+  id: string;
+  name: string;
+  /** Everyone on the payroll, including managers. */
+  headcount: number;
+  /** How many of the headcount are managers. They prefer desks in private offices. */
+  managers: number;
+  /** Rooms the department sits in. */
+  roomIds: string[];
+  /** Whole-team meetings per day. */
+  teamMeetingsPerDay: number;
+}
+
+/** Two departments that work together, and how often they meet. */
+export interface Collaboration {
+  a: string;
+  b: string;
+  meetingsPerDay: number;
+}
+
+export interface OfficeProfile {
+  version: 1;
+  workday: { start: string; end: string };
+  /** Share of staff in the office on the simulated day (hybrid working), 0–1. */
+  attendance: number;
+  departments: Department[];
+  collaborations: Collaboration[];
+  rates: { toiletVisitsPerDay: number; pantryVisitsPerDay: number };
+  seed: number;
+}
+
+export interface Expansion {
+  scenario: Scenario;
+  /** Plain-language notes: desk shortages, meetings that didn't fit, etc. */
+  notes: string[];
+  /** Which department sits at each desk today. */
+  seating: Map<string, string>;
+  /** Per department: people in today and desks available in its rooms. */
+  demand: { departmentId: string; present: number; desks: number }[];
+}
+
+const TEAM_MEETING_MIN = 45;
+const DEFAULT_TEAM_SIZE = 6;
+const JOINT_MEETING_MIN = 30;
+const JOINT_PEOPLE_PER_SIDE = 3;
+const SLOT_MIN = 30;
+
+const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+const toClock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const deskSpaces = (plan: FloorPlan) => {
+  const spaces = new Map(plan.spaces.map((s) => [s.id, s]));
+  const desks = plan.fixtures.filter((f) => f.type === "desk" && spaces.has(f.spaceId)).sort(byId);
+  return { spaces, desks };
+};
+
+/** A starting profile from the plan: one department per room with desks, managers in private offices. */
+export function defaultProfile(plan: FloorPlan): OfficeProfile {
+  const { spaces, desks } = deskSpaces(plan);
+  const count = new Map<string, number>();
+  for (const d of desks) count.set(d.spaceId, (count.get(d.spaceId) ?? 0) + 1);
+  const rooms = [...count.keys()].map((id) => spaces.get(id)!);
+  const isPrivate = (s: Space) => s.type === "private_office";
+  const hasMeetingRoom = plan.spaces.some((s) => s.type === "meeting_room");
+
+  // Big rooms hold several teams in practice; split them so a team fits a meeting room.
+  const shared = rooms.filter((s) => !isPrivate(s));
+  const departments: Department[] = [];
+  for (const s of shared) {
+    const n = count.get(s.id)!;
+    const teams = Math.ceil(n / DEFAULT_TEAM_SIZE);
+    for (let k = 0; k < teams; k++) {
+      const size = Math.floor(n / teams) + (k < n % teams ? 1 : 0);
+      const base = shared.length > 1 ? s.name : "Team";
+      departments.push({
+        id: `dept-${departments.length + 1}`,
+        name: teams > 1 || shared.length === 1 ? `${base} ${shared.length > 1 ? k + 1 : departments.length + 1}` : base,
+        headcount: size,
+        managers: 0,
+        roomIds: [s.id],
+        teamMeetingsPerDay: hasMeetingRoom ? 1 : 0,
+      });
+    }
+  }
+  const privateRooms = rooms.filter(isPrivate);
+  if (privateRooms.length) {
+    const n = privateRooms.reduce((sum, s) => sum + count.get(s.id)!, 0);
+    departments.push({
+      id: `dept-${departments.length + 1}`,
+      name: "Management",
+      headcount: n,
+      managers: n,
+      roomIds: privateRooms.map((s) => s.id),
+      teamMeetingsPerDay: 0,
+    });
+  }
+  return {
+    version: 1,
+    workday: { start: "08:30", end: "17:30" },
+    attendance: 1,
+    departments,
+    collaborations: [],
+    rates: { toiletVisitsPerDay: 4, pantryVisitsPerDay: plan.spaces.some((s) => s.type === "pantry") ? 3 : 0 },
+    seed: 42,
+  };
+}
+
+/** Turns the profile into individual people at desks and a meeting timetable. Deterministic for a given seed. */
+export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioId = `profile-${plan.id}`): Expansion {
+  const notes: string[] = [];
+  const rnd = mulberry32(profile.seed);
+  const { spaces, desks } = deskSpaces(plan);
+  const taken = new Set<string>();
+  const seating = new Map<string, string>();
+  const people: Person[] = [];
+  const demand: Expansion["demand"] = [];
+  const deptNames = new Map(profile.departments.map((d) => [d.id, d.name]));
+
+  const freeIn = (roomIds: Set<string>, privateOnly = false) =>
+    desks.find(
+      (d) => !taken.has(d.id) && roomIds.has(d.spaceId) && (!privateOnly || spaces.get(d.spaceId)!.type === "private_office"),
+    );
+  const freeAnywhere = (privateOffice: boolean) =>
+    desks.find((d) => !taken.has(d.id) && (spaces.get(d.spaceId)!.type === "private_office") === privateOffice);
+  const allPrivate = new Set(plan.spaces.filter((s) => s.type === "private_office").map((s) => s.id));
+
+  for (const dept of profile.departments) {
+    const rooms = new Set(dept.roomIds.filter((id) => spaces.has(id)));
+    const deskCount = desks.filter((d) => rooms.has(d.spaceId)).length;
+    const headcount = Math.max(0, Math.round(dept.headcount));
+    const managers = Math.min(headcount, Math.max(0, Math.round(dept.managers)));
+    // Who is in today: each person independently, so attendance is realistic rather than exact.
+    const presentIdx: number[] = [];
+    for (let i = 0; i < headcount; i++) if (rnd() < profile.attendance) presentIdx.push(i);
+    demand.push({ departmentId: dept.id, present: presentIdx.length, desks: deskCount });
+
+    let outside = 0;
+    let unseated = 0;
+    for (const i of presentIdx) {
+      const role = i < managers ? "manager" : "staff";
+      const desk =
+        role === "manager"
+          ? (freeIn(rooms, true) ?? freeIn(allPrivate) ?? freeIn(rooms) ?? freeAnywhere(false))
+          : (freeIn(rooms) ?? freeAnywhere(false));
+      if (!desk) {
+        unseated++;
+        continue;
+      }
+      if (!rooms.has(desk.spaceId) && !(role === "manager" && allPrivate.has(desk.spaceId))) outside++;
+      taken.add(desk.id);
+      seating.set(desk.id, dept.id);
+      people.push({ id: `${dept.id}-${i + 1}`, teamId: dept.id, role, deskId: desk.id });
+    }
+    if (outside) notes.push(`${outside} ${dept.name} ${outside === 1 ? "person sits" : "people sit"} outside their own area (not enough desks there).`);
+    if (unseated) notes.push(`${unseated} ${dept.name} ${unseated === 1 ? "person has" : "people have"} no desk at all, so they're left out.`);
+  }
+
+  const meetings = scheduleMeetings(profile, plan, people, rnd, deptNames, notes);
+
+  return {
+    scenario: {
+      version: "0.1",
+      id: scenarioId,
+      name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
+      seed: profile.seed,
+      workday: profile.workday,
+      teams: profile.departments.map((d) => ({ id: d.id, name: d.name })),
+      people,
+      meetings,
+      rates: profile.rates,
+    },
+    notes,
+    seating,
+    demand,
+  };
+}
+
+interface Request {
+  label: string;
+  attendees: string[];
+  durationMin: number;
+}
+
+/**
+ * Books each meeting into the earliest half-hour slot where everyone is free and a room
+ * is big enough, preferring the smallest room that fits.
+ */
+function scheduleMeetings(
+  profile: OfficeProfile,
+  plan: FloorPlan,
+  people: Person[],
+  rnd: () => number,
+  deptNames: Map<string, string>,
+  notes: string[],
+): Meeting[] {
+  const rooms = plan.spaces
+    .filter((s) => s.type === "meeting_room")
+    .sort((a, b) => (a.capacity ?? 8) - (b.capacity ?? 8) || (a.id < b.id ? -1 : 1));
+  const members = (deptId: string) => people.filter((p) => p.teamId === deptId);
+  const pick = (list: Person[], n: number) => {
+    const managers = list.filter((p) => p.role === "manager");
+    const staff = list.filter((p) => p.role === "staff");
+    const shuffled = staff.map((p) => ({ p, k: rnd() })).sort((x, y) => x.k - y.k).map((x) => x.p);
+    return [...managers, ...shuffled].slice(0, n);
+  };
+
+  const requests: Request[] = [];
+  for (const d of profile.departments) {
+    const m = members(d.id);
+    if (m.length < 2) continue;
+    for (let i = 0; i < Math.round(d.teamMeetingsPerDay); i++) {
+      requests.push({ label: `${d.name} team meeting`, attendees: m.map((p) => p.id), durationMin: TEAM_MEETING_MIN });
+    }
+  }
+  for (const c of profile.collaborations) {
+    if (c.a === c.b) continue;
+    for (let i = 0; i < Math.round(c.meetingsPerDay); i++) {
+      const attendees = [...pick(members(c.a), JOINT_PEOPLE_PER_SIDE), ...pick(members(c.b), JOINT_PEOPLE_PER_SIDE)].map((p) => p.id);
+      if (attendees.length < 2) continue;
+      requests.push({ label: `${deptNames.get(c.a)} + ${deptNames.get(c.b)}`, attendees, durationMin: JOINT_MEETING_MIN });
+    }
+  }
+  if (!requests.length) return [];
+  if (!rooms.length) {
+    notes.push(`There's no meeting room, so ${requests.length} meeting${requests.length > 1 ? "s" : ""} can't happen.`);
+    return [];
+  }
+
+  const dayStart = toMin(profile.workday.start) + 60;
+  const dayEnd = toMin(profile.workday.end) - 60;
+  const busyRoom = new Map<string, [number, number][]>();
+  const busyPerson = new Map<string, [number, number][]>();
+  const free = (list: [number, number][] | undefined, s: number, e: number) => !list?.some(([a, b]) => s < b && a < e);
+  const meetings: Meeting[] = [];
+  let unplaced = 0;
+
+  for (const r of requests) {
+    const fitting = rooms.filter((room) => (room.capacity ?? 8) >= r.attendees.length);
+    const candidates = fitting.length ? fitting : [rooms[rooms.length - 1]];
+    if (!fitting.length) {
+      const big = candidates[0];
+      notes.push(`${r.label} has ${r.attendees.length} people but the biggest meeting room (${big.name}) holds ${big.capacity ?? 8}.`);
+    }
+    let placed = false;
+    for (let s = dayStart; s + r.durationMin <= dayEnd && !placed; s += SLOT_MIN) {
+      const e = s + r.durationMin;
+      if (!r.attendees.every((id) => free(busyPerson.get(id), s, e))) continue;
+      const room = candidates.find((rm) => free(busyRoom.get(rm.id), s, e));
+      if (!room) continue;
+      busyRoom.set(room.id, [...(busyRoom.get(room.id) ?? []), [s, e]]);
+      for (const id of r.attendees) busyPerson.set(id, [...(busyPerson.get(id) ?? []), [s, e]]);
+      meetings.push({ id: `m-${meetings.length + 1}`, spaceId: room.id, start: toClock(s), durationMin: r.durationMin, attendeeIds: r.attendees });
+      placed = true;
+    }
+    if (!placed) unplaced++;
+  }
+  if (unplaced) notes.push(`${unplaced} meeting${unplaced > 1 ? "s" : ""} couldn't be booked: the meeting rooms are full all day.`);
+  return meetings;
+}

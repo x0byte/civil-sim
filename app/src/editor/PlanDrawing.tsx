@@ -16,6 +16,8 @@ interface Props {
   muted?: boolean;
   /** Drawn above the rooms but below walls and furniture (e.g. a heatmap). */
   underWalls?: React.ReactNode;
+  /** Fill colour per desk id, e.g. by department. */
+  deskColors?: Map<string, string>;
 }
 
 const pts = (poly: Vec2[]) => poly.map((p) => `${p.x},${p.y}`).join(" ");
@@ -25,7 +27,7 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors }: Props) {
   const px = (n: number) => n / scale;
   const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
@@ -108,7 +110,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
             {f.type === "desk" ? (
               <>
                 {/* rotation is the way the person faces: desk in front, chair behind */}
-                <rect x={-0.3} y={-0.6} width={0.6} height={1.2} rx={0.04} fill="var(--fixture)" stroke={stroke} strokeWidth={px(sel ? 2.5 : 1.2)} />
+                <rect x={-0.3} y={-0.6} width={0.6} height={1.2} rx={0.04} fill={deskColors?.get(f.id) ?? "var(--fixture)"} stroke={stroke} strokeWidth={px(sel ? 2.5 : 1.2)} />
                 <circle cx={-0.55} cy={0} r={0.2} fill="var(--paper)" stroke={stroke} strokeWidth={px(1.2)} />
               </>
             ) : (

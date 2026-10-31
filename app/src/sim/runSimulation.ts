@@ -3,7 +3,7 @@ import type { SimulationResult } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { validateFloorPlan, validateScenario } from "../../../contracts/validate.ts";
 import { SimulationInputError, simulate } from "../../../engine/src/index.ts";
-import { autoScenario } from "./autoScenario.ts";
+import { type OfficeProfile, defaultProfile, expandProfile } from "../population/officeProfile.ts";
 import { recastScenario } from "./comparison.ts";
 
 export interface SimRun {
@@ -11,7 +11,7 @@ export interface SimRun {
   scenario: Scenario;
   result: SimulationResult;
   runMs: number;
-  /** Plain-language notes about how people were seated in this layout (comparisons only). */
+  /** Plain-language notes about how people were seated in this layout. */
   notes: string[];
 }
 
@@ -32,9 +32,10 @@ function runWith(plan: FloorPlan, scenario: Scenario, notes: string[] = []): Out
   }
 }
 
-/** Runs a workday on the plan, with people built from its desks. */
-export function runSimulation(plan: FloorPlan): Outcome {
-  return runWith(plan, autoScenario(plan));
+/** Runs a workday on the plan with its population profile (or the default one built from its desks). */
+export function runSimulation(plan: FloorPlan, profile?: OfficeProfile): Outcome {
+  const x = expandProfile(profile ?? defaultProfile(plan), plan);
+  return runWith(plan, x.scenario, x.notes);
 }
 
 export interface Comparison {
@@ -43,14 +44,16 @@ export interface Comparison {
   labels: [string, string];
 }
 
-/** Runs the same people through two layouts. People come from layout A's desks. */
+/** Runs the same people through two layouts. People come from layout A's population profile. */
 export function runComparison(
   a: FloorPlan,
   b: FloorPlan,
   labels: [string, string],
+  profileA?: OfficeProfile,
 ): { comparison: Comparison } | { errors: string[] } {
-  const base = autoScenario(a);
-  const ra = runWith(a, base);
+  const x = expandProfile(profileA ?? defaultProfile(a), a);
+  const base = x.scenario;
+  const ra = runWith(a, base, x.notes);
   if ("errors" in ra) return { errors: ra.errors.map((e) => `${labels[0]}: ${e}`) };
   const recast = recastScenario(base, b);
   const rb = runWith(b, recast.scenario, recast.notes);

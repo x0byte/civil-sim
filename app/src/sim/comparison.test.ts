@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { validateScenario } from "../../../contracts/validate.ts";
 import { addFixture, normalize, removeItem } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
-import { autoScenario } from "./autoScenario.ts";
+import { defaultProfile, expandProfile } from "../population/officeProfile.ts";
 import { recastScenario } from "./comparison.ts";
 
 const plan = (id: string) => SAMPLE_PLANS.find((s) => s.id === id)!.plan;
 
 describe("recastScenario", () => {
-  const base = autoScenario(plan("office-a"));
+  const base = expandProfile(defaultProfile(plan("office-a")), plan("office-a")).scenario;
 
   it("keeps everyone at the same desk when desk ids match", () => {
     const { scenario, notes } = recastScenario(base, plan("office-b"));

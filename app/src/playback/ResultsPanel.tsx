@@ -117,7 +117,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
         </section>
       )}
 
-      {result.warnings.length > 0 && (
+      {result.warnings.length + run.notes.length > 0 && (
         <section className="panel">
           <header>
             <div>
@@ -126,6 +126,11 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           </header>
           <div className="panel-body">
             <ul className="problems">
+              {run.notes.map((n, i) => (
+                <li key={`n${i}`} className="warning">
+                  {n}
+                </li>
+              ))}
               {result.warnings.map((w, i) => (
                 <li key={i} className="warning">
                   {w.message}

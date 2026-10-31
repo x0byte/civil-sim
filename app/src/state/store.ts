@@ -3,6 +3,7 @@ import type { FixtureType, FloorPlan } from "../../../contracts/floorplan.ts";
 import { type ItemRef, normalize } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import type { HeatMode } from "../playback/Playback.tsx";
+import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
 export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "calibrate";
@@ -18,6 +19,7 @@ export interface LayoutOption {
 
 const AUTOSAVE_KEY = "civil-sim:plan";
 const OPTIONS_KEY = "civil-sim:options";
+const PROFILES_KEY = "civil-sim:profiles";
 const HISTORY_LIMIT = 100;
 
 interface EditorState {
@@ -37,6 +39,10 @@ interface EditorState {
   options: LayoutOption[];
   /** Heatmap shown in the simulation and compare views. */
   heat: HeatMode;
+  /** Population profile per plan id. A plan without one uses the default built from its desks. */
+  profiles: Record<string, OfficeProfile>;
+  /** Which sidebar tab is showing in the editor. */
+  sidebarTab: "plan" | "people";
 
   /** Applies an edit as one undoable step. */
   commit: (fn: (plan: FloorPlan) => FloorPlan) => void;
@@ -60,6 +66,8 @@ interface EditorState {
   saveOption: (name: string) => void;
   deleteOption: (id: string) => void;
   setHeat: (heat: HeatMode) => void;
+  setProfile: (planId: string, profile: OfficeProfile | null) => void;
+  setSidebarTab: (tab: "plan" | "people") => void;
 }
 
 function loadSaved(): FloorPlan | null {
@@ -87,6 +95,14 @@ function saveOptions(options: LayoutOption[]): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+function loadProfiles(): Record<string, OfficeProfile> {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILES_KEY) ?? "{}") as Record<string, OfficeProfile>;
+  } catch {
+    return {};
   }
 }
 
@@ -120,6 +136,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   comparison: null,
   options: loadOptions(),
   heat: "footfall",
+  profiles: loadProfiles(),
+  sidebarTab: "plan",
 
   commit: (fn) => {
     const { plan, past } = get();
@@ -160,6 +178,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setRun: (run) => set({ run }),
   setComparison: (comparison) => set({ comparison }),
   setHeat: (heat) => set({ heat }),
+  setProfile: (planId, profile) => {
+    const profiles = { ...get().profiles };
+    if (profile) profiles[planId] = profile;
+    else delete profiles[planId];
+    set({ profiles });
+    try {
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    } catch {
+      /* storage unavailable: profile lasts for this session */
+    }
+  },
+  setSidebarTab: (sidebarTab) => set({ sidebarTab }),
   saveOption: (name) => {
     const { plan, options, notify } = get();
     const option: LayoutOption = { id: `opt-${Date.now().toString(36)}`, name, plan, savedAt: Date.now() };

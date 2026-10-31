@@ -2,6 +2,14 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Office population profile (v1)
+- **People are described per department** (headcount, managers, which rooms they sit in, team meetings per day), plus which departments meet each other, share of staff in the office (hybrid), workday hours and break rates. The app expands this into the contract's individual people and a meeting timetable, so the engine and contracts are unchanged. *(Claude)*
+- **Default profile when none is set:** one person per desk, rooms split into teams of up to 6 (so a team fits a meeting room), managers for private-office desks. This replaces the old "auto scenario". *(Claude)*
+- **Hybrid attendance is per person and seeded**, so 70% means roughly 70% and the same people every run. *(Claude)*
+- **Meetings are booked into the earliest half-hour slot where everyone is free**, in the smallest meeting room that fits; anything that can't fit is reported in plain words. *(Claude)*
+- **Profiles are stored in the browser per plan, not in saved plan files yet.** A project file (plan + people + options) is needed to share them. *(Open)*
+- **Not yet supported: lunch breaks and visitors without desks.** Both need a contract and engine change. *(Next step, needs product owner approval)*
+
 ## 2026-11-01: Comparing layouts (M3)
 - **Comparisons use the same people:** they're built from layout A's desks and seated in layout B (same desk if the id exists, otherwise a free desk, managers preferring private offices). Same seed and person ids mean the engine gives everyone the same random requests in both, so differences come from the layout. Anything that couldn't carry over is listed in plain words. *(Claude)*
 - **Both layouts share one heatmap colour scale**, so the same colour means the same amount in each. *(Claude)*

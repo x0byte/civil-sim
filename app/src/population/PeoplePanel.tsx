@@ -1,0 +1,275 @@
+import { useMemo } from "react";
+import { useEditor } from "../state/store.ts";
+import { NumField, SelectField, TextField } from "../ui/fields.tsx";
+import { type Department, type OfficeProfile, defaultProfile, expandProfile } from "./officeProfile.ts";
+
+/** Categorical palette, fixed order. Departments past the eighth share a neutral grey. */
+const DEPT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const OTHER = "#b4bccb";
+export const deptColor = (i: number) => DEPT_COLORS[i] ?? OTHER;
+
+function useProfile(): [OfficeProfile, (p: OfficeProfile) => void, boolean] {
+  const plan = useEditor((s) => s.plan);
+  const saved = useEditor((s) => s.profiles[s.plan.id]);
+  const fallback = useMemo(() => defaultProfile(plan), [plan]);
+  const set = (p: OfficeProfile) => useEditor.getState().setProfile(plan.id, p);
+  return [saved ?? fallback, set, !saved];
+}
+
+/** Desk colours by department while the People tab is open. */
+export function useDeskColors(): Map<string, string> | undefined {
+  const tab = useEditor((s) => s.sidebarTab);
+  const plan = useEditor((s) => s.plan);
+  const [profile] = useProfile();
+  return useMemo(() => {
+    if (tab !== "people") return undefined;
+    const index = new Map(profile.departments.map((d, i) => [d.id, i]));
+    const x = expandProfile({ ...profile, attendance: 1 }, plan);
+    return new Map([...x.seating].map(([desk, dept]) => [desk, deptColor(index.get(dept) ?? 99)]));
+  }, [tab, plan, profile]);
+}
+
+export function PeoplePanel() {
+  const plan = useEditor((s) => s.plan);
+  const [profile, setProfile, isDefault] = useProfile();
+  const x = useMemo(() => expandProfile(profile, plan), [profile, plan]);
+  const full = useMemo(() => expandProfile({ ...profile, attendance: 1 }, plan), [profile, plan]);
+  const desks = plan.fixtures.filter((f) => f.type === "desk").length;
+  const payroll = profile.departments.reduce((s, d) => s + Math.round(d.headcount), 0);
+  const upd = (patch: Partial<OfficeProfile>) => setProfile({ ...profile, ...patch });
+  const updDept = (id: string, patch: Partial<Department>) =>
+    upd({ departments: profile.departments.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
+  const deskRooms = plan.spaces.filter((s) => plan.fixtures.some((f) => f.type === "desk" && f.spaceId === s.id));
+
+  const addDept = () => {
+    let n = profile.departments.length + 1;
+    while (profile.departments.some((d) => d.id === `dept-${n}`)) n++;
+    upd({
+      departments: [
+        ...profile.departments,
+        { id: `dept-${n}`, name: `Department ${n}`, headcount: 5, managers: 1, roomIds: deskRooms[0] ? [deskRooms[0].id] : [], teamMeetingsPerDay: 1 },
+      ],
+    });
+  };
+
+  return (
+    <>
+      <section className="panel">
+        <header>
+          <div>
+            <h2>People</h2>
+            <span className="muted">{isDefault ? "Default: one person per desk" : "Your settings for this plan"}</span>
+          </div>
+          {!isDefault && (
+            <button onClick={() => useEditor.getState().setProfile(plan.id, null)} title="Go back to one person per desk">
+              Reset
+            </button>
+          )}
+        </header>
+        <div className="panel-body">
+          <div className="tiles">
+            <div className="tile">
+              <div className="tile-value">{payroll}</div>
+              <div className="tile-label">on the payroll</div>
+            </div>
+            <div className="tile">
+              <div className="tile-value">{x.scenario.people.length}</div>
+              <div className="tile-label">in today, seated</div>
+            </div>
+            <div className="tile">
+              <div className="tile-value">{desks}</div>
+              <div className="tile-label">desks in the plan</div>
+            </div>
+            <div className="tile">
+              <div className="tile-value">{x.scenario.meetings.length}</div>
+              <div className="tile-label">meetings booked</div>
+            </div>
+          </div>
+          <label className="field">
+            <span>In the office</span>
+            <span className="input-unit">
+              <input
+                type="range"
+                min={0.1}
+                max={1}
+                step={0.05}
+                value={profile.attendance}
+                onChange={(e) => upd({ attendance: Number(e.target.value) })}
+              />
+              <strong className="pct">{Math.round(profile.attendance * 100)}%</strong>
+            </span>
+          </label>
+          <div className="row2">
+            <TimeField label="Day starts" value={profile.workday.start} onChange={(start) => upd({ workday: { ...profile.workday, start } })} />
+            <TimeField label="Day ends" value={profile.workday.end} onChange={(end) => upd({ workday: { ...profile.workday, end } })} />
+          </div>
+          {x.notes.length > 0 && (
+            <ul className="problems">
+              {x.notes.map((n, i) => (
+                <li key={i} className="warning">
+                  {n}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <header>
+          <div>
+            <h2>Departments</h2>
+            <span className="muted">Desks are coloured by department on the plan</span>
+          </div>
+          <button onClick={addDept}>+ Add</button>
+        </header>
+        <div className="panel-body">
+          {profile.departments.map((d, i) => {
+            const dem = full.demand.find((q) => q.departmentId === d.id);
+            const short = dem && dem.present > dem.desks;
+            return (
+              <div key={d.id} className="dept">
+                <div className="dept-head">
+                  <span className="swatch square" style={{ background: deptColor(i) }} />
+                  <TextField label="" value={d.name} onCommit={(name) => updDept(d.id, { name })} />
+                  <button
+                    className="danger icon"
+                    title="Remove department"
+                    onClick={() =>
+                      upd({
+                        departments: profile.departments.filter((q) => q.id !== d.id),
+                        collaborations: profile.collaborations.filter((c) => c.a !== d.id && c.b !== d.id),
+                      })
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+                <NumField label="Headcount" unit="people" step={1} min={0} value={d.headcount} onCommit={(v) => updDept(d.id, { headcount: Math.round(v) })} />
+                <NumField label="Managers" unit="incl." step={1} min={0} value={d.managers} onCommit={(v) => updDept(d.id, { managers: Math.round(v) })} />
+                <NumField
+                  label="Team meetings"
+                  unit="/ day"
+                  step={1}
+                  min={0}
+                  value={d.teamMeetingsPerDay}
+                  onCommit={(v) => updDept(d.id, { teamMeetingsPerDay: Math.round(v) })}
+                />
+                <div className="field">
+                  <span>Sits in</span>
+                  <div className="room-chips">
+                    {deskRooms.map((r) => {
+                      const on = d.roomIds.includes(r.id);
+                      return (
+                        <button
+                          key={r.id}
+                          className={on ? "chip active" : "chip"}
+                          onClick={() =>
+                            updDept(d.id, { roomIds: on ? d.roomIds.filter((id) => id !== r.id) : [...d.roomIds, r.id] })
+                          }
+                        >
+                          {r.name}
+                        </button>
+                      );
+                    })}
+                    {!deskRooms.length && <span className="muted">Add desks to rooms first</span>}
+                  </div>
+                </div>
+                {dem && (
+                  <p className={short ? "warn" : "muted"}>
+                    {dem.desks} desk{dem.desks === 1 ? "" : "s"} in its area for {Math.round(d.headcount)} people
+                    {short ? " – some will sit elsewhere or be left out." : "."}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <WorksWith profile={profile} setProfile={setProfile} />
+
+      <section className="panel">
+        <header>
+          <div>
+            <h2>Breaks</h2>
+            <span className="muted">Average per person per day</span>
+          </div>
+        </header>
+        <div className="panel-body">
+          <NumField
+            label="Toilet visits"
+            unit="/ day"
+            step={1}
+            min={0}
+            value={profile.rates.toiletVisitsPerDay}
+            onCommit={(v) => upd({ rates: { ...profile.rates, toiletVisitsPerDay: v } })}
+          />
+          <NumField
+            label="Pantry visits"
+            unit="/ day"
+            step={1}
+            min={0}
+            value={profile.rates.pantryVisitsPerDay}
+            onCommit={(v) => upd({ rates: { ...profile.rates, pantryVisitsPerDay: v } })}
+          />
+          <p className="muted">Lunch breaks and visitors without desks are coming in the next step.</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void }) {
+  const depts = profile.departments;
+  const opts = depts.map((d) => ({ value: d.id, label: d.name }));
+  const set = (collaborations: OfficeProfile["collaborations"]) => setProfile({ ...profile, collaborations });
+  return (
+    <section className="panel">
+      <header>
+        <div>
+          <h2>Who works with whom</h2>
+          <span className="muted">Joint meetings between departments</span>
+        </div>
+        <button
+          disabled={depts.length < 2}
+          onClick={() => set([...profile.collaborations, { a: depts[0].id, b: depts[1].id, meetingsPerDay: 1 }])}
+        >
+          + Add
+        </button>
+      </header>
+      <div className="panel-body">
+        {!profile.collaborations.length && (
+          <p className="muted">
+            {depts.length < 2 ? "Add a second department first." : "None yet. Add pairs of departments that meet regularly."}
+          </p>
+        )}
+        {profile.collaborations.map((c, i) => {
+          const upd = (patch: Partial<typeof c>) => set(profile.collaborations.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+          return (
+            <div key={i} className="dept">
+              <div className="dept-head">
+                <SelectField label="" value={c.a} options={opts} onChange={(a) => upd({ a })} />
+                <span className="muted">with</span>
+                <SelectField label="" value={c.b} options={opts} onChange={(b) => upd({ b })} />
+                <button className="danger icon" title="Remove" onClick={() => set(profile.collaborations.filter((_, j) => j !== i))}>
+                  ×
+                </button>
+              </div>
+              <NumField label="Meetings" unit="/ day" step={1} min={0} value={c.meetingsPerDay} onCommit={(v) => upd({ meetingsPerDay: Math.round(v) })} />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="field stacked">
+      <span>{label}</span>
+      <input type="time" value={value} step={900} onChange={(e) => /^\d\d:\d\d$/.test(e.target.value) && onChange(e.target.value)} />
+    </label>
+  );
+}
