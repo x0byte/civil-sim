@@ -11,7 +11,7 @@ import type { PersonSchedule } from "../src/modules/queues.ts";
 import { TrackBuilder, WALK_SPEED_M_S } from "../src/modules/track.ts";
 
 function setup(maxWaitMin: number | undefined = 10) {
-  const plan: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
+  const plan: FloorPlan = { version: "0.3", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
     walls: [], openings: [], fixtures: [], spaces: [
       { id: "toilet", levelId: "ground", name: "Toilet", type: "toilet", privacy: "shared", capacity: 1,
         polygon: [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 4 }, { x: 4, y: 4 }], doorIds: [] },
@@ -19,7 +19,7 @@ function setup(maxWaitMin: number | undefined = 10) {
         polygon: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }], doorIds: [] },
     ] };
   const navigation = createNavigation(plan, () => {});
-  const scenario: Scenario = { version: "0.4", id: "queue-test", name: "Queue test", seed: 1,
+  const scenario: Scenario = { version: "0.5", id: "queue-test", name: "Queue test", seed: 1,
     workday: { start: "08:00", end: "17:00" }, teams: [], people: [], meetings: [],
     rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, ...(maxWaitMin === undefined ? {} : { queueing: { maxWaitMin } }) };
   const events: SimEvent[] = [];

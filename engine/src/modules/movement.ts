@@ -6,10 +6,9 @@ import type { Activity } from "../../../contracts/results.ts";
 import type { Navigation } from "./navigation.ts";
 import { interiorIntervals } from "./occupancy.ts";
 import { distance } from "./geometry.ts";
-import { pathLength } from "./pathfinding.ts";
+import { travelTime } from "./pathfinding.ts";
 import type { Admission, RoomRequest } from "./queues.ts";
 import { roomTrip } from "./room-trip.ts";
-import { WALK_SPEED_M_S } from "./track.ts";
 import type { TrackBuilder } from "./track.ts";
 
 interface Lease { release: (t: number) => void; entered: boolean }
@@ -109,7 +108,7 @@ export class RoomMovement {
       const from = levelOf(path[i - 1], this.navigation.first);
       const to = levelOf(path[i], this.navigation.first);
       if (from === to) continue;
-      const remainingS = pathLength(path.slice(i)) / WALK_SPEED_M_S;
+      const remainingS = travelTime(path.slice(i), this.track.speed);
       const connectorDeadline = deadline - remainingS;
       const expectedS = (path[i] as LevelPoint).travelS!;
       yield* this.walk(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId);
@@ -149,7 +148,7 @@ export class RoomMovement {
 
     this.approaching.add(space.id);
     try {
-      const remainingS = pathLength(trip.inside) / WALK_SPEED_M_S;
+      const remainingS = travelTime(trip.inside, this.track.speed);
       yield* this.walk(trip.outside, "walking", deadline - remainingS, skipSpaceId);
       const admission = yield { personId: this.personId, spaceId: space.id, track: this.track,
         deadline: deadline - remainingS, gate: trip.gate, approach: trip.approach };

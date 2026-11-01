@@ -1,0 +1,9 @@
+{
+  "sourceCommit": "528d0e2",
+  "sha256": {
+    "office-a": "fd95f47a2a8f13c5e2a8dc2d9217a92172406a9f66f478eb5e06c8531efc535e",
+    "office-b": "7a661c126e9acde92467cd8daae3e097c41006103f001b334ec109c0320bdd84",
+    "sealed-room": "0d4be465dff86db96260c108acddea6b6c0631f38a261db9d3c678ed242a34e3",
+    "mall-2f": "87e12c458ad8fbdda8252fa19e30e7f1edb959b04c4207fa6996634ad6726fe4"
+  }
+}

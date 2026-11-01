@@ -10,8 +10,10 @@ export const WALK_SPEED_M_S = 1.3;
 export class TrackBuilder {
   readonly points: TrackPoint[];
   t = 0;
+  readonly speed: number;
   position: Vec2 & { levelId: string };
-  constructor(position: LevelPoint, levelId = "ground") {
+  constructor(position: LevelPoint, levelId = "ground", speed = WALK_SPEED_M_S) {
+    this.speed = speed;
     this.position = { ...onLevel(position, levelOf(position, levelId)), levelId: levelOf(position, levelId) };
     this.points = [{ t: 0, ...this.position, activity: "absent" }];
   }
@@ -23,7 +25,7 @@ export class TrackBuilder {
   walk(path: Vec2[], activity: Activity): void {
     this.mark("walking");
     for (let i = 1; i < path.length; i++) {
-      this.t += distance(path[i - 1], path[i]) / WALK_SPEED_M_S;
+      this.t += distance(path[i - 1], path[i]) / this.speed;
       this.position = { x: path[i].x, y: path[i].y, levelId: levelOf(path[i], this.position.levelId) };
       this.mark(i === path.length - 1 ? activity : "walking");
     }

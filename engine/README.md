@@ -1,4 +1,4 @@
-# Simulation engine v0.4
+# Simulation engine v0.5
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -61,16 +61,17 @@ npm run check:contracts
 npm test --prefix engine
 npm run typecheck --prefix engine
 npm run samples --prefix engine
+npm run benchmark:shoppers --prefix engine
 ```
 
-The last command writes ignored `engine/out/office-a.result.json`,
-`office-b.result.json`, `sealed-room.result.json`, and `mall-2f.result.json`. The UI can load these contract
+`npm run samples --prefix engine` writes ignored `engine/out/office-a.result.json`,
+`office-b.result.json`, `sealed-room.result.json`, `mall-2f.result.json`, and `mall-weekend.result.json`. The UI can load these contract
 results directly. Connecting the viewer to the engine belongs to the app owner.
 
 The engine returns the full results contract: interpolated keyframe tracks, events,
 0.5 m footfall and person-second dwell grids, walking metrics, private-space door
 exposure, exact room peak occupancy, queue metrics, up to five hotspots, warnings, and plain-language
-modelling assumptions. Staff and visitor tracks have an explicit `kind`. For the
+modelling assumptions. Staff, visitor and shopper tracks have an explicit `kind`. Shopper summaries, shop-front metrics and quarter-hour headcount are included. For the
 supplied seed 42 office day, the manager's office has **60 pass-bys from 11 people in A,
 versus 2 from 1 person in B**. The pantry peaks at **3 people at about 12:53 in both
 layouts**. These are model outputs, not measured occupancy.
@@ -85,6 +86,10 @@ layouts**. These are model outputs, not measured occupancy.
 - `levels.ts`: floor-aware internal points and walking-equivalent connector lengths.
 - `building-paths.ts`: directed footprint links and routes chosen by expected travel time.
 - `lifts.ts`: one shared FCFS car per lift, boarding limits, called stops and wait metrics.
+- `shoppers.ts`: crowd requests, planned and impulse visits, meals, toilets and physical exits.
+- `shopper-world.ts`: reusable destination routes, usable spots and entrance shares.
+- `frontage.ts`: exact positive-length door-circle proximity shared by exposure and retail metrics.
+- `retail-metrics.ts`: shopper visits/dwell, shop-front conversion, headcount and shopper totals.
 - `random.ts`: local Mulberry32 streams keyed by scenario seed and person id.
 - `schedule.ts`: staff requests, desk time, meetings, visits, lunch, and departure.
 - `lunch.ts`: lunch placement around meetings and their travel reservations.
@@ -160,7 +165,7 @@ their summary. Every scenario person, including managers, is a `staff` track.
 
 ## Floors and connectors
 
-Inputs use floor-plan v0.2 and scenario v0.4; results use v0.4. Each floor has its own
+Inputs use floor-plan v0.3 and scenario v0.5; results use v0.5. Each floor has its own
 walkable grid, walls, doors, targets, standing spots, room queues and occupancy.
 Connector footprint cells override walls on every served floor. Desks and exterior
 doors retain their declared floor. A one-way route that cannot complete a return trip
@@ -218,6 +223,97 @@ sample took about 0.9 seconds in Node, with 42 changes: up escalator 2, down esc
 3, stairs 29 and lift 8. Lift waiting peaked at 2 people; the longest pickup wait was
 11 seconds. No mall warnings were emitted. These timings are from the development
 machine, not a guarantee for arbitrary geometry or hardware.
+
+## Shoppers
+
+`scenario.shoppers` enables a generated crowd. With it omitted, the complete office A,
+office B, sealed-room and mall-day results match the v0.4 engine (`528d0e2`) after removing
+only the new metric fields and changing the result version. The regression fixtures
+store SHA-256 hashes of those full outputs. No-shopper summaries are zero; shop rows
+are also zero when no shoppers were generated, as specified by the results contract.
+
+An independent scenario stream generates exponential arrival gaps at each step's
+hourly rate, restarting at the start of each non-overlapping step. Zero rates and gaps
+produce no arrivals. Per-person streams choose type, inclusive uniform planned shop
+count and behaviour. IDs are `shopper-1`, `shopper-2`, … without gaps; the shared validator
+reserves these names from staff and visitors when shoppers are configured. Appended
+steps retain all earlier arrivals/types/counts and random streams. Existing completed
+tracks also stay unchanged. Additional people can still affect an earlier shopper's
+future queue waits after the new step starts; earlier history is not rewritten.
+
+Missing entrance shares split the unassigned remainder. When all doors have explicit
+shares, their values are relative weights; all-zero usable weights fall back to equal
+choice. Unusable doors are excluded and remaining weights are normalised. Shoppers
+choose an exit by an 80% return-to-entry draw, otherwise by the same share weights
+(which may select their entry again). A physically disconnected preferred exit falls
+back to a reachable one.
+
+Each planned choice uses `attraction × exp(-walkingDistance / 50)`, excluding visited
+shops and destinations that cannot fit with a safe exit. Missing attraction means 1.
+Only shops enter this choice; the planned count is capped by reachable shop count.
+Choices are made at a shared usable point inside the last room. The shopper walks to
+a seeded, strictly interior walkable cell for the stay, then returns to the decision
+point before choosing again. Distances between decision points use exactly the same
+floor paths and walking-equivalent connector durations as `walkingDistances`; cached
+paths are reused across shoppers. Within-room entry/exit legs stay on their own floor.
+This avoids a separate expensive building-wide route query for each toilet standing spot.
+
+Shoppers walk at 1.1 m/s, including movement in toilet lines. Staff and visitors retain
+1.3 m/s; stairs, escalators and lift travel retain their physical durations. Shop stays
+are exponential around the type's mean, clamped to 60 seconds through three times the
+mean. The one-minute minimum takes precedence for configured means below 20 seconds.
+Impulse stays use half that mean with the same clamp. Shop spots are independent;
+standing or walking collision avoidance is not modelled for the crowd.
+
+For each planned leg, door encounters are found along its exact floor segments and
+ordered by route distance. Every unvisited, unplanned frontage within 2 m gets one
+impulse draw, and only the first successful impulse is taken. The shopper follows the
+wall-safe prefix to that encounter, visits the impulse shop, and resumes the already
+selected planned destination. The current planned destination is excluded; later
+planned destinations have not yet been drawn. Food-court journeys and exit journeys
+do not add impulse visits.
+
+The meal draw occurs at arrival. The food chance is multiplied by 1.5 for arrivals in
+[11:00, 14:00) or [18:00, 21:00), otherwise by 0.6, then capped at 1. A selected meal
+happens after ceil(planned shops / 2), choosing the highest attraction/distance weight.
+Eating is exponential around 25 minutes and clamped to 10–60 minutes. Toilet requests
+follow exponential hourly gaps through the stay. Requests during travel are handled
+at the destination; browsing/eating can pause for a toilet trip and then resume. Requests
+that elapsed while queuing or using the toilet are skipped, as for busy staff. Requests
+that cannot fit a complete toilet trip are skipped. Successful stays last 3–5 minutes;
+capacity, FCFS ordering, line positions, max wait, give-up and metrics use the same
+scheduler and reservations as staff.
+
+Visits are clipped to reserve a physical exit before max stay or building closing.
+A `shop_visit` is emitted only when positive browsing/eating time begins. Real lift
+or room waits can abandon the remaining plan. Stair/escalator fallback time is reserved
+before waiting for an exit lift; an interior point is never relabelled absent to hide
+a failed exit. Where a floor has no non-lift escape, a conservative clearance buffer
+covers queued calls and returning passengers, using the number arriving before that
+shopper's deadline, staff and visitors. The bound is twice that population times the
+worst served-floor car cycle and number of lifts. It can prevent optional upstairs
+visits in a busy lift-only building; this is a cautious closing policy, not a calibrated
+lift-demand forecast. Every successful exit ends at a real exterior door. Floating
+point overshoots of a few machine epsilons are normalised to the exact closing time.
+
+Shop pass-bys use the same union of 2 m door circles as private-space exposure, for
+shopper walking only and on the shop's floor. Tangent-only contact is excluded; leaving
+and returning counts again. Visits count events. Dwell sums the physical interior
+intervals containing positive browsing/eating, including entry/exit walking and resumed
+visits after toilets, divided by visits. Unrelated walk-throughs add pass-bys/occupancy
+but do not add visit dwell. Peaks include staff, visitors and shoppers. Doorless food
+courts can have visits with zero pass-bys; their conversion is zero rather than infinity.
+Headcount samples the last keyframe at or before each 900-second boundary and includes
+connector users. Shopper means use actual arrival/leave events and horizontal walking;
+staff metrics continue to exclude visitors and shoppers.
+
+`npm test --prefix engine` runs test files sequentially to isolate their wall-clock
+performance gates. Shopper performance uses the median of three complete simulations
+for both the weekend and arrivals × 3.5, with a 3-second limit in each case. The standalone
+`npm run benchmark:shoppers --prefix engine` reports the same median and individual times.
+All arrival, attraction, duration and toilet-rate inputs are checked for finite values
+before generating the crowd. Behaviour assumptions in results say that these values
+need calibration with actual entrance/shop-door counts.
 
 ## Capacity and queues
 
@@ -299,8 +395,9 @@ an outline do not occupy its interior; entry times report the crossing instant.
 Overlapping space labels count independently. There is no time-step sampling.
 
 The engine calls `checkFloorPlan` and `checkScenario` and throws `SimulationInputError`
-with their messages, **except for `code === "no_exterior_door"`**, which becomes a
-`no_exterior_door` warning with everyone absent. Other errors still throw. Non-finite
+with their messages. **Without shoppers, `code === "no_exterior_door"` remains the
+legacy exception**, becoming a `no_exterior_door` warning with everyone absent. With
+shoppers enabled, that issue is an input error as required by v0.5. Other errors still throw. Non-finite
 dimensions, wall/opening sizes, meeting/lunch/visitor durations and visit rates also throw, avoiding
 unbounded grids or schedules. Contracts remain unchanged.
 

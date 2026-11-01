@@ -1,39 +1,15 @@
-import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
+import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics, Heatmaps, Metrics, SimEvent, SpaceExposure, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { cellSpans, distance, EPSILON, openingCentre } from "./geometry.ts";
 import { peakOccupancy } from "./occupancy.ts";
+import { proximityIntervals } from "./frontage.ts";
+import { retailMetrics } from "./retail-metrics.ts";
 import { queueMetrics } from "./queues.ts";
 
 export const HEAT_CELL_M = 0.5;
 const EXPOSURE_RADIUS_M = 2;
 
-/** Union of positive-length portions of a segment within 2 m of any door. */
-function proximityIntervals(a: Vec2, b: Vec2, doors: Vec2[]): { from: number; to: number }[] {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const aa = dx * dx + dy * dy;
-  if (aa < EPSILON * EPSILON) return doors.some((door) => distance(a, door) < EXPOSURE_RADIUS_M) ? [{ from: 0, to: 1 }] : [];
-  const intervals = doors.flatMap((door) => {
-    const fx = a.x - door.x;
-    const fy = a.y - door.y;
-    const bb = 2 * (fx * dx + fy * dy);
-    const cc = fx * fx + fy * fy - EXPOSURE_RADIUS_M * EXPOSURE_RADIUS_M;
-    const discriminant = bb * bb - 4 * aa * cc;
-    const roundoff = Number.EPSILON * 16 * Math.max(bb * bb, Math.abs(4 * aa * cc), 1);
-    if (discriminant <= roundoff) return [];
-    const from = Math.max(0, (-bb - Math.sqrt(discriminant)) / (2 * aa));
-    const to = Math.min(1, (-bb + Math.sqrt(discriminant)) / (2 * aa));
-    return to - from > EPSILON ? [{ from, to }] : [];
-  }).sort((a, b) => a.from - b.from);
-  const merged: { from: number; to: number }[] = [];
-  for (const interval of intervals) {
-    const last = merged.at(-1);
-    if (last && interval.from <= last.to + EPSILON) last.to = Math.max(last.to, interval.to);
-    else merged.push({ ...interval });
-  }
-  return merged;
-}
 
 function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceExposure[] {
   return plan.spaces.filter((space) => space.privacy === "private").map((space) => {
@@ -105,10 +81,11 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
       y: (Math.floor(index / cols) * HEAT_CELL_M + Math.min((Math.floor(index / cols) + 1) * HEAT_CELL_M, plan.bounds.height)) / 2,
       footfall: value,
     }));
+  const occupancy = peakOccupancy(plan, tracks);
   return {
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS, levels },
     metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
       meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
-      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: peakOccupancy(plan, tracks), queues: queueMetrics(plan, events), connectors },
+      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: occupancy, queues: queueMetrics(plan, events), connectors, ...retailMetrics(plan, scenario, tracks, events, allWalkingMetrics, occupancy) },
   };
 }

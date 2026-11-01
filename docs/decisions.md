@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Engine v0.5 shopper behaviour and accounting
+- **Keep shopper arrivals and per-person behaviour on separate seeded streams, and reuse exact routes between shared room decision points.** This preserves earlier requests when steps are appended and keeps thousands of shoppers practical; actual later queues remain shared and causal. Planned choices use the approved attraction/distance rule; independent standing spots and 1.1 m/s apply to shoppers only. *(Codex, implementing the approved v0.5 brief)*
+- **Reserve physical egress, with a conservative car-clearance buffer where lifts are the only escape.** Impulse visits are limited to one per planned shop leg; food/exit legs have no impulses. Dwell includes entry/exit walking around positive browsing/eating intervals. Explicit entrance shares are normalised if no unspecified doors remain; all-zero usable shares split equally. Full v0.4 hashes protect scenarios without shoppers, and test files run sequentially so CPU contention does not distort performance gates. Details and model limits are in `engine/README.md`. *(Codex modelling/implementation choices; no contract changes)*
+
 ## 2026-11-01: Contract v0.5 (shoppers)
 - **Approved: shoppers as a generated crowd** (arrival curve, shopper types, impulse visits, food court, toilets), shops chosen by pull against walking distance, and per-shop pass-bys, visits and conversion. Floor plan v0.3, scenario and results v0.5. *(Product owner)*
 - **Shop pull and entrance shares live in the floor plan; the crowd lives in the scenario,** so the same Saturday crowd can be run on two layouts. *(Product owner, as proposed)*

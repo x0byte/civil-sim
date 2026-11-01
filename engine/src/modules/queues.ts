@@ -7,7 +7,6 @@ import { distance, pointInPolygon, polygonCentroid } from "./geometry.ts";
 import { WalkableGrid } from "./grid.ts";
 import type { Navigation } from "./navigation.ts";
 import { Pathfinder, pathLength } from "./pathfinding.ts";
-import { WALK_SPEED_M_S } from "./track.ts";
 import type { TrackBuilder } from "./track.ts";
 
 export interface RoomRequest {
@@ -101,7 +100,7 @@ function freeze(waiter: Waiter, t: number): void {
 function moveInLine(waiter: Waiter, path: Vec2[]): void {
   const track = waiter.request.track;
   for (let i = 1; i < path.length; i++) {
-    track.t += distance(path[i - 1], path[i]) / WALK_SPEED_M_S;
+    track.t += distance(path[i - 1], path[i]) / track.speed;
     track.position = { ...onLevel(path[i], track.position.levelId), levelId: track.position.levelId };
     track.mark("queuing");
   }
@@ -121,7 +120,7 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[]): 
   const gateIndex = grid.indexAt(gate);
   if (gateIndex < 0 || grid.components[gateIndex] < 0) return null;
   const component = grid.components[gateIndex];
-  const radius = QUEUE_RETURN_BUFFER_S * WALK_SPEED_M_S;
+  const radius = QUEUE_RETURN_BUFFER_S * track.speed;
   const minCol = Math.max(0, Math.floor((gate.x - radius) / grid.cellSize));
   const maxCol = Math.min(grid.cols - 1, Math.floor((gate.x + radius) / grid.cellSize));
   const minRow = Math.max(0, Math.floor((gate.y - radius) / grid.cellSize));
@@ -172,7 +171,7 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[]): 
     if ((point.x - gate.x) * dx + (point.y - gate.y) * dy < -1e-9 || distance(point, gate) > radius) continue;
     if (occupied.some((other) => distance(point, other) < QUEUE_SPACING_M - 1e-9)) continue;
     const toGate = room.paths.route(point, gate);
-    if (!toGate || pathLength(toGate) / WALK_SPEED_M_S > QUEUE_RETURN_BUFFER_S) continue;
+    if (!toGate || pathLength(toGate) / track.speed > QUEUE_RETURN_BUFFER_S) continue;
     const path = room.paths.route(track.position, point);
     if (path) return { point, path };
   }

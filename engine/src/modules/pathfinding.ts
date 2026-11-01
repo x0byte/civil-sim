@@ -17,6 +17,14 @@ export function pathLength(path: Vec2[]): number {
   return length;
 }
 
+/** Connector durations are unchanged by a person's horizontal walking speed. */
+export function travelTime(path: Vec2[], speed: number): number {
+  if (speed === 1.3) return pathLength(path) / 1.3;
+  let seconds = 0;
+  for (let i = 1; i < path.length; i++) seconds += connectorTime(path[i - 1], path[i]) ?? distance(path[i - 1], path[i]) / speed;
+  return seconds;
+}
+
 /** Shared 8-way source searches, no corner cuts, and farthest-visible simplification. */
 export class Pathfinder {
   private readonly cache = new Map<string, Vec2[] | null>();

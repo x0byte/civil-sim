@@ -10,6 +10,8 @@ import { scheduleVisitor } from "./modules/visitors.ts";
 import { runSchedules } from "./modules/queues.ts";
 import type { Admission, PersonSchedule, RoomRequest } from "./modules/queues.ts";
 import { RoomMovementDenied } from "./modules/movement.ts";
+import { scheduleShopper, shopperRequests } from "./modules/shoppers.ts";
+import { ShopperWorld } from "./modules/shopper-world.ts";
 import { RoomSpots } from "./modules/spots.ts";
 import { onLevel } from "./modules/levels.ts";
 
@@ -52,6 +54,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   // validator classifies this single condition as an error. All other errors throw.
   const errors = [
     ...floorPlanErrors(plan),
+    ...(scenario.shoppers ? checkFloorPlan(plan).filter((issue) => issue.code === "no_exterior_door").map((issue) => `Floor plan: ${issue.message}`) : []),
     ...checkScenario(scenario, plan).map((issue) => `Scenario: ${issue.message}`),
   ];
   const finite = (value: number, label: string) => { if (!Number.isFinite(value)) errors.push(`${label} must be finite`); };
@@ -62,6 +65,12 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   for (const visitor of scenario.visitors ?? []) {
     finite(visitor.waitMin, `Visitor ${visitor.id} wait`);
     finite(visitor.durationMin, `Visitor ${visitor.id} duration`);
+  }
+  if (scenario.shoppers) {
+    scenario.shoppers.arrivals.forEach((step) => finite(step.perHour, "Shopper arrival rate"));
+    scenario.shoppers.types.forEach((type) => { finite(type.minutesPerShop, "Time per shop"); finite(type.maxStayMin, "Maximum shopper stay"); });
+    finite(scenario.shoppers.toiletVisitsPerHour, "Shopper toilet rate");
+    plan.spaces.forEach((space) => { if (space.attraction !== undefined) finite(space.attraction, "Shop attraction"); });
   }
   if (scenario.queueing) finite(scenario.queueing.maxWaitMin, "Maximum queue wait");
   for (const space of plan.spaces) {
@@ -78,7 +87,10 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     const key = JSON.stringify(warning);
     if (!warningKeys.has(key)) { warningKeys.add(key); warnings.push(warning); }
   };
-  const navigation = createNavigation(plan, warn);
+  const navigation = createNavigation(plan, (warning) => {
+    if (scenario.shoppers && warning.code === "unreachable_space" && plan.spaces.some((s) => warning.refIds.includes(s.id) && (s.type === "shop" || s.type === "food_court"))) return;
+    warn(warning);
+  });
   const requiredSpaces = plan.levels.length === 1 ? undefined : new Set([
     ...scenario.meetings.map((m) => m.spaceId),
     ...plan.spaces.filter((s) => (s.type === "toilet" && scenario.rates.toiletVisitsPerDay > 0)
@@ -107,6 +119,11 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   const events: SimulationResult["events"] = [];
   const schedules = scenario.people.map((person) => protectSchedule(schedulePerson(plan, scenario, person, durationS, navigation, spots, events, warn), "staff", durationS, events, warn));
   schedules.push(...(scenario.visitors ?? []).map((visitor) => protectSchedule(scheduleVisitor(plan, scenario, visitor, durationS, navigation, spots, events, warn), "visitor", durationS, events, warn)));
+  if (scenario.shoppers) {
+    const requests = shopperRequests(scenario);
+    const world = new ShopperWorld(plan, navigation, warn, requests.map((r) => r.arrival), scenario.people.length + (scenario.visitors?.length ?? 0));
+    schedules.push(...requests.map((request) => scheduleShopper(world, scenario, request, durationS, events)));
+  }
   const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn);
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
   return {
@@ -139,7 +156,7 @@ function assumptions(scenario: Scenario): string[] {
     "People choose the route with the shortest expected travel time. A lift has one car, carries eight people unless another capacity is given, travels at 1.5 metres of height per second and takes eight seconds at each stop.",
     "Lift calls are served in arrival order. People at the same pickup in that order can share a car. The car visits only requested floors. Route estimates allow a door cycle and half a shaft traverse for pickup; actual waits depend on earlier calls.",
     "People walk through doors, not walls or windows. Furniture does not obstruct their paths. Very narrow routes may be treated as blocked.",
-    "Everyone walks at 1.3 metres per second. People do not avoid each other while walking. Comfort and temperature are not modelled.",
+    scenario.shoppers ? "Staff and visitors walk at 1.3 metres per second; shoppers walk at 1.1. People do not avoid each other while walking. Comfort and temperature are not modelled." : "Everyone walks at 1.3 metres per second. People do not avoid each other while walking. Comfort and temperature are not modelled.",
     "Staff use the entrance with the shortest walk to their desk. They return to the same desk after each trip. Room destinations are near the centre of the usable area.",
     "Staff arrive in the first 30 minutes and leave in the last 30 minutes. For days shorter than two hours, each arrival or departure window is a quarter of the day. Meetings can move arrivals earlier and departures later.",
     "Meetings take priority. Travel time is allowed before and after meetings. Conflicting meetings may be partly attended or skipped, with a warning. Capacity warnings do not stop attendance.",
@@ -152,7 +169,7 @@ function assumptions(scenario: Scenario): string[] {
     "Walking averages include all staff, including those absent all day. Visitors are excluded from walking averages and included in heatmaps, pass-bys and room peaks.",
     "Room peaks count everyone inside each room, including people walking through. The time shown is the first time the peak is reached. Simultaneous arrivals and departures are counted together. Touching or walking along an outline does not count as being inside.",
     "Up to five locations with the most walking traffic are highlighted. Equal values are ordered from the top left of the plan.",
-    "People use separate standing spots in rooms, about 60 centimetres apart where space allows. Desks stay in their assigned positions. Walking paths can still cross.",
+    scenario.shoppers ? "Staff and visitors use separate standing spots in rooms, about 60 centimetres apart where space allows. Shoppers browse at independently chosen spots. Desks stay in their assigned positions; walking paths can cross." : "People use separate standing spots in rooms, about 60 centimetres apart where space allows. Desks stay in their assigned positions. Walking paths can still cross.",
     `Full toilets and pantries with a capacity have first-come, first-served queues. People wait outside on their arrival side, about 60 centimetres apart. The longest allowed wait is ${scenario.queueing?.maxWaitMin ?? 10} minutes. Equal arrival times are ordered by person id.`,
     "Waiting uses time from the day. People give up early if a visit would delay their next meeting or departure. Pantry lunch keeps its original end; someone who gives up eats at their desk for the remaining break. People do not switch to another facility because of a queue.",
     "Room capacity includes time spent entering and leaving. Meeting room capacity produces warnings, and rooms without a capacity have no queue. Queue totals include visitors and count each person's actual wait, including moving up the line.",
@@ -166,6 +183,18 @@ function assumptions(scenario: Scenario): string[] {
     "Visitors use the entrance with the shortest walk to their destination. They wait at the nearest reachable reception for the specified time, then stay at their destination for the specified duration and leave. Reception is skipped when none is provided or no wait is requested.",
     "Visitor stays in meeting rooms count as meeting activity. Other stays count as waiting. Visitor timetables run independently of staff meetings; listed visitor attendees still count towards meeting capacity warnings.",
     "Visitors unable to reach their destination or reception stay absent with a warning. A full visit, including travel, must fit before the end of the workday; otherwise it is skipped with a warning.",
+  );
+  if (scenario.shoppers) entries.push(
+    "Shopper arrivals vary randomly around the hourly rates. Shopper types and entrance shares determine who arrives and where. Later arrival periods do not reshuffle earlier arrivals.",
+    "Shoppers choose unvisited shops by their pull against the walking distance. A shop with no stated pull is treated as typical. They choose each next stop from a common point inside the room, then browse at a randomly chosen usable position.",
+    "Shoppers may enter an unvisited shop whose door they pass within two metres. Each planned journey can have at most one such extra visit, lasting half the usual average time.",
+    "Time in each shop varies around the shopper type's average, from one minute to three times that average. Shoppers walk at 1.1 metres per second, including moving in a toilet queue.",
+    "Food-court visits are more likely for arrivals between 11:00 and 14:00 or 18:00 and 21:00. They happen about halfway through the planned shops, last 10 to 60 minutes, and favour a strong pull with a shorter walk.",
+    "Toilet requests continue during the stay. A request during a journey is taken at the next destination. Toilet visits use the same queues and waiting limit as staff and last three to five minutes.",
+    "Where a floor has no stair or escalator escape, visits reserve enough lift time to clear the possible crowd before closing. This cautious allowance can shorten or prevent visits when the lift is the only way out.",
+    "Shoppers leave after their planned visits or when their time runs out. Visits are shortened to leave time to exit before closing. Eight in ten try their arrival entrance; the rest choose by entrance shares. Real queues can shorten visits.",
+    "Shop visits and time inside a shop during each visit belong to shoppers; shop peaks include everyone. Shopper walking totals and stays include actual trips and waits. Headcount is everyone present at each quarter hour.",
+    "These shopper numbers and behaviours are assumptions until calibrated with real entrance and shop-door counts.",
   );
   return entries;
 }
