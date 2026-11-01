@@ -6,12 +6,12 @@ import { plan, scenario } from "./fixtures.ts";
 describe("continuous metrics", () => {
   it("splits heatmap occupancy at cell boundaries and avoids duplicate footfall at waypoints", () => {
     const tracks: Track[] = [{ personId: "p-01", kind: "staff", points: [
-      { t: 0, x: 0.25, y: 5.25, activity: "absent" },
-      { t: 1, x: 0.25, y: 5.25, activity: "walking" },
-      { t: 2, x: 0.4, y: 5.25, activity: "walking" },
-      { t: 4, x: 1.25, y: 5.25, activity: "at_desk" },
-      { t: 7, x: 1.25, y: 5.25, activity: "absent" },
-      { t: 10, x: 1.25, y: 5.25, activity: "absent" },
+      { levelId: "ground", t: 0, x: 0.25, y: 5.25, activity: "absent" },
+      { levelId: "ground", t: 1, x: 0.25, y: 5.25, activity: "walking" },
+      { levelId: "ground", t: 2, x: 0.4, y: 5.25, activity: "walking" },
+      { levelId: "ground", t: 4, x: 1.25, y: 5.25, activity: "at_desk" },
+      { levelId: "ground", t: 7, x: 1.25, y: 5.25, activity: "absent" },
+      { levelId: "ground", t: 10, x: 1.25, y: 5.25, activity: "absent" },
     ] }];
     const { heatmaps, metrics } = aggregate(plan(), scenario(), tracks);
     const row = 10 * heatmaps.grid.cols;
@@ -30,13 +30,13 @@ describe("continuous metrics", () => {
     // The second door is already on the adjacent boundary, with an overlapping 2 m circle.
     manager.doorIds.push("d-toilet");
     const points: Track["points"] = [
-      { t: 0, x: 1, y: 4.5, activity: "walking" },
-      { t: 10, x: 4, y: 4.5, activity: "walking" },
-      { t: 15, x: 5, y: 4.5, activity: "at_desk" },
-      { t: 20, x: 5, y: 4.5, activity: "walking" },
-      { t: 30, x: 9, y: 4.5, activity: "walking" },
-      { t: 40, x: 1, y: 4.5, activity: "absent" },
-      { t: 50, x: 1, y: 4.5, activity: "absent" },
+      { levelId: "ground", t: 0, x: 1, y: 4.5, activity: "walking" },
+      { levelId: "ground", t: 10, x: 4, y: 4.5, activity: "walking" },
+      { levelId: "ground", t: 15, x: 5, y: 4.5, activity: "at_desk" },
+      { levelId: "ground", t: 20, x: 5, y: 4.5, activity: "walking" },
+      { levelId: "ground", t: 30, x: 9, y: 4.5, activity: "walking" },
+      { levelId: "ground", t: 40, x: 1, y: 4.5, activity: "absent" },
+      { levelId: "ground", t: 50, x: 1, y: 4.5, activity: "absent" },
     ];
     const tracks: Track[] = [{ personId: "p-01", kind: "staff", points }, { personId: "p-m", kind: "staff", points }];
     const result = aggregate(p, scenario(), tracks).metrics.spaceExposure[0];
@@ -45,8 +45,8 @@ describe("continuous metrics", () => {
 
   it("ignores an exactly tangential pass-by", () => {
     const tracks: Track[] = [{ personId: "p-01", kind: "staff", points: [
-      { t: 0, x: 0, y: 6, activity: "walking" },
-      { t: 10, x: 10, y: 6, activity: "absent" },
+      { levelId: "ground", t: 0, x: 0, y: 6, activity: "walking" },
+      { levelId: "ground", t: 10, x: 10, y: 6, activity: "absent" },
     ] }];
     expect(aggregate(plan(), scenario(), tracks).metrics.spaceExposure[0].passBys).toBe(0);
   });

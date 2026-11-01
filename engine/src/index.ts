@@ -11,8 +11,7 @@ import { runSchedules } from "./modules/queues.ts";
 import type { Admission, PersonSchedule, RoomRequest } from "./modules/queues.ts";
 import { RoomMovementDenied } from "./modules/movement.ts";
 import { RoomSpots } from "./modules/spots.ts";
-import { rasterise } from "./modules/grid.ts";
-import { Pathfinder } from "./modules/pathfinding.ts";
+import { onLevel } from "./modules/levels.ts";
 
 export class SimulationInputError extends Error {
   readonly errors: string[];
@@ -24,14 +23,16 @@ export class SimulationInputError extends Error {
 }
 
 /**
- * Symmetric walking distances in metres between exact endpoints. The diagonal is
+ * Walking-equivalent distances in metres between exact endpoints. Escalators
+ * can make multi-floor distances directional. Missing floors mean the first floor. The diagonal is
  * zero; other entries are null when either endpoint is blocked or disconnected.
- * Entrances and attendance are not needed. Queue waiting/detours are not included.
+ * Entrances and attendance are not needed. Lifts use expected pickup time;
+ * actual lift queues and room queue detours are not included.
  */
-export function walkingDistances(plan: FloorPlan, points: Vec2[]): (number | null)[][] {
+export function walkingDistances(plan: FloorPlan, points: (Vec2 & { levelId?: string })[]): (number | null)[][] {
   const errors = floorPlanErrors(plan);
   if (errors.length) throw new SimulationInputError(errors);
-  return new Pathfinder(rasterise(plan)).distances(points);
+  return createNavigation(plan, () => {}).paths.distances(points);
 }
 
 function floorPlanErrors(plan: FloorPlan): string[] {
@@ -41,6 +42,7 @@ function floorPlanErrors(plan: FloorPlan): string[] {
   finite(plan.bounds.height, "Plan height");
   for (const wall of plan.walls) { finite(wall.thickness, `Wall ${wall.id} thickness`); finite(wall.height, `Wall ${wall.id} height`); }
   for (const opening of plan.openings) { finite(opening.offset, `Opening ${opening.id} offset`); finite(opening.width, `Opening ${opening.id} width`); }
+  for (const c of plan.connectors) if (c.capacity !== undefined && !Number.isInteger(c.capacity)) errors.push(`Lift ${c.id} capacity must be a finite whole number of people`);
   return errors;
 }
 
@@ -77,13 +79,23 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     if (!warningKeys.has(key)) { warningKeys.add(key); warnings.push(warning); }
   };
   const navigation = createNavigation(plan, warn);
-  const spots = new RoomSpots(plan, navigation, [
-    ...scenario.people.map((person) => ({ id: person.id, deskPosition: plan.fixtures.find((f) => f.id === person.deskId)!.position })),
-    ...(scenario.visitors ?? []).map((visitor) => ({ id: visitor.id })),
+  const requiredSpaces = plan.levels.length === 1 ? undefined : new Set([
+    ...scenario.meetings.map((m) => m.spaceId),
+    ...plan.spaces.filter((s) => (s.type === "toilet" && scenario.rates.toiletVisitsPerDay > 0)
+      || (s.type === "pantry" && (scenario.rates.pantryVisitsPerDay > 0 || (scenario.lunch?.pantryShare ?? 0) > 0))
+      || (s.type === "reception" && scenario.visitors?.some((v) => v.waitMin > 0))).map((s) => s.id),
+    ...(scenario.visitors ?? []).map((v) => v.spaceId),
   ]);
+  const spots = new RoomSpots(plan, navigation, [
+    ...scenario.people.map((person) => {
+      const desk = plan.fixtures.find((f) => f.id === person.deskId)!;
+      return { id: person.id, deskPosition: onLevel(desk.position, desk.levelId) };
+    }),
+    ...(scenario.visitors ?? []).map((visitor) => ({ id: visitor.id })),
+  ], requiredSpaces);
   const assignedDesks = new Set(scenario.people.map((person) => person.deskId));
   for (const desk of plan.fixtures.filter((f) => f.type === "desk" && !assignedDesks.has(f.id))) {
-    if (!navigation.entrances.some((entrance) => navigation.paths.route(entrance, desk.position))) warn({ code: "unreachable_desk",
+    if (!navigation.entrances.some((entrance) => navigation.paths.route(entrance, onLevel(desk.position, desk.levelId)))) warn({ code: "unreachable_desk",
       message: `Unassigned desk ${desk.id} cannot be reached from an exterior door.`, refIds: [desk.id] });
   }
   for (const meeting of scenario.meetings) {
@@ -99,7 +111,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
   return {
     version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS, tracks,
-    ...aggregate(plan, scenario, tracks, events), events,
+    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics), events,
     assumptions: assumptions(scenario), warnings,
   };
 }
@@ -122,6 +134,10 @@ function* protectSchedule(schedule: PersonSchedule, kind: Track["kind"], duratio
 
 function assumptions(scenario: Scenario): string[] {
   const entries = [
+    "People stay on their own floor unless using a stair, escalator or lift. Room counts and heatmaps are separate for each floor. Time on connectors is left out of floor heatmaps.",
+    "Stairs take one second per 40 centimetres of height. Escalators take four seconds per metre of height and run only in their specified direction.",
+    "People choose the route with the shortest expected travel time. A lift has one car, carries eight people unless another capacity is given, travels at 1.5 metres of height per second and takes eight seconds at each stop.",
+    "Lift calls are served in arrival order. People at the same pickup in that order can share a car. The car visits only requested floors. Route estimates allow a door cycle and half a shaft traverse for pickup; actual waits depend on earlier calls.",
     "People walk through doors, not walls or windows. Furniture does not obstruct their paths. Very narrow routes may be treated as blocked.",
     "Everyone walks at 1.3 metres per second. People do not avoid each other while walking. Comfort and temperature are not modelled.",
     "Staff use the entrance with the shortest walk to their desk. They return to the same desk after each trip. Room destinations are near the centre of the usable area.",

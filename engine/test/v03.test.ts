@@ -83,7 +83,7 @@ describe("v0.3 sample acceptance", () => {
     const start = performance.now();
     const result = simulate(p, s);
     expect(performance.now() - start).toBeLessThan(1000);
-    expect(result.version).toBe("0.3");
+    expect(result.version).toBe("0.4");
     expect(JSON.stringify(simulate(p, s))).toBe(JSON.stringify(result));
     expect(JSON.stringify([p, s])).toBe(before);
     expect(result.metrics.queues.map((metric) => metric.spaceId)).toEqual(p.spaces
@@ -265,7 +265,7 @@ describe("capacity and travel review regressions", () => {
 
   it("gates a commute that passes through a pantry already occupied by a visitor", () => {
     const p = plan("sealed-room");
-    p.walls.push({ id: "w-west", a: { x: 3, y: 0 }, b: { x: 3, y: 8 }, thickness: 0.15, height: 3 });
+    p.walls.push({ id: "w-west", levelId: "ground", a: { x: 3, y: 0 }, b: { x: 3, y: 8 }, thickness: 0.15, height: 3 });
     p.openings.push(
       { id: "d-west", wallId: "w-west", kind: "door", offset: 4, width: 1.2 },
       { id: "d-east", wallId: "w-divider", kind: "door", offset: 4, width: 1.2 },
@@ -273,7 +273,7 @@ describe("capacity and travel review regressions", () => {
     p.spaces[0].polygon = [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 3, y: 8 }, { x: 0, y: 8 }];
     p.spaces[0].doorIds.push("d-west");
     p.spaces[1].doorIds = ["d-east"];
-    p.spaces.push({ id: "pantry", name: "Walk-through pantry", type: "pantry", privacy: "shared", capacity: 1,
+    p.spaces.push({ id: "pantry", levelId: "ground", name: "Walk-through pantry", type: "pantry", privacy: "shared", capacity: 1,
       polygon: [{ x: 3, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 8 }, { x: 3, y: 8 }], doorIds: ["d-west", "d-east"] });
     p.fixtures[0].position.x = 1.5;
     const s = scenario("sealed-day");

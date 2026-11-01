@@ -1,0 +1,9 @@
+{
+  "sourceCommit": "86e40fe",
+  "description": "Complete pre-v0.4 engine results, SHA-256 of JSON.stringify; remove only v0.4 fields and four new floor/connector assumptions before comparison.",
+  "sha256": {
+    "office-a": "7945a1b08ed8a01e9124a9eed0ee4072ac374b6180fd3218ee0e804f08e1be10",
+    "office-b": "92331d341984424c4a8fba5c4f1e3d2b9681c8fea91a0bc49c6043fed3b95498",
+    "sealed-room": "f3c54b4f1950a6b8a1d7e453f5c4d6c4399b4dff05cd71095a19e6b5e7cb1a57"
+  }
+}

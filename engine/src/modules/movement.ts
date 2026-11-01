@@ -1,3 +1,6 @@
+import { levelOf, onLevel } from "./levels.ts";
+import type { LevelPoint } from "./levels.ts";
+import { rideSeconds } from "./building-paths.ts";
 import type { FloorPlan, Space, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity } from "../../../contracts/results.ts";
 import type { Navigation } from "./navigation.ts";
@@ -31,12 +34,14 @@ export class RoomMovementDenied extends Error {
 export class RoomMovement {
   readonly track: TrackBuilder;
   readonly personId: string;
+  private readonly plan: FloorPlan;
   private readonly navigation: Navigation;
   private readonly spaces: Space[];
   private readonly leases = new Map<string, Lease>();
   private readonly approaching = new Set<string>();
 
   constructor(plan: FloorPlan, navigation: Navigation, track: TrackBuilder, personId: string) {
+    this.plan = plan;
     this.track = track;
     this.personId = personId;
     this.navigation = navigation;
@@ -56,7 +61,7 @@ export class RoomMovement {
   }
 
   private inside(space: Space, point: Vec2): boolean {
-    return interiorIntervals(point, point, space.polygon).length > 0;
+    return levelOf(point, this.navigation.first) === space.levelId && interiorIntervals(point, point, space.polygon).length > 0;
   }
 
   private releaseOutside(path: Vec2[]): void {
@@ -65,7 +70,7 @@ export class RoomMovement {
       if (!lease) continue;
       if (!lease.entered) {
         lease.entered = path.some((point) => this.inside(space, point))
-          || path.some((point, i) => i > 0 && interiorIntervals(path[i - 1], point, space.polygon).length > 0);
+          || path.some((point, i) => i > 0 && levelOf(point, this.navigation.first) === space.levelId && levelOf(path[i - 1], this.navigation.first) === space.levelId && interiorIntervals(path[i - 1], point, space.polygon).length > 0);
       }
       if (lease.entered && !this.inside(space, this.track.position)) {
         lease.release(this.track.t);
@@ -81,6 +86,7 @@ export class RoomMovement {
       if (space.id === skipSpaceId || this.leases.has(space.id)) continue;
       let travelled = 0;
       for (let i = 1; i < path.length; i++) {
+        if (levelOf(path[i - 1], this.navigation.first) !== space.levelId || levelOf(path[i], this.navigation.first) !== space.levelId) continue;
         const segment = distance(path[i - 1], path[i]);
         const interval = interiorIntervals(path[i - 1], path[i], space.polygon)[0];
         if (interval) {
@@ -97,6 +103,36 @@ export class RoomMovement {
 
   *walk(path: Vec2[], activity: Activity, deadline: number, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
     if (!path.length) return;
+    path = path.map((point) => (point as LevelPoint).levelId ? point : onLevel(point, this.track.position.levelId));
+    // Split before applying room admission: labels never extend to another floor.
+    for (let i = 1; i < path.length; i++) {
+      const from = levelOf(path[i - 1], this.navigation.first);
+      const to = levelOf(path[i], this.navigation.first);
+      if (from === to) continue;
+      const remainingS = pathLength(path.slice(i)) / WALK_SPEED_M_S;
+      const connectorDeadline = deadline - remainingS;
+      const expectedS = (path[i] as LevelPoint).travelS!;
+      yield* this.walk(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId);
+      const id = (path[i] as LevelPoint).connectorId;
+      const connector = this.plan.connectors.find((c) => c.id === id)!;
+      if (connector.kind === "lift") {
+        if (this.track.t > connectorDeadline + 1e-6) throw new RoomMovementDenied(this, connector.id, "No time remains for this lift journey.");
+        this.track.mark("in_lift");
+        const admission = yield { personId: this.personId, spaceId: connector.id, track: this.track, deadline: connectorDeadline,
+          gate: this.track.position, approach: this.track.position,
+          ride: { connectorId: connector.id, from, to } };
+        if (!admission.admitted || this.track.t > connectorDeadline + 1e-6) throw new RoomMovementDenied(this, connector.id, "Lift delay exceeds the remaining attendance time.");
+      } else {
+        this.navigation.connectorMetrics.find((m) => m.connectorId === connector.id)!.trips++;
+        this.track.mark("climbing");
+        this.track.t += rideSeconds(this.plan, connector, from, to);
+        this.track.position = { ...onLevel(path[i], to), levelId: to };
+      }
+      this.track.mark("walking");
+      this.releaseOutside([this.track.position]);
+      yield* this.walk(path.slice(i), activity, deadline, skipSpaceId);
+      return;
+    }
     const space = this.firstRoom(path, skipSpaceId);
     if (!space) {
       this.track.walk(path, activity);

@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import type { SimEvent, Track, Warning } from "../../contracts/results.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
-import { rasterise } from "../src/modules/grid.ts";
 import { RoomMovement, RoomMovementDenied } from "../src/modules/movement.ts";
-import type { Navigation } from "../src/modules/navigation.ts";
+import { createNavigation } from "../src/modules/navigation.ts";
 import { peakOccupancy } from "../src/modules/occupancy.ts";
-import { Pathfinder } from "../src/modules/pathfinding.ts";
 import { queueMetrics, runSchedules } from "../src/modules/queues.ts";
 import type { PersonSchedule } from "../src/modules/queues.ts";
 import { TrackBuilder } from "../src/modules/track.ts";
@@ -15,11 +13,10 @@ function setup(strips = false) {
   const polygon = strips
     ? [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 8 }, { x: 4, y: 8 }]
     : [{ x: 4, y: 1 }, { x: 6, y: 1 }, { x: 6, y: 3 }, { x: 4, y: 3 }];
-  const plan: FloorPlan = { version: "0.1", id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
-    walls: [], openings: [], fixtures: [], spaces: [{ id: "pantry", name: "Pantry", type: "pantry", privacy: "shared", capacity: 1, polygon, doorIds: [] }] };
-  const grid = rasterise(plan);
-  const navigation: Navigation = { grid, paths: new Pathfinder(grid), entrances: [], targets: new Map() };
-  const scenario: Scenario = { version: "0.3", id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
+  const plan: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
+    walls: [], openings: [], fixtures: [], spaces: [{ id: "pantry", levelId: "ground", name: "Pantry", type: "pantry", privacy: "shared", capacity: 1, polygon, doorIds: [] }] };
+  const navigation = createNavigation(plan, () => {});
+  const scenario: Scenario = { version: "0.4", id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
     teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, queueing: { maxWaitMin: 1 } };
   const events: SimEvent[] = [];
   const warnings: Warning[] = [];

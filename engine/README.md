@@ -1,4 +1,4 @@
-# Simulation engine v0.3
+# Simulation engine v0.4
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -21,12 +21,14 @@ team locations. It needs only a floor plan and exact points in metres:
 import { walkingDistances } from "./engine/src/index.ts";
 
 const desks = plan.fixtures.filter((fixture) => fixture.type === "desk");
-const distances = walkingDistances(plan, desks.map((desk) => desk.position));
+const distances = walkingDistances(plan, desks.map((desk) => ({ ...desk.position, levelId: desk.levelId })));
 const metres = distances[0][1]; // number, or null when there is no walkable route
 ```
 
-`walkingDistances(plan: FloorPlan, points: Vec2[]): (number | null)[][]` returns a
-symmetric matrix in input order. The diagonal is always zero, including for invalid
+`walkingDistances(plan: FloorPlan, points: (Vec2 & { levelId?: string })[]): (number | null)[][]`
+returns a matrix in input order. A missing `levelId` means the first floor. Single-floor
+distances remain symmetric; directed escalators can make multi-floor entries different
+in each direction. The diagonal is always zero, including for invalid
 endpoints. Every other entry involving a blocked, non-finite or out-of-bounds endpoint
 is `null`; disconnected endpoints also give `null`. Points are never snapped through
 a wall. Duplicate valid points have distance zero. Empty input returns `[]`.
@@ -37,12 +39,14 @@ Geometry must also be finite, as for simulation. No entrance is required: two po
 inside the same sealed room can have a route, while a point inside that room cannot
 reach a desk outside it. Capacity and privacy settings do not change geometric routes.
 
-Distances are lengths of the same simplified `Pathfinder` routes used by simulation,
+Distances are lengths of the same simplified routes used by simulation,
 with the same grid, endpoint checks and wall clearance. The helper has no timetable
-or people: queue-line detours, capacity waits and an actual visit's chosen doorway
-approach are not part of its static distance.
+or people: queue-line detours, room capacity waits and an actual visit's chosen doorway
+approach are not part of its static distance. A connector contributes its expected
+travel time multiplied by 1.3 m/s, including the expected lift pickup wait. Actual
+lift waits affect tracks, rather than this static matrix.
 
-Each canonical source runs at most one shared search for all its remaining targets.
+For a single floor, each canonical source runs at most one shared search for all its remaining targets.
 The matrix streams source trees instead of retaining all pairwise paths. On the
 200-point 60 × 40 m fixture with five vertical and two horizontal partitions and
 27 doorways, the helper takes about **0.4 seconds in Node** on the development machine;
@@ -60,7 +64,7 @@ npm run samples --prefix engine
 ```
 
 The last command writes ignored `engine/out/office-a.result.json`,
-`office-b.result.json`, and `sealed-room.result.json`. The UI can load these contract
+`office-b.result.json`, `sealed-room.result.json`, and `mall-2f.result.json`. The UI can load these contract
 results directly. Connecting the viewer to the engine belongs to the app owner.
 
 The engine returns the full results contract: interpolated keyframe tracks, events,
@@ -77,7 +81,10 @@ layouts**. These are model outputs, not measured occupancy.
   and segment visibility including boundary/corner checks. Windows stay solid.
 - `pathfinding.ts`: deterministic 8-way source searches, shared distance queries,
   waypoint simplification, and bounded source/visibility caches.
-- `navigation.ts`: exterior-door access and reachable space destinations.
+- `navigation.ts`: per-floor geometry, exterior-door access and reachable space destinations.
+- `levels.ts`: floor-aware internal points and walking-equivalent connector lengths.
+- `building-paths.ts`: directed footprint links and routes chosen by expected travel time.
+- `lifts.ts`: one shared FCFS car per lift, boarding limits, called stops and wait metrics.
 - `random.ts`: local Mulberry32 streams keyed by scenario seed and person id.
 - `schedule.ts`: staff requests, desk time, meetings, visits, lunch, and departure.
 - `lunch.ts`: lunch placement around meetings and their travel reservations.
@@ -150,6 +157,67 @@ Travel is additional to all stated waits/stays. A full trip must fit before the
 workday ends; otherwise it is skipped with an `other` warning rather than shortened.
 Visitors count in heatmaps, pass-bys and room peaks, but never in walking metrics or
 their summary. Every scenario person, including managers, is a `staff` track.
+
+## Floors and connectors
+
+Inputs use floor-plan v0.2 and scenario v0.4; results use v0.4. Each floor has its own
+walkable grid, walls, doors, targets, standing spots, room queues and occupancy.
+Connector footprint cells override walls on every served floor. Desks and exterior
+doors retain their declared floor. A one-way route that cannot complete a return trip
+is not used for attendance or optional visits.
+
+Routes minimise expected time over floor paths and connector links. All usable
+perimeter cells of each footprint are portals; endpoints already inside a footprint
+can transfer at their exact position. The search uses a lower bound consisting of
+straight horizontal travel plus minimum inter-floor connector time. Connector-order
+ties are stable. Floor legs retain the established wall-safe pathfinder and its
+resolution limits. Return journeys are routed afresh, so they respect escalator
+directions. Stairs/escalators join neighbouring floors and chain for longer trips;
+lifts connect any pair of served floors.
+
+Stairs take height / 0.4 seconds. Escalators take height × 4 seconds, in their declared
+direction (either direction when omitted). Lift estimates use 8 seconds for pickup
+doors, half a shaft traverse at 1.5 m/s for expected repositioning, height / 1.5 seconds
+for the ride, and 8 seconds for destination doors. This estimate is a modelling
+assumption; it is independent of the actual queue and is exposed in result assumptions.
+
+Each lift car initially rests at its lowest served floor. Calls enter the same
+chronological scheduler as room admissions; simultaneous calls use person id.
+The car repositions to the earliest call, spends 8 seconds at pickup, and boards the
+consecutive FCFS calls from that floor up to capacity (default 8). It visits their
+requested destinations in first-request order, with 8 seconds at each drop-off.
+It finishes that batch before picking up the next call; no uncalled intermediate floor
+is visited. Pickup and drop-off are separate door operations, including a new pickup
+at the same floor. Later same-floor calls do not jump an earlier call elsewhere.
+A ride that can no longer fit before the protected activity/departure deadline is
+cancelled before boarding, with an attendance warning. Actual lift delays may move a
+staff departure later than requested; building closing time remains a hard deadline.
+
+Lift waiting and riding are `in_lift`; stairs/escalators are `climbing`. Waiting has
+same-floor keyframes ending at boarding, then one cross-floor ride segment ending at
+arrival; x/y is unchanged at the floor change. Connector metrics count successful
+changes, maximum simultaneous waiting calls, and the longest actual pickup wait,
+including cancelled waits. Stairs/escalators have zero waiting metrics.
+
+Floor heatmaps exclude connector activities, including lift waiting. Top-level
+footfall/dwell repeat the first floor, and the existing floorless `hotspots` also
+refer to that floor. Staff walking totals measure horizontal walking; connector time
+is expressed in walking metres only in `walkingDistances`. Exposure and room peaks
+ignore other floors and connector travel. Standing spots are reserved only for
+potential scenario destinations in multi-floor plans, avoiding work for unused labels;
+single-floor allocation remains unchanged. Cached nearest-owner clearances and ordered
+queue-cell expansion preserve deterministic spacing choices without repeated full scans.
+
+Complete office A, office B and sealed-room outputs captured at `86e40fe` are checked
+by SHA-256 after removing only the new result fields and four connector assumptions.
+The four-floor 80 × 60 m acceptance fixture has 500 desks, three stairs, ground-floor
+toilets with capacity 8 and three requested toilet visits per person per day. It
+includes real queues and thousands of floor changes; its test enforces two seconds. In the
+final full test run it took 1.52 seconds, with all 136 tests passing. The seed-11 mall
+sample took about 0.9 seconds in Node, with 42 changes: up escalator 2, down escalator
+3, stairs 29 and lift 8. Lift waiting peaked at 2 people; the longest pickup wait was
+11 seconds. No mall warnings were emitted. These timings are from the development
+machine, not a guarantee for arbitrary geometry or hardware.
 
 ## Capacity and queues
 

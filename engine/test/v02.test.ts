@@ -31,7 +31,7 @@ describe("v0.2 sample acceptance", () => {
     const p = plan(id);
     const s = scenario();
     const result = simulate(p, s);
-    expect(result.version).toBe("0.3");
+    expect(result.version).toBe("0.4");
     expect(result.warnings).toEqual([]);
     expect(result.tracks.filter((t) => t.kind === "staff")).toHaveLength(13);
     expect(result.tracks.filter((t) => t.kind === "visitor")).toHaveLength(2);
@@ -135,7 +135,7 @@ describe("v0.2 sample acceptance", () => {
 describe("lunch rules", () => {
   it("uses the nearest reachable pantry rather than the first pantry listed", () => {
     const p = plan();
-    p.spaces.push({ id: "pantry-near", name: "Nearby pantry", type: "pantry", privacy: "shared",
+    p.spaces.push({ id: "pantry-near", levelId: "ground", name: "Nearby pantry", type: "pantry", privacy: "shared",
       polygon: [{ x: 2, y: 7 }, { x: 4, y: 7 }, { x: 4, y: 9 }, { x: 2, y: 9 }], doorIds: [] });
     const s = onePerson();
     s.lunch!.pantryShare = 1;
@@ -259,7 +259,7 @@ describe("visitor rules and validation", () => {
   it("waits at the nearest reachable reception rather than the first one listed", () => {
     const p = plan();
     const polygon = [{ x: 22.5, y: 1 }, { x: 23.5, y: 1 }, { x: 23.5, y: 3 }, { x: 22.5, y: 3 }];
-    p.spaces.push({ id: "reception-near", name: "Near reception", type: "reception", privacy: "public", polygon, doorIds: [] });
+    p.spaces.push({ id: "reception-near", levelId: "ground", name: "Near reception", type: "reception", privacy: "public", polygon, doorIds: [] });
     const track = simulate(p, scenario()).tracks.find((t) => t.personId === "v-client")!;
     const waiting = track.points.find((point) => point.activity === "waiting")!;
     expect(pointInPolygon(waiting, polygon)).toBe(true);

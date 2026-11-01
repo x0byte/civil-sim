@@ -1,5 +1,5 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
-import { distance, EPSILON } from "./geometry.ts";
+import { distance, EPSILON, pointInPolygon } from "./geometry.ts";
 
 export const WALK_CELL_M = 0.25;
 
@@ -138,9 +138,9 @@ function overlaps(rect: Vec2[], x0: number, y0: number, x1: number, y1: number):
   });
 }
 
-export function rasterise(plan: FloorPlan): WalkableGrid {
+export function rasterise(plan: FloorPlan, levelId = plan.levels[0].id): WalkableGrid {
   const grid = new WalkableGrid(plan.bounds.width, plan.bounds.height);
-  for (const wall of plan.walls) {
+  for (const wall of plan.walls.filter((wall) => wall.levelId === levelId)) {
     const length = distance(wall.a, wall.b);
     const ux = (wall.b.x - wall.a.x) / length;
     const uy = (wall.b.y - wall.a.y) / length;
@@ -165,6 +165,12 @@ export function rasterise(plan: FloorPlan): WalkableGrid {
         }
       }
       start = Math.max(start, to);
+    }
+  }
+  // Connector footprints override walls, on each floor they serve.
+  for (const connector of plan.connectors.filter((c) => c.levelIds.includes(levelId))) {
+    for (let i = 0; i < grid.blocked.length; i++) {
+      if (grid.blocked[i] && pointInPolygon(grid.point(i), connector.polygon)) grid.blocked[i] = 0;
     }
   }
   grid.labelComponents();

@@ -12,16 +12,16 @@ function desk(p: FloorPlan, id: string): Vec2 {
 
 /** A connected, furnished-office-sized routing workload with intersecting partitions. */
 function largeOffice(): { p: FloorPlan; points: Vec2[] } {
-  const p: FloorPlan = { version: "0.1", id: "large-office", name: "60 by 40 metre office", units: "m",
+  const p: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "large-office", name: "60 by 40 metre office", units: "m",
     bounds: { width: 60, height: 40 }, walls: [], openings: [], spaces: [], fixtures: [] };
   for (const x of [10, 20, 30, 40, 50]) {
     const wallId = `vertical-${x}`;
-    p.walls.push({ id: wallId, a: { x, y: 0 }, b: { x, y: 40 }, thickness: 0.15, height: 3 });
+    p.walls.push({ id: wallId, levelId: "ground", a: { x, y: 0 }, b: { x, y: 40 }, thickness: 0.15, height: 3 });
     for (const y of [8, 20, 32]) p.openings.push({ id: `${wallId}-door-${y}`, wallId, kind: "door", offset: y, width: 2 });
   }
   for (const y of [13, 27]) {
     const wallId = `horizontal-${y}`;
-    p.walls.push({ id: wallId, a: { x: 0, y }, b: { x: 60, y }, thickness: 0.15, height: 3 });
+    p.walls.push({ id: wallId, levelId: "ground", a: { x: 0, y }, b: { x: 60, y }, thickness: 0.15, height: 3 });
     for (const x of [5, 15, 25, 35, 45, 55]) p.openings.push({ id: `${wallId}-door-${x}`, wallId, kind: "door", offset: x, width: 2 });
   }
   const points = Array.from({ length: 200 }, (_, i) => ({ x: 1.5 + (i % 20) * 3, y: 1.5 + Math.floor(i / 20) * 4 }));
@@ -149,7 +149,7 @@ describe("walkingDistances public API", () => {
   });
 
   it("handles empty input, one endpoint, duplicate endpoints and partial boundary cells", () => {
-    const p: FloorPlan = { version: "0.1", id: "partial", name: "Partial boundary", units: "m",
+    const p: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial", name: "Partial boundary", units: "m",
       bounds: { width: 4.1, height: 3.3 }, walls: [], openings: [], spaces: [], fixtures: [] };
     expect(walkingDistances(p, [])).toEqual([]);
     expect(walkingDistances(p, [{ x: 4.1, y: 3.3 }])).toEqual([[0]]);
@@ -161,8 +161,8 @@ describe("walkingDistances public API", () => {
   });
 
   it("uses physical edge lengths and wall-safe detours in partial boundary cells", () => {
-    const p: FloorPlan = { version: "0.1", id: "partial-wall", name: "Partial cells with a wall", units: "m",
-      bounds: { width: 4.1, height: 3.3 }, walls: [{ id: "divider", a: { x: 2, y: 0 }, b: { x: 2, y: 3.3 }, thickness: 0.1, height: 3 }],
+    const p: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial-wall", name: "Partial cells with a wall", units: "m",
+      bounds: { width: 4.1, height: 3.3 }, walls: [{ id: "divider", levelId: "ground", a: { x: 2, y: 0 }, b: { x: 2, y: 3.3 }, thickness: 0.1, height: 3 }],
       openings: [{ id: "door", wallId: "divider", kind: "door", offset: 1.65, width: 1 }], spaces: [], fixtures: [] };
     const points = [{ x: 0.125, y: 0.375 }, { x: 4.05, y: 0.375 }, { x: 4.1, y: 3.3 }];
     const grid = rasterise(p);

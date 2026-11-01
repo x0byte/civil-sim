@@ -15,10 +15,10 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
   const { grid, entrances, targets, paths } = navigation;
   const absent = (): Track => absentTrack(visitor.id, "visitor", duration, grid, entrances[0] ?? { x: 0, y: 0 });
   const candidates = entrances.flatMap((entrance) => {
-    const component = grid.components[grid.indexAt(entrance)];
+    const component = navigation.component(entrance);
     const destination = targets.get(visitor.spaceId)?.get(component);
     const path = destination ? paths.route(entrance, destination) : null;
-    return path ? [{ entrance, component, path }] : [];
+    return path && paths.route(destination!, entrance) ? [{ entrance, component, path }] : [];
   }).sort((a, b) => pathLength(a.path) - pathLength(b.path));
   const selected = candidates[0];
   if (!selected) {
@@ -46,6 +46,10 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
   }
   const destinationPath = paths.route(receptionPath?.at(-1) ?? selected.entrance, destination)!;
   const exitPath = paths.route(destination, selected.entrance)!;
+  if (!destinationPath || !exitPath) {
+    warn({ code: "unreachable_space", message: `Visitor ${visitor.id} cannot complete the directed route through reception and back to their entrance.`, refIds: [visitor.id, visitor.spaceId] });
+    return absent();
+  }
   const arrival = clockSeconds(visitor.arrive) - clockSeconds(scenario.workday.start);
   const travelS = (pathLength(receptionPath ?? []) + pathLength(destinationPath) + pathLength(exitPath)) / WALK_SPEED_M_S;
   const stayS = ((receptionPath ? visitor.waitMin : 0) + visitor.durationMin) * 60;
@@ -82,7 +86,7 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
     if (admission.admitted) {
       yield* walk(trip.inside, "waiting", duration - (pathLength(back) + pathLength(trip.inside)) / WALK_SPEED_M_S - visitor.durationMin * 60, space.id);
       track.t += visitor.durationMin * 60;
-      yield* walk([...trip.inside].reverse(), "walking", duration - pathLength(back) / WALK_SPEED_M_S, space.id);
+      yield* walk(paths.route(trip.inside.at(-1)!, trip.inside[0])!, "walking", duration - pathLength(back) / WALK_SPEED_M_S, space.id);
       admission.release(track.t);
     }
     yield* walk(back, "absent", duration);

@@ -1,3 +1,5 @@
+import { Lifts } from "./lifts.ts";
+import { onLevel } from "./levels.ts";
 import type { FloorPlan, Space, Vec2 } from "../../../contracts/floorplan.ts";
 import type { QueueMetrics, SimEvent, Track, Warning } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
@@ -9,6 +11,8 @@ import { WALK_SPEED_M_S } from "./track.ts";
 import type { TrackBuilder } from "./track.ts";
 
 export interface RoomRequest {
+  /** A connector request shares this chronological scheduler with room admission. */
+  ride?: { connectorId: string; from: string; to: string };
   personId: string;
   spaceId: string;
   track: TrackBuilder;
@@ -50,7 +54,7 @@ export function outsidePaths(space: Space, navigation: Navigation): Pathfinder {
   if (!cache) { cache = new Map(); outsideCache.set(navigation, cache); }
   const cached = cache.get(space.id);
   if (cached) return cached;
-  const source = navigation.grid;
+  const source = navigation.grids.get(space.levelId)!;
   const grid = new WalkableGrid(source.width, source.height, source.cellSize);
   grid.blocked.set(source.blocked);
   const radius = Math.SQRT2 * source.cellSize / 2;
@@ -70,6 +74,7 @@ interface Runner { schedule: PersonSchedule; index: number }
 interface Waiter { runner: Runner; request: RoomRequest; arrival: number; expires: number; active: boolean; pointStart: number }
 interface Room { space: Space; used: number; waiting: Waiter[]; paths: Pathfinder }
 type Action =
+  | { t: number; kind: "lift"; run: () => void }
   | { t: number; kind: "arrival"; runner: Runner; request: RoomRequest }
   | { t: number; kind: "release"; room: Room }
   | { t: number; kind: "timeout"; room: Room; waiter: Waiter };
@@ -85,7 +90,7 @@ function freeze(waiter: Waiter, t: number): void {
   const a = points[i];
   const b = points[i + 1];
   const fraction = b && b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
-  const position = b ? { x: a.x + fraction * (b.x - a.x), y: a.y + fraction * (b.y - a.y) } : { x: a.x, y: a.y };
+  const position = b ? { levelId: a.levelId, x: a.x + fraction * (b.x - a.x), y: a.y + fraction * (b.y - a.y) } : { levelId: a.levelId, x: a.x, y: a.y };
   points.splice(i + 1);
   track.t = t;
   track.position = position;
@@ -97,7 +102,7 @@ function moveInLine(waiter: Waiter, path: Vec2[]): void {
   const track = waiter.request.track;
   for (let i = 1; i < path.length; i++) {
     track.t += distance(path[i - 1], path[i]) / WALK_SPEED_M_S;
-    track.position = path[i];
+    track.position = { ...onLevel(path[i], track.position.levelId), levelId: track.position.levelId };
     track.mark("queuing");
   }
 }
@@ -116,22 +121,60 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[]): 
   const gateIndex = grid.indexAt(gate);
   if (gateIndex < 0 || grid.components[gateIndex] < 0) return null;
   const component = grid.components[gateIndex];
-  const candidates: { point: Vec2; score: number; index: number }[] = [];
-  for (let i = 0; i < grid.blocked.length; i++) {
-    if (grid.components[i] !== component) continue;
-    const point = grid.point(i);
-    const offsetX = point.x - gate.x;
-    const offsetY = point.y - gate.y;
-    if (offsetX * dx + offsetY * dy < -1e-9 || distance(point, gate) > QUEUE_RETURN_BUFFER_S * WALK_SPEED_M_S) continue;
+  const radius = QUEUE_RETURN_BUFFER_S * WALK_SPEED_M_S;
+  const minCol = Math.max(0, Math.floor((gate.x - radius) / grid.cellSize));
+  const maxCol = Math.min(grid.cols - 1, Math.floor((gate.x + radius) / grid.cellSize));
+  const minRow = Math.max(0, Math.floor((gate.y - radius) / grid.cellSize));
+  const maxRow = Math.min(grid.rows - 1, Math.floor((gate.y + radius) / grid.cellSize));
+  // Enumerate cells in the same distance/index order as a full sort, expanding
+  // outward from the ideal. Most requests inspect only a handful of nearby cells.
+  const heap: { point: Vec2; score: number; index: number }[] = [];
+  const seen = new Set<number>();
+  const less = (a: typeof heap[number], b: typeof heap[number]) => a.score < b.score || (a.score === b.score && a.index < b.index);
+  const add = (col: number, row: number) => {
+    if (col < minCol || col > maxCol || row < minRow || row > maxRow) return;
+    const index = row * grid.cols + col;
+    if (seen.has(index)) return;
+    seen.add(index);
+    const point = grid.point(index);
+    const item = { point, score: distance(point, ideal), index };
+    let i = heap.length; heap.push(item);
+    while (i && less(item, heap[(i - 1) >> 1])) { heap[i] = heap[(i - 1) >> 1]; i = (i - 1) >> 1; }
+    heap[i] = item;
+  };
+  const closest = (value: number, min: number, max: number, coordinate: (i: number) => number) => {
+    const initial = Math.max(min, Math.min(max, Math.round(value / grid.cellSize - 0.5)));
+    let best = initial;
+    for (let i = Math.max(min, initial - 1); i <= Math.min(max, initial + 1); i++) {
+      const d = Math.abs(coordinate(i) - value); const old = Math.abs(coordinate(best) - value);
+      if (d < old || (d === old && i < best)) best = i;
+    }
+    return best;
+  };
+  add(closest(ideal.x, minCol, maxCol, (col) => grid.point(col).x),
+    closest(ideal.y, minRow, maxRow, (row) => grid.point(row * grid.cols).y));
+  while (heap.length) {
+    const candidate = heap[0]; const last = heap.pop()!;
+    if (heap.length) {
+      let i = 0;
+      while (i * 2 + 1 < heap.length) {
+        let next = i * 2 + 1;
+        if (next + 1 < heap.length && less(heap[next + 1], heap[next])) next++;
+        if (!less(heap[next], last)) break;
+        heap[i] = heap[next]; i = next;
+      }
+      heap[i] = last;
+    }
+    const col = candidate.index % grid.cols; const row = Math.floor(candidate.index / grid.cols);
+    add(col - 1, row); add(col + 1, row); add(col, row - 1); add(col, row + 1);
+    if (grid.components[candidate.index] !== component) continue;
+    const point = candidate.point;
+    if ((point.x - gate.x) * dx + (point.y - gate.y) * dy < -1e-9 || distance(point, gate) > radius) continue;
     if (occupied.some((other) => distance(point, other) < QUEUE_SPACING_M - 1e-9)) continue;
-    candidates.push({ point, score: distance(point, ideal), index: i });
-  }
-  candidates.sort((a, b) => a.score - b.score || a.index - b.index);
-  for (const candidate of candidates) {
-    const toGate = room.paths.route(candidate.point, gate);
+    const toGate = room.paths.route(point, gate);
     if (!toGate || pathLength(toGate) / WALK_SPEED_M_S > QUEUE_RETURN_BUFFER_S) continue;
-    const path = room.paths.route(track.position, candidate.point);
-    if (path) return { point: candidate.point, path };
+    const path = room.paths.route(track.position, point);
+    if (path) return { point, path };
   }
   return null;
 }
@@ -143,20 +186,20 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   // Queue motion itself must never use a different capacity-limited room as
   // overflow space. All rooms share one union grid for line positions/shuffling;
   // roomTrip keeps using each target's individual outsidePaths approach grid.
-  let linePaths = navigation.paths;
-  if (capped.length) {
-    const source = navigation.grid;
+  const linePaths = new Map<string, Pathfinder>();
+  for (const [id, source] of navigation.grids) {
+    if (!capped.some((space) => space.levelId === id)) { linePaths.set(id, navigation.paths.floors.get(id)!); continue; }
     const lineGrid = new WalkableGrid(source.width, source.height, source.cellSize);
     lineGrid.blocked.set(source.blocked);
-    for (const space of capped) {
+    for (const space of capped.filter((s) => s.levelId === id)) {
       const exterior = outsidePaths(space, navigation).grid;
       for (let i = 0; i < lineGrid.blocked.length; i++) lineGrid.blocked[i] |= exterior.blocked[i];
     }
     lineGrid.labelComponents();
-    linePaths = new Pathfinder(lineGrid);
+    linePaths.set(id, new Pathfinder(lineGrid));
   }
   const rooms = new Map<string, Room>(capped
-    .map((space) => [space.id, { space, used: 0, waiting: [], paths: linePaths } satisfies Room]));
+    .map((space) => [space.id, { space, used: 0, waiting: [], paths: linePaths.get(space.levelId)! } satisfies Room]));
   const actions: Action[] = [];
   const results: Track[] = new Array(schedules.length);
   const maxWaitS = (scenario.queueing?.maxWaitMin ?? 10) * 60;
@@ -165,6 +208,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
     if (next.done) results[runner.index] = next.value;
     else actions.push({ t: next.value.track.t, kind: "arrival", runner, request: next.value });
   };
+  const lifts = new Lifts(plan, navigation.connectorMetrics, (t, run) => actions.push({ t, kind: "lift", run }));
   const event = (waiter: Waiter, t: number, type: "queue_start" | "queue_end" | "gave_up") =>
     events.push({ t, personId: waiter.request.personId, type, spaceId: waiter.request.spaceId });
   const noRelease = (): void => {};
@@ -213,13 +257,14 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   };
 
   schedules.forEach((schedule, index) => advance({ schedule, index }));
-  const priority = { timeout: 0, release: 1, arrival: 2 };
+  const priority = { timeout: 0, release: 1, arrival: 2, lift: 3 };
   while (actions.length) {
     actions.sort((a, b) => a.t - b.t || priority[a.kind] - priority[b.kind]
       || idOrder(a.kind === "arrival" ? a.request.personId : "", b.kind === "arrival" ? b.request.personId : ""));
     const action = actions.shift()!;
     const t = action.t;
-    if (action.kind === "timeout") {
+    if (action.kind === "lift") { action.run();
+    } else if (action.kind === "timeout") {
       if (action.waiter.active) {
         finishWait(action.room, action.waiter, t, false);
         admitWaiting(action.room, t);
@@ -231,6 +276,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
       arrange(action.room, t);
     } else {
       const { request, runner } = action;
+      if (request.ride) { lifts.call(request, (admitted) => advance(runner, { admitted, toGate: [], release: noRelease })); continue; }
       const room = rooms.get(request.spaceId);
       if (!room) { resume(runner, request, undefined, true, [request.gate]); continue; }
       if (!room.waiting.length && room.used < room.space.capacity! && t <= request.deadline) {

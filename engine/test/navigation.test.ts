@@ -4,8 +4,8 @@ import { rasterise, WalkableGrid } from "../src/modules/grid.ts";
 import { Pathfinder } from "../src/modules/pathfinding.ts";
 
 function divider(kind: "door" | "window"): FloorPlan {
-  return { version: "0.1", id: "grid-test", name: "Grid test", units: "m", bounds: { width: 4, height: 4 },
-    walls: [{ id: "divider", a: { x: 2, y: 0 }, b: { x: 2, y: 4 }, thickness: 0.1, height: 3 }],
+  return { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "grid-test", name: "Grid test", units: "m", bounds: { width: 4, height: 4 },
+    walls: [{ id: "divider", levelId: "ground", a: { x: 2, y: 0 }, b: { x: 2, y: 4 }, thickness: 0.1, height: 3 }],
     openings: [{ id: "opening", wallId: "divider", kind, offset: 2, width: 1 }], spaces: [], fixtures: [] };
 }
 

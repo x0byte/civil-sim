@@ -121,3 +121,7 @@ Newest first. One entry per decision: what, why, who decided.
 - **Parallel build: Claude on the editor (`app/`), Codex on the simulation core (`engine/`), meeting only at `contracts/`.** *(Product owner)*
 - **Floor plan input starts as upload-and-trace plus drawing.** Automatic wall detection and DXF import come later. *(Agreed)*
 - **TypeScript, runs in the browser.** Pitching should be as simple as sending a link. *(Claude)*
+
+## 2026-11-01: Engine v0.4 floors and lift policy
+- **Keep floor geometry and room accounting separate; join footprint portals by expected time.** Directed escalators require fresh return routes; distance matrices use expected connector seconds × 1.3 m/s and may be asymmetric. Existing floorless hotspots refer to the first floor, like the compatibility heatmaps. Single-floor regression hashes preserve the complete prior outputs. *(Codex, engine v0.4 brief)*
+- **One deterministic FCFS car per lift, initially on its lowest served floor.** Batch consecutive calls at one pickup up to capacity, finish requested drop-offs in call order, then serve the next call. Each pickup/drop-off has an eight-second door operation. Route estimates allow pickup doors plus half a shaft traverse; tracks use actual waits. Cancel impossible protected-deadline journeys before boarding. Details and performance fixture are in `engine/README.md`. *(Codex modelling choices within the approved brief)*

@@ -1,3 +1,4 @@
+import { connectorTime } from "./levels.ts";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import { distance, EPSILON } from "./geometry.ts";
 import type { WalkableGrid } from "./grid.ts";
@@ -6,7 +7,15 @@ interface Graph { points: Vec2[]; next: Int32Array; weights: Float64Array; bucke
 interface SearchWork { costs: Float64Array; previous: Int32Array; turns: Int32Array; bucketOf: Int32Array; linkNext: Int32Array; linkPrev: Int32Array; targets: Uint8Array }
 type VisibilityKey = string | number;
 
-export const pathLength = (path: Vec2[]): number => path.slice(1).reduce((sum, point, i) => sum + distance(path[i], point), 0);
+/** Horizontal metres plus expected connector time expressed as walking metres. */
+export function pathLength(path: Vec2[]): number {
+  let length = 0;
+  for (let i = 1; i < path.length; i++) {
+    const seconds = connectorTime(path[i - 1], path[i]);
+    length += seconds === undefined ? distance(path[i - 1], path[i]) : seconds * 1.3;
+  }
+  return length;
+}
 
 /** Shared 8-way source searches, no corner cuts, and farthest-visible simplification. */
 export class Pathfinder {

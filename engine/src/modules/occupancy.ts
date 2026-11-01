@@ -69,7 +69,7 @@ export function peakOccupancy(plan: FloorPlan, tracks: Track[]): Metrics["peakOc
       for (let i = 0; i < track.points.length - 1; i++) {
         const a = track.points[i];
         const b = track.points[i + 1];
-        if (a.activity === "absent" || b.t <= a.t) continue;
+        if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift" || b.t <= a.t) continue;
         const timeAt = (fraction: number): number => fraction === 0 ? a.t : fraction === 1 ? b.t : a.t + (b.t - a.t) * fraction;
         for (const interval of interiorIntervals(a, b, space.polygon)) {
           const from = timeAt(interval.from);

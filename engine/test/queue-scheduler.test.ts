@@ -3,25 +3,23 @@ import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import type { SimEvent, Track, Warning } from "../../contracts/results.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
 import { distance, pointInPolygon } from "../src/modules/geometry.ts";
-import { rasterise } from "../src/modules/grid.ts";
-import type { Navigation } from "../src/modules/navigation.ts";
+import { createNavigation } from "../src/modules/navigation.ts";
 import { peakOccupancy } from "../src/modules/occupancy.ts";
-import { Pathfinder, pathLength } from "../src/modules/pathfinding.ts";
+import { pathLength } from "../src/modules/pathfinding.ts";
 import { outsidePaths, queueMetrics, runSchedules } from "../src/modules/queues.ts";
 import type { PersonSchedule } from "../src/modules/queues.ts";
 import { TrackBuilder, WALK_SPEED_M_S } from "../src/modules/track.ts";
 
 function setup(maxWaitMin: number | undefined = 10) {
-  const plan: FloorPlan = { version: "0.1", id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
+  const plan: FloorPlan = { version: "0.2", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
     walls: [], openings: [], fixtures: [], spaces: [
-      { id: "toilet", name: "Toilet", type: "toilet", privacy: "shared", capacity: 1,
+      { id: "toilet", levelId: "ground", name: "Toilet", type: "toilet", privacy: "shared", capacity: 1,
         polygon: [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 4 }, { x: 4, y: 4 }], doorIds: [] },
-      { id: "pantry", name: "Pantry", type: "pantry", privacy: "shared", capacity: 4,
+      { id: "pantry", levelId: "ground", name: "Pantry", type: "pantry", privacy: "shared", capacity: 4,
         polygon: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }], doorIds: [] },
     ] };
-  const grid = rasterise(plan);
-  const navigation: Navigation = { grid, paths: new Pathfinder(grid), entrances: [], targets: new Map() };
-  const scenario: Scenario = { version: "0.3", id: "queue-test", name: "Queue test", seed: 1,
+  const navigation = createNavigation(plan, () => {});
+  const scenario: Scenario = { version: "0.4", id: "queue-test", name: "Queue test", seed: 1,
     workday: { start: "08:00", end: "17:00" }, teams: [], people: [], meetings: [],
     rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, ...(maxWaitMin === undefined ? {} : { queueing: { maxWaitMin } }) };
   const events: SimEvent[] = [];
@@ -196,8 +194,7 @@ describe("shared FCFS capacity scheduler", () => {
     const test = setup();
     test.plan.bounds = { width: 0.75, height: 0.75 };
     test.plan.spaces = [{ ...test.plan.spaces[0], polygon: [{ x: 0, y: 0 }, { x: 0.75, y: 0 }, { x: 0.75, y: 0.25 }, { x: 0, y: 0.25 }] }];
-    const grid = rasterise(test.plan);
-    const navigation: Navigation = { grid, paths: new Pathfinder(grid), entrances: [], targets: new Map() };
+    const navigation = createNavigation(test.plan, () => {});
     const gate = { x: 0.125, y: 0.625 };
     function* person(id: string): PersonSchedule {
       const track = new TrackBuilder(gate);
@@ -212,7 +209,7 @@ describe("shared FCFS capacity scheduler", () => {
     const tracks = runSchedules([person("a"), person("b"), person("c")], test.plan, test.scenario, navigation, test.events, (w) => test.warnings.push(w));
     expect(test.warnings.some((w) => w.refIds.includes("c"))).toBe(true);
     expect(test.events.some((e) => e.personId === "c" && e.type === "gave_up" && e.t === 100)).toBe(true);
-    for (const track of tracks) for (let i = 1; i < track.points.length; i++) expect(grid.canWalk(track.points[i - 1], track.points[i])).toBe(true);
+    for (const track of tracks) for (let i = 1; i < track.points.length; i++) expect(navigation.grid.canWalk(track.points[i - 1], track.points[i])).toBe(true);
   });
 
   it("counts distinct people once while summing multiple waits and give-ups", () => {
