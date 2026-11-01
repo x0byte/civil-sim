@@ -1,4 +1,4 @@
-# Contracts (v0.3)
+# Contracts (v0.4)
 
 These files define how the parts of civil-sim talk to each other. The editor and the
 engine are built separately, by different agents, and only ever meet here.
@@ -11,7 +11,7 @@ engine are built separately, by different agents, and only ever meet here.
 
 | File | What it describes |
 |---|---|
-| `floorplan.ts` | The building: walls, doors, windows, labelled spaces, desks and other fixtures |
+| `floorplan.ts` | The building: floors, walls, doors, windows, labelled spaces, desks and other fixtures, and the stairs, escalators and lifts between floors |
 | `scenario.ts` | The people and their day: teams, desks, meetings, how often they visit the toilet or pantry |
 | `results.ts` | What the engine returns: everyone's path through the day, heatmaps, events, metrics, warnings |
 | `validate.ts` | Shared checks. `checkFloorPlan` / `checkScenario` return issues with a stable `code` and a readable `message`; match on codes, never on wording |
@@ -25,6 +25,7 @@ engine are built separately, by different agents, and only ever meet here.
 - **Every number shown to a user is traceable.** Results carry an `assumptions` list in plain language.
 
 ## Version history
+- **v0.4** (floor plan v0.2, scenario, results): several floors stacked on the same coordinates (`levels`, `levelId`), stairs, escalators and lifts (`connectors`), mall space types; results gain the floor on every point, per-floor heatmaps and connector use.
 - **v0.3** (scenario, results): queues at full toilets and pantries (`queueing`, `"queuing"`, queue events, `queues` metrics). Floor plan v0.1: `capacity` now limits toilets and pantries.
 - **v0.2** (scenario, results): lunch break, visitors, `Track.kind`, `peakOccupancy`; validation issues with codes. Floor plan unchanged at v0.1.
 - **v0.1**: first version.

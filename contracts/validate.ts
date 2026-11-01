@@ -32,6 +32,9 @@ export type IssueCode =
   | "capacity"
   | "unknown_space"
   | "fixture_outside_space"
+  | "level"
+  | "unknown_level"
+  | "connector"
   // scenario
   | "seed"
   | "workday"
@@ -64,6 +67,19 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
   const inBounds = (p: Vec2) =>
     isNum(p?.x) && isNum(p?.y) && p.x >= 0 && p.y >= 0 && p.x <= width && p.y <= height;
 
+  const levels = Array.isArray(plan.levels) ? plan.levels : [];
+  const levelIds = new Set<string>();
+  if (!levels.length) err("level", "plan needs at least one level");
+  levels.forEach((l, i) => {
+    if (!l.id || levelIds.has(l.id)) err("level", `level ids must be unique and non-empty ("${l.id}")`);
+    levelIds.add(l.id);
+    if (!isNum(l.elevation)) err("level", `level ${l.id} needs a numeric elevation`);
+    if (i > 0 && isNum(l.elevation) && l.elevation <= levels[i - 1].elevation) err("level", "levels must be listed from lowest to highest");
+  });
+  const onLevel = (what: string, levelId: string) => {
+    if (!levelIds.has(levelId)) err("unknown_level", `${what} references unknown level "${levelId}"`);
+  };
+
   const ids = new Set<string>();
   const claim = (id: string, what: string) => {
     if (!id) err("missing_id", `${what} is missing an id`);
@@ -72,8 +88,11 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
   };
 
   const wallLength = new Map<string, number>();
+  const wallLevel = new Map<string, string>();
   for (const w of plan.walls) {
     claim(w.id, "wall");
+    onLevel(`wall ${w.id}`, w.levelId);
+    wallLevel.set(w.id, w.levelId);
     if (!inBounds(w.a) || !inBounds(w.b)) err("outside_bounds", `wall ${w.id} has a point outside bounds`);
     const len = dist(w.a, w.b);
     if (!(len > 0)) err("wall_size", `wall ${w.id} has zero length`);
@@ -112,6 +131,7 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
   for (const s of plan.spaces) {
     claim(s.id, "space");
     spaceIds.add(s.id);
+    onLevel(`space ${s.id}`, s.levelId);
     if (!Array.isArray(s.polygon) || s.polygon.length < 3) {
       err("space_polygon", `space ${s.id} needs a polygon with at least 3 points`);
       continue;
@@ -120,6 +140,11 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
     for (const d of s.doorIds) {
       if (!doorIds.has(d)) {
         err("not_a_door", `space ${s.id} lists "${d}", which is not a door`);
+        continue;
+      }
+      const door = plan.openings.find((o) => o.id === d)!;
+      if (wallLevel.get(door.wallId) !== s.levelId) {
+        err("door_off_edge", `door ${d} is on a different level from space ${s.id}`);
         continue;
       }
       const centre = openingCentre(plan, d);
@@ -132,11 +157,31 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
 
   for (const f of plan.fixtures) {
     claim(f.id, "fixture");
+    onLevel(`fixture ${f.id}`, f.levelId);
     if (!inBounds(f.position)) err("outside_bounds", `fixture ${f.id} is outside bounds`);
-    if (!spaceIds.has(f.spaceId)) err("unknown_space", `fixture ${f.id} references unknown space "${f.spaceId}"`);
-    else if (!pointInPolygon(f.position, plan.spaces.find((s) => s.id === f.spaceId)!.polygon)) {
+    const space = plan.spaces.find((s) => s.id === f.spaceId);
+    if (!space) err("unknown_space", `fixture ${f.id} references unknown space "${f.spaceId}"`);
+    else if (space.levelId !== f.levelId) err("fixture_outside_space", `fixture ${f.id} is on a different level from space ${f.spaceId}`);
+    else if (!pointInPolygon(f.position, space.polygon)) {
       err("fixture_outside_space", `fixture ${f.id} is not inside space ${f.spaceId}`);
     }
+  }
+
+  const levelOrder = new Map(levels.map((l, i) => [l.id, i]));
+  for (const c of Array.isArray(plan.connectors) ? plan.connectors : []) {
+    claim(c.id, "connector");
+    if (!Array.isArray(c.polygon) || c.polygon.length < 3) err("connector", `connector ${c.id} needs a polygon with at least 3 points`);
+    else if (!c.polygon.every(inBounds)) err("outside_bounds", `connector ${c.id} has a point outside bounds`);
+    const served = Array.isArray(c.levelIds) ? c.levelIds : [];
+    if (new Set(served).size < 2) err("connector", `connector ${c.id} must serve at least two different levels`);
+    served.forEach((id) => onLevel(`connector ${c.id}`, id));
+    if (c.kind !== "lift" && served.length === 2 && served.every((id) => levelOrder.has(id))) {
+      const gap = Math.abs(levelOrder.get(served[0])! - levelOrder.get(served[1])!);
+      if (gap !== 1) err("connector", `${c.kind} ${c.id} must join two levels that are next to each other`);
+    }
+    if (c.kind !== "lift" && served.length > 2) err("connector", `${c.kind} ${c.id} joins exactly two levels; use a lift to serve more`);
+    if (c.direction !== undefined && c.kind !== "escalator") err("connector", `connector ${c.id}: only escalators have a direction`);
+    if (c.capacity !== undefined && (c.kind !== "lift" || !(c.capacity > 0))) err("connector", `connector ${c.id}: only lifts have a capacity, and it must be positive`);
   }
 
   return issues;

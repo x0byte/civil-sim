@@ -5,25 +5,46 @@
 // A puts the toilet right next to the manager's office; B moves it to the far end.
 // The engine should report far fewer pass-bys at the manager's door in B.
 // sealed-room has a desk in a room with no door; the engine should warn about it.
+// mall-2f is a small two-floor mall: shops on both floors joined by an up and a down
+// escalator, stairs and a lift. Toilets are on the ground floor only, so first-floor shop
+// staff and visitors have to change floors.
 
 import { writeFileSync } from "node:fs";
-import type { FloorPlan, Opening, Space, Vec2, Wall } from "../contracts/floorplan.ts";
+import type { Connector, Fixture, FloorPlan, Level, Opening, Space, Vec2, Wall } from "../contracts/floorplan.ts";
 import type { Scenario } from "../contracts/scenario.ts";
 
 const dir = new URL(".", import.meta.url);
 
-const wall = (id: string, a: Vec2, b: Vec2, thickness = 0.15): Wall => ({ id, a, b, thickness, height: 3 });
+type NoLevel<T> = Omit<T, "levelId">;
+/** A single-floor plan before floors are added. */
+interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "walls" | "spaces" | "fixtures"> {
+  walls: NoLevel<Wall>[];
+  spaces: NoLevel<Space>[];
+  fixtures: NoLevel<Fixture>[];
+}
+const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
+const singleFloor = (d: Draft): FloorPlan => ({
+  ...d,
+  version: "0.2",
+  levels: [GROUND],
+  walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
+  spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
+  fixtures: d.fixtures.map((f) => ({ ...f, levelId: GROUND.id })),
+  connectors: [],
+});
+
+const wall = (id: string, a: Vec2, b: Vec2, thickness = 0.15): NoLevel<Wall> => ({ id, a, b, thickness, height: 3 });
 const rect = (x0: number, y0: number, x1: number, y1: number): Vec2[] => [
   { x: x0, y: y0 },
   { x: x1, y: y0 },
   { x: x1, y: y1 },
   { x: x0, y: y1 },
 ];
-const exteriorWalls = (w: number, h: number): Wall[] => [
-  wall("w-top", { x: 0, y: 0 }, { x: w, y: 0 }, 0.25),
-  wall("w-right", { x: w, y: 0 }, { x: w, y: h }, 0.25),
-  wall("w-bottom", { x: 0, y: h }, { x: w, y: h }, 0.25),
-  wall("w-left", { x: 0, y: 0 }, { x: 0, y: h }, 0.25),
+const exteriorWalls = (w: number, h: number, prefix = ""): NoLevel<Wall>[] => [
+  wall(`${prefix}w-top`, { x: 0, y: 0 }, { x: w, y: 0 }, 0.25),
+  wall(`${prefix}w-right`, { x: w, y: 0 }, { x: w, y: h }, 0.25),
+  wall(`${prefix}w-bottom`, { x: 0, y: h }, { x: w, y: h }, 0.25),
+  wall(`${prefix}w-left`, { x: 0, y: 0 }, { x: 0, y: h }, 0.25),
 ];
 const door = (id: string, wallId: string, offset: number, width = 0.9, exterior?: boolean): Opening =>
   exterior ? { id, wallId, kind: "door", offset, width, exterior } : { id, wallId, kind: "door", offset, width };
@@ -49,10 +70,14 @@ interface StripRoom {
 
 /** A 24 x 14 m office: a strip of rooms along the top wall (y 0-4), open office below. */
 function office(id: string, name: string, rooms: StripRoom[]): FloorPlan {
+  return singleFloor(officeDraft(id, name, rooms));
+}
+
+function officeDraft(id: string, name: string, rooms: StripRoom[]): Draft {
   const W = 24;
   const H = 14;
   const stripEnd = rooms[rooms.length - 1].x1;
-  const walls: Wall[] = [
+  const walls: NoLevel<Wall>[] = [
     ...exteriorWalls(W, H),
     wall("w-strip", { x: 0, y: 4 }, { x: stripEnd, y: 4 }),
     ...rooms.map((r) => wall(`w-${r.id}-east`, { x: r.x1, y: 0 }, { x: r.x1, y: 4 })),
@@ -66,9 +91,9 @@ function office(id: string, name: string, rooms: StripRoom[]): FloorPlan {
     win("win-s2", "w-bottom", 12, 3),
     win("win-s3", "w-bottom", 18, 3),
   ];
-  const spaces: Space[] = [
-    ...rooms.map((r): Space => {
-      const s: Space = {
+  const spaces: NoLevel<Space>[] = [
+    ...rooms.map((r): NoLevel<Space> => {
+      const s: NoLevel<Space> = {
         id: r.id,
         name: r.name,
         type: r.type,
@@ -98,7 +123,7 @@ function office(id: string, name: string, rooms: StripRoom[]): FloorPlan {
   ];
   const deskXs = [3, 6, 9, 12, 15, 18];
   const pantry = rooms.find((r) => r.id === "pantry")!;
-  const fixtures: FloorPlan["fixtures"] = [
+  const fixtures: NoLevel<Fixture>[] = [
     { id: "desk-m", type: "desk", position: { x: 2.5, y: 2 }, rotation: 90, spaceId: "manager" },
     ...[8, 11].flatMap((y, row) =>
       deskXs.map((x, i) => ({
@@ -112,7 +137,7 @@ function office(id: string, name: string, rooms: StripRoom[]): FloorPlan {
     { id: "coffee", type: "coffee", position: { x: (pantry.x0 + pantry.x1) / 2, y: 2 }, rotation: 0, spaceId: "pantry" },
     { id: "printer", type: "printer", position: { x: 22, y: 9 }, rotation: 0, spaceId: "open-office" },
   ];
-  return { version: "0.1", id, name, units: "m", bounds: { width: W, height: H }, walls, openings, spaces, fixtures };
+  return { id, name, units: "m", bounds: { width: W, height: H }, walls, openings, spaces, fixtures };
 }
 
 const manager: StripRoom = {
@@ -162,8 +187,7 @@ const officeB = office("office-b", "Office B: toilet by reception", [
   { id: "toilet", name: "Toilet", type: "toilet", privacy: "shared", x0: 18, x1: 21, doorOffset: 19.5, capacity: 2 },
 ]);
 
-const sealed: FloorPlan = {
-  version: "0.1",
+const sealed: FloorPlan = singleFloor({
   id: "sealed-room",
   name: "Sealed room (should warn)",
   units: "m",
@@ -178,7 +202,7 @@ const sealed: FloorPlan = {
     { id: "desk-01", type: "desk", position: { x: 3, y: 4 }, rotation: 0, spaceId: "office" },
     { id: "desk-02", type: "desk", position: { x: 8, y: 4 }, rotation: 0, spaceId: "back-room" },
   ],
-};
+});
 
 const people: Scenario["people"] = [
   { id: "p-m", teamId: "mgmt", role: "manager", deskId: "desk-m" },
@@ -190,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.3",
+  version: "0.4",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -217,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.3",
+  version: "0.4",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -231,12 +255,172 @@ const sealedScenario: Scenario = {
   rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 },
 };
 
+// ---------- mall-2f: a small two-floor mall, 40 x 24 m ----------
+
+const FIRST: Level = { id: "first", name: "First floor", elevation: 4.5 };
+
+/** One floor of the mall: four shops along the top, a concourse, toilets (ground only) or a food court (first). */
+function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings" | "spaces" | "fixtures"> {
+  const W = 40;
+  const H = 24;
+  const ground = level.id === GROUND.id;
+  const L = (w: NoLevel<Wall>): Wall => ({ ...w, levelId: level.id });
+  const walls: Wall[] = [
+    ...exteriorWalls(W, H, p),
+    wall(`${p}w-shops`, { x: 0, y: 7 }, { x: W, y: 7 }),
+    ...[10, 20, 30].map((x) => wall(`${p}w-shop-${x}`, { x, y: 0 }, { x, y: 7 })),
+    ...(ground
+      ? [wall(`${p}w-wc`, { x: 32, y: 18 }, { x: W, y: 18 }), wall(`${p}w-wc-side`, { x: 32, y: 18 }, { x: 32, y: H })]
+      : []),
+  ].map(L);
+  const openings: Opening[] = [
+    ...[5, 15, 25, 35].map((x, i) => door(`${p}d-shop-${i + 1}`, `${p}w-shops`, x, 2.4)),
+    ...(ground
+      ? [
+          door(`${p}d-main`, `${p}w-bottom`, 20, 3, true),
+          door(`${p}d-side`, `${p}w-left`, 15, 1.8, true),
+          door(`${p}d-wc`, `${p}w-wc`, 4, 1.2),
+        ]
+      : []),
+  ];
+  const shopNames = ground ? ["Pharmacy", "Bookshop", "Phone store", "Clothing"] : ["Sports", "Electronics", "Shoes", "Toys"];
+  const spaces: Space[] = [
+    ...[0, 10, 20, 30].map(
+      (x0, i): Space => ({
+        id: `${p}shop-${i + 1}`,
+        levelId: level.id,
+        name: shopNames[i],
+        type: "shop",
+        privacy: "public",
+        polygon: rect(x0, 0, x0 + 10, 7),
+        doorIds: [`${p}d-shop-${i + 1}`],
+      }),
+    ),
+    ground
+      ? {
+          id: `${p}concourse`,
+          levelId: level.id,
+          name: "Concourse",
+          type: "atrium",
+          privacy: "public",
+          polygon: [
+            { x: 0, y: 7 },
+            { x: W, y: 7 },
+            { x: W, y: 18 },
+            { x: 32, y: 18 },
+            { x: 32, y: H },
+            { x: 0, y: H },
+          ],
+          doorIds: [],
+        }
+      : {
+          id: `${p}concourse`,
+          levelId: level.id,
+          name: "Concourse",
+          type: "atrium",
+          privacy: "public",
+          polygon: [
+            { x: 0, y: 7 },
+            { x: W, y: 7 },
+            { x: W, y: H },
+            { x: 14, y: H },
+            { x: 14, y: 16 },
+            { x: 0, y: 16 },
+          ],
+          doorIds: [],
+        },
+    ...(ground
+      ? [
+          {
+            id: `${p}toilets`,
+            levelId: level.id,
+            name: "Toilets",
+            type: "toilet",
+            privacy: "shared",
+            polygon: rect(32, 18, W, H),
+            doorIds: [],
+            capacity: 4,
+          } satisfies Space,
+        ]
+      : [
+          {
+            id: `${p}food-court`,
+            levelId: level.id,
+            name: "Food court",
+            type: "food_court",
+            privacy: "public",
+            polygon: rect(0, 16, 14, H),
+            doorIds: [],
+          } satisfies Space,
+        ]),
+  ];
+  // One counter (a desk for the shop assistant) in each shop.
+  const fixtures: Fixture[] = [0, 10, 20, 30].map((x0, i) => ({
+    id: `${p}counter-${i + 1}`,
+    levelId: level.id,
+    type: "desk",
+    position: { x: x0 + 5, y: 2 },
+    rotation: 90,
+    spaceId: `${p}shop-${i + 1}`,
+  }));
+  return { walls, openings, spaces, fixtures };
+}
+
+const g = mallFloor(GROUND, "g-");
+const f = mallFloor(FIRST, "f-");
+const both = [GROUND.id, FIRST.id];
+const connectors: Connector[] = [
+  { id: "esc-up", name: "Escalator up", kind: "escalator", polygon: rect(17, 11, 18.2, 17), levelIds: both, direction: "up" },
+  { id: "esc-down", name: "Escalator down", kind: "escalator", polygon: rect(21.8, 11, 23, 17), levelIds: both, direction: "down" },
+  { id: "stairs", name: "Stairs", kind: "stairs", polygon: rect(34, 9, 37, 15), levelIds: both },
+  { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
+];
+const mall: FloorPlan = {
+  version: "0.2",
+  id: "mall-2f",
+  name: "Small mall: two floors",
+  units: "m",
+  bounds: { width: 40, height: 24 },
+  levels: [GROUND, FIRST],
+  walls: [...g.walls, ...f.walls],
+  openings: [...g.openings, ...f.openings],
+  spaces: [...g.spaces, ...f.spaces],
+  fixtures: [...g.fixtures, ...f.fixtures],
+  connectors,
+};
+// The toilet door sits on the toilet block's wall; list it on the space now the id is known.
+mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
+
+const mallScenario: Scenario = {
+  version: "0.4",
+  id: "mall-day",
+  name: "Shop staff and a few shoppers",
+  seed: 11,
+  workday: { start: "10:00", end: "18:00" },
+  teams: [{ id: "shops", name: "Shop staff" }],
+  people: [...g.fixtures, ...f.fixtures].map((c, i) => ({ id: `staff-${i + 1}`, teamId: "shops", role: "staff" as const, deskId: c.id })),
+  meetings: [],
+  rates: { toiletVisitsPerDay: 3, pantryVisitsPerDay: 0 },
+  // Shoppers until there are proper visitor profiles: each goes to one shop and leaves.
+  visitors: [
+    { id: "shopper-1", arrive: "10:30", waitMin: 0, spaceId: "f-shop-2", durationMin: 20 },
+    { id: "shopper-2", arrive: "11:00", waitMin: 0, spaceId: "g-shop-4", durationMin: 15 },
+    { id: "shopper-3", arrive: "12:15", waitMin: 0, spaceId: "f-food-court", durationMin: 40 },
+    { id: "shopper-4", arrive: "12:20", waitMin: 0, spaceId: "f-food-court", durationMin: 35 },
+    { id: "shopper-5", arrive: "14:00", waitMin: 0, spaceId: "f-shop-4", durationMin: 25 },
+    { id: "shopper-6", arrive: "16:30", waitMin: 0, spaceId: "f-shop-1", durationMin: 30 },
+  ],
+  queueing: { maxWaitMin: 10 },
+};
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
   "sealed-room.floorplan.json": sealed,
   "office-day.scenario.json": officeScenario,
   "sealed-day.scenario.json": sealedScenario,
+  "mall-2f.floorplan.json": mall,
+  "mall-day.scenario.json": mallScenario,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

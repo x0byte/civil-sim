@@ -1,5 +1,4 @@
 {
-  "version": "0.1",
   "id": "sealed-room",
   "name": "Sealed room (should warn)",
   "units": "m",
@@ -19,7 +18,8 @@
         "y": 0
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-right",
@@ -32,7 +32,8 @@
         "y": 8
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-bottom",
@@ -45,7 +46,8 @@
         "y": 8
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-left",
@@ -58,7 +60,8 @@
         "y": 8
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-divider",
@@ -71,7 +74,8 @@
         "y": 8
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     }
   ],
   "openings": [
@@ -110,7 +114,8 @@
       ],
       "doorIds": [
         "d-entrance"
-      ]
+      ],
+      "levelId": "ground"
     },
     {
       "id": "back-room",
@@ -135,7 +140,8 @@
           "y": 8
         }
       ],
-      "doorIds": []
+      "doorIds": [],
+      "levelId": "ground"
     }
   ],
   "fixtures": [
@@ -147,7 +153,8 @@
         "y": 4
       },
       "rotation": 0,
-      "spaceId": "office"
+      "spaceId": "office",
+      "levelId": "ground"
     },
     {
       "id": "desk-02",
@@ -157,7 +164,17 @@
         "y": 4
       },
       "rotation": 0,
-      "spaceId": "back-room"
+      "spaceId": "back-room",
+      "levelId": "ground"
     }
-  ]
+  ],
+  "version": "0.2",
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground floor",
+      "elevation": 0
+    }
+  ],
+  "connectors": []
 }

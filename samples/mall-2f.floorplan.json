@@ -1,0 +1,909 @@
+{
+  "version": "0.2",
+  "id": "mall-2f",
+  "name": "Small mall: two floors",
+  "units": "m",
+  "bounds": {
+    "width": 40,
+    "height": 24
+  },
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground floor",
+      "elevation": 0
+    },
+    {
+      "id": "first",
+      "name": "First floor",
+      "elevation": 4.5
+    }
+  ],
+  "walls": [
+    {
+      "id": "g-w-top",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 40,
+        "y": 0
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-right",
+      "a": {
+        "x": 40,
+        "y": 0
+      },
+      "b": {
+        "x": 40,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-bottom",
+      "a": {
+        "x": 0,
+        "y": 24
+      },
+      "b": {
+        "x": 40,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-left",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 0,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-shops",
+      "a": {
+        "x": 0,
+        "y": 7
+      },
+      "b": {
+        "x": 40,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-shop-10",
+      "a": {
+        "x": 10,
+        "y": 0
+      },
+      "b": {
+        "x": 10,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-shop-20",
+      "a": {
+        "x": 20,
+        "y": 0
+      },
+      "b": {
+        "x": 20,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-shop-30",
+      "a": {
+        "x": 30,
+        "y": 0
+      },
+      "b": {
+        "x": 30,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-wc",
+      "a": {
+        "x": 32,
+        "y": 18
+      },
+      "b": {
+        "x": 40,
+        "y": 18
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "g-w-wc-side",
+      "a": {
+        "x": 32,
+        "y": 18
+      },
+      "b": {
+        "x": 32,
+        "y": 24
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "f-w-top",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 40,
+        "y": 0
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-right",
+      "a": {
+        "x": 40,
+        "y": 0
+      },
+      "b": {
+        "x": 40,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-bottom",
+      "a": {
+        "x": 0,
+        "y": 24
+      },
+      "b": {
+        "x": 40,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-left",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 0,
+        "y": 24
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-shops",
+      "a": {
+        "x": 0,
+        "y": 7
+      },
+      "b": {
+        "x": 40,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-shop-10",
+      "a": {
+        "x": 10,
+        "y": 0
+      },
+      "b": {
+        "x": 10,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-shop-20",
+      "a": {
+        "x": 20,
+        "y": 0
+      },
+      "b": {
+        "x": 20,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "first"
+    },
+    {
+      "id": "f-w-shop-30",
+      "a": {
+        "x": 30,
+        "y": 0
+      },
+      "b": {
+        "x": 30,
+        "y": 7
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "first"
+    }
+  ],
+  "openings": [
+    {
+      "id": "g-d-shop-1",
+      "wallId": "g-w-shops",
+      "kind": "door",
+      "offset": 5,
+      "width": 2.4
+    },
+    {
+      "id": "g-d-shop-2",
+      "wallId": "g-w-shops",
+      "kind": "door",
+      "offset": 15,
+      "width": 2.4
+    },
+    {
+      "id": "g-d-shop-3",
+      "wallId": "g-w-shops",
+      "kind": "door",
+      "offset": 25,
+      "width": 2.4
+    },
+    {
+      "id": "g-d-shop-4",
+      "wallId": "g-w-shops",
+      "kind": "door",
+      "offset": 35,
+      "width": 2.4
+    },
+    {
+      "id": "g-d-main",
+      "wallId": "g-w-bottom",
+      "kind": "door",
+      "offset": 20,
+      "width": 3,
+      "exterior": true
+    },
+    {
+      "id": "g-d-side",
+      "wallId": "g-w-left",
+      "kind": "door",
+      "offset": 15,
+      "width": 1.8,
+      "exterior": true
+    },
+    {
+      "id": "g-d-wc",
+      "wallId": "g-w-wc",
+      "kind": "door",
+      "offset": 4,
+      "width": 1.2
+    },
+    {
+      "id": "f-d-shop-1",
+      "wallId": "f-w-shops",
+      "kind": "door",
+      "offset": 5,
+      "width": 2.4
+    },
+    {
+      "id": "f-d-shop-2",
+      "wallId": "f-w-shops",
+      "kind": "door",
+      "offset": 15,
+      "width": 2.4
+    },
+    {
+      "id": "f-d-shop-3",
+      "wallId": "f-w-shops",
+      "kind": "door",
+      "offset": 25,
+      "width": 2.4
+    },
+    {
+      "id": "f-d-shop-4",
+      "wallId": "f-w-shops",
+      "kind": "door",
+      "offset": 35,
+      "width": 2.4
+    }
+  ],
+  "spaces": [
+    {
+      "id": "g-shop-1",
+      "levelId": "ground",
+      "name": "Pharmacy",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "g-d-shop-1"
+      ]
+    },
+    {
+      "id": "g-shop-2",
+      "levelId": "ground",
+      "name": "Bookshop",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 20,
+          "y": 0
+        },
+        {
+          "x": 20,
+          "y": 7
+        },
+        {
+          "x": 10,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "g-d-shop-2"
+      ]
+    },
+    {
+      "id": "g-shop-3",
+      "levelId": "ground",
+      "name": "Phone store",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 20,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 7
+        },
+        {
+          "x": 20,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "g-d-shop-3"
+      ]
+    },
+    {
+      "id": "g-shop-4",
+      "levelId": "ground",
+      "name": "Clothing",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 7
+        },
+        {
+          "x": 30,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "g-d-shop-4"
+      ]
+    },
+    {
+      "id": "g-concourse",
+      "levelId": "ground",
+      "name": "Concourse",
+      "type": "atrium",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 7
+        },
+        {
+          "x": 40,
+          "y": 7
+        },
+        {
+          "x": 40,
+          "y": 18
+        },
+        {
+          "x": 32,
+          "y": 18
+        },
+        {
+          "x": 32,
+          "y": 24
+        },
+        {
+          "x": 0,
+          "y": 24
+        }
+      ],
+      "doorIds": []
+    },
+    {
+      "id": "g-toilets",
+      "levelId": "ground",
+      "name": "Toilets",
+      "type": "toilet",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 32,
+          "y": 18
+        },
+        {
+          "x": 40,
+          "y": 18
+        },
+        {
+          "x": 40,
+          "y": 24
+        },
+        {
+          "x": 32,
+          "y": 24
+        }
+      ],
+      "doorIds": [
+        "g-d-wc"
+      ],
+      "capacity": 4
+    },
+    {
+      "id": "f-shop-1",
+      "levelId": "first",
+      "name": "Sports",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "f-d-shop-1"
+      ]
+    },
+    {
+      "id": "f-shop-2",
+      "levelId": "first",
+      "name": "Electronics",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 20,
+          "y": 0
+        },
+        {
+          "x": 20,
+          "y": 7
+        },
+        {
+          "x": 10,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "f-d-shop-2"
+      ]
+    },
+    {
+      "id": "f-shop-3",
+      "levelId": "first",
+      "name": "Shoes",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 20,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 7
+        },
+        {
+          "x": 20,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "f-d-shop-3"
+      ]
+    },
+    {
+      "id": "f-shop-4",
+      "levelId": "first",
+      "name": "Toys",
+      "type": "shop",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 7
+        },
+        {
+          "x": 30,
+          "y": 7
+        }
+      ],
+      "doorIds": [
+        "f-d-shop-4"
+      ]
+    },
+    {
+      "id": "f-concourse",
+      "levelId": "first",
+      "name": "Concourse",
+      "type": "atrium",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 7
+        },
+        {
+          "x": 40,
+          "y": 7
+        },
+        {
+          "x": 40,
+          "y": 24
+        },
+        {
+          "x": 14,
+          "y": 24
+        },
+        {
+          "x": 14,
+          "y": 16
+        },
+        {
+          "x": 0,
+          "y": 16
+        }
+      ],
+      "doorIds": []
+    },
+    {
+      "id": "f-food-court",
+      "levelId": "first",
+      "name": "Food court",
+      "type": "food_court",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 16
+        },
+        {
+          "x": 14,
+          "y": 16
+        },
+        {
+          "x": 14,
+          "y": 24
+        },
+        {
+          "x": 0,
+          "y": 24
+        }
+      ],
+      "doorIds": []
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "g-counter-1",
+      "levelId": "ground",
+      "type": "desk",
+      "position": {
+        "x": 5,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "g-shop-1"
+    },
+    {
+      "id": "g-counter-2",
+      "levelId": "ground",
+      "type": "desk",
+      "position": {
+        "x": 15,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "g-shop-2"
+    },
+    {
+      "id": "g-counter-3",
+      "levelId": "ground",
+      "type": "desk",
+      "position": {
+        "x": 25,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "g-shop-3"
+    },
+    {
+      "id": "g-counter-4",
+      "levelId": "ground",
+      "type": "desk",
+      "position": {
+        "x": 35,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "g-shop-4"
+    },
+    {
+      "id": "f-counter-1",
+      "levelId": "first",
+      "type": "desk",
+      "position": {
+        "x": 5,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "f-shop-1"
+    },
+    {
+      "id": "f-counter-2",
+      "levelId": "first",
+      "type": "desk",
+      "position": {
+        "x": 15,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "f-shop-2"
+    },
+    {
+      "id": "f-counter-3",
+      "levelId": "first",
+      "type": "desk",
+      "position": {
+        "x": 25,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "f-shop-3"
+    },
+    {
+      "id": "f-counter-4",
+      "levelId": "first",
+      "type": "desk",
+      "position": {
+        "x": 35,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "f-shop-4"
+    }
+  ],
+  "connectors": [
+    {
+      "id": "esc-up",
+      "name": "Escalator up",
+      "kind": "escalator",
+      "polygon": [
+        {
+          "x": 17,
+          "y": 11
+        },
+        {
+          "x": 18.2,
+          "y": 11
+        },
+        {
+          "x": 18.2,
+          "y": 17
+        },
+        {
+          "x": 17,
+          "y": 17
+        }
+      ],
+      "levelIds": [
+        "ground",
+        "first"
+      ],
+      "direction": "up"
+    },
+    {
+      "id": "esc-down",
+      "name": "Escalator down",
+      "kind": "escalator",
+      "polygon": [
+        {
+          "x": 21.8,
+          "y": 11
+        },
+        {
+          "x": 23,
+          "y": 11
+        },
+        {
+          "x": 23,
+          "y": 17
+        },
+        {
+          "x": 21.8,
+          "y": 17
+        }
+      ],
+      "levelIds": [
+        "ground",
+        "first"
+      ],
+      "direction": "down"
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "kind": "stairs",
+      "polygon": [
+        {
+          "x": 34,
+          "y": 9
+        },
+        {
+          "x": 37,
+          "y": 9
+        },
+        {
+          "x": 37,
+          "y": 15
+        },
+        {
+          "x": 34,
+          "y": 15
+        }
+      ],
+      "levelIds": [
+        "ground",
+        "first"
+      ]
+    },
+    {
+      "id": "lift",
+      "name": "Lift",
+      "kind": "lift",
+      "polygon": [
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 4.5,
+          "y": 9
+        },
+        {
+          "x": 4.5,
+          "y": 11.5
+        },
+        {
+          "x": 2,
+          "y": 11.5
+        }
+      ],
+      "levelIds": [
+        "ground",
+        "first"
+      ],
+      "capacity": 8
+    }
+  ]
+}

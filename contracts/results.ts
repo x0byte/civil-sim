@@ -1,8 +1,8 @@
-// Simulation results contract, v0.3.
+// Simulation results contract, v0.4.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.3";
+export const RESULTS_VERSION = "0.4";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -32,7 +32,11 @@ export type Activity =
   /** Visitor waiting at reception. */
   | "waiting"
   /** Waiting at the door of a full toilet or pantry. */
-  | "queuing";
+  | "queuing"
+  /** On stairs or an escalator, between floors. */
+  | "climbing"
+  /** Waiting for, or riding in, a lift. */
+  | "in_lift";
 
 /**
  * A person's path through the day, as keyframes.
@@ -51,6 +55,11 @@ export interface TrackPoint {
   t: number;
   x: number;
   y: number;
+  /**
+   * The floor the person is on. Between two points with different floors the person is on a
+   * connector: the move is drawn on the first point's floor until the second point is reached.
+   */
+  levelId: string;
   activity: Activity;
 }
 
@@ -61,6 +70,8 @@ export interface Heatmaps {
   footfall: number[];
   /** Total person-seconds spent in the cell. Length cols*rows. */
   dwellS: number[];
+  /** One grid per floor, in plan level order. `footfall` and `dwellS` above repeat the first floor's. */
+  levels: { levelId: string; footfall: number[]; dwellS: number[] }[];
 }
 
 export type SimEventType =
@@ -109,6 +120,18 @@ export interface Metrics {
   peakOccupancy: { spaceId: string; peak: number; t: number }[];
   /** One entry per toilet or pantry that has a capacity, in plan order. */
   queues: QueueMetrics[];
+  /** One entry per connector, in plan order. */
+  connectors: ConnectorMetrics[];
+}
+
+export interface ConnectorMetrics {
+  connectorId: string;
+  /** Times anyone used it to change floor. */
+  trips: number;
+  /** Most people waiting to use it at once (lifts; 0 for stairs and escalators unless they queue). */
+  peakWaiting: number;
+  /** The single longest wait to get on, in seconds. */
+  longestWaitS: number;
 }
 
 export interface QueueMetrics {

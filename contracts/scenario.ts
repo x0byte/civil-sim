@@ -1,9 +1,9 @@
-// Scenario contract, v0.3: who is in the building and what their day looks like.
+// Scenario contract, v0.4: who is in the building and what their day looks like.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.3";
+export const SCENARIO_VERSION = "0.4";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -73,7 +73,7 @@ export interface Person {
   id: string;
   teamId: string;
   role: Role;
-  /** Fixture id of type "desk". Desk ids must exist in every plan the scenario runs on. */
+  /** Fixture id of type "desk", on any floor. Desk ids must exist in every plan the scenario runs on. */
   deskId: string;
 }
 

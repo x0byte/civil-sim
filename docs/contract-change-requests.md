@@ -70,7 +70,7 @@ Template:
 
 ## v0.4: Buildings with several floors
 - Requested by: Claude, 2026-11-01
-- Status: open
+- Status: **approved** by the product owner, 2026-11-01
 
 **In plain words.** Shopping malls (and most offices bigger than a single floor) have several levels joined by stairs, escalators and lifts. This change lets one plan hold several floors stacked on top of each other, plus the things that connect them. The simulation can then show, for example, crowding at the bottom of an escalator, or how long people wait for a lift. It's the first step of the mall phase; shops, visitor profiles and calibration come after.
 

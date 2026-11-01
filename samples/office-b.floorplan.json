@@ -1,5 +1,4 @@
 {
-  "version": "0.1",
   "id": "office-b",
   "name": "Office B: toilet by reception",
   "units": "m",
@@ -19,7 +18,8 @@
         "y": 0
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-right",
@@ -32,7 +32,8 @@
         "y": 14
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-bottom",
@@ -45,7 +46,8 @@
         "y": 14
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-left",
@@ -58,7 +60,8 @@
         "y": 14
       },
       "thickness": 0.25,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-strip",
@@ -71,7 +74,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-manager-east",
@@ -84,7 +88,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-storage-east",
@@ -97,7 +102,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-meeting-east",
@@ -110,7 +116,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-pantry-east",
@@ -123,7 +130,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     },
     {
       "id": "w-toilet-east",
@@ -136,7 +144,8 @@
         "y": 4
       },
       "thickness": 0.15,
-      "height": 3
+      "height": 3,
+      "levelId": "ground"
     }
   ],
   "openings": [
@@ -245,7 +254,8 @@
       ],
       "doorIds": [
         "d-manager"
-      ]
+      ],
+      "levelId": "ground"
     },
     {
       "id": "storage",
@@ -272,7 +282,8 @@
       ],
       "doorIds": [
         "d-storage"
-      ]
+      ],
+      "levelId": "ground"
     },
     {
       "id": "meeting",
@@ -300,7 +311,8 @@
       "doorIds": [
         "d-meeting"
       ],
-      "capacity": 8
+      "capacity": 8,
+      "levelId": "ground"
     },
     {
       "id": "pantry",
@@ -328,7 +340,8 @@
       "doorIds": [
         "d-pantry"
       ],
-      "capacity": 4
+      "capacity": 4,
+      "levelId": "ground"
     },
     {
       "id": "toilet",
@@ -356,7 +369,8 @@
       "doorIds": [
         "d-toilet"
       ],
-      "capacity": 2
+      "capacity": 2,
+      "levelId": "ground"
     },
     {
       "id": "reception",
@@ -383,7 +397,8 @@
       ],
       "doorIds": [
         "d-entrance"
-      ]
+      ],
+      "levelId": "ground"
     },
     {
       "id": "open-office",
@@ -414,7 +429,8 @@
         "d-meeting",
         "d-pantry",
         "d-toilet"
-      ]
+      ],
+      "levelId": "ground"
     }
   ],
   "fixtures": [
@@ -426,7 +442,8 @@
         "y": 2
       },
       "rotation": 90,
-      "spaceId": "manager"
+      "spaceId": "manager",
+      "levelId": "ground"
     },
     {
       "id": "desk-01",
@@ -436,7 +453,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-02",
@@ -446,7 +464,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-03",
@@ -456,7 +475,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-04",
@@ -466,7 +486,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-05",
@@ -476,7 +497,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-06",
@@ -486,7 +508,8 @@
         "y": 8
       },
       "rotation": 270,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-07",
@@ -496,7 +519,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-08",
@@ -506,7 +530,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-09",
@@ -516,7 +541,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-10",
@@ -526,7 +552,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-11",
@@ -536,7 +563,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "desk-12",
@@ -546,7 +574,8 @@
         "y": 11
       },
       "rotation": 90,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     },
     {
       "id": "coffee",
@@ -556,7 +585,8 @@
         "y": 2
       },
       "rotation": 0,
-      "spaceId": "pantry"
+      "spaceId": "pantry",
+      "levelId": "ground"
     },
     {
       "id": "printer",
@@ -566,7 +596,17 @@
         "y": 9
       },
       "rotation": 0,
-      "spaceId": "open-office"
+      "spaceId": "open-office",
+      "levelId": "ground"
     }
-  ]
+  ],
+  "version": "0.2",
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground floor",
+      "elevation": 0
+    }
+  ],
+  "connectors": []
 }

@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Mall phase starts; contract v0.4 (floors)
+- **Approved: several floors in one plan, stacked on the same coordinates, joined by stairs, escalators (one-way) and lifts.** Floor plan v0.2, scenario and results v0.4. Mall space types added (shop, food court, atrium, service). *(Product owner)*
+- **Mall order after floors: shops and visitors first** (attractors, arrivals through the day, browsing, foot traffic past shop fronts); crowds and evacuation later. *(Product owner)*
+- **v0.4 lives on branch `contracts/v0.4-floors` until the engine and app support it.** New sample `mall-2f` (two floors, escalator pair, stairs, lift; toilets on the ground floor only). *(Claude)*
+
 ## 2026-11-01: Walking-distance helper merged
 - **Reviewed and merged Codex's `walkingDistances` helper; "How close teams sit" now uses walking distance.** Independent checks: open-room desks match straight-line distance; desk to manager's office is 7.2 m walking vs 6.0 m straight; symmetric; a sealed room gives no route. Desk pairs with no route are left out and counted in plain words. *(Claude, approved by product owner)*
 - **Side effect accepted:** Codex's shared routing changes some simulated paths slightly (Office A: average walk 171.4 → 171.8 m per person; pass-bys, queues, room peaks and event counts unchanged). *(Claude)*

@@ -30,10 +30,10 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 4. **Smarter input:** ✓ DXF import from AutoCAD, ✓ wall suggestions from plan images.
 
 **Phase 2: shopping malls**
-- Multiple floors joined by stairs, escalators and lifts.
-- Attractors: shops, food courts and services with their own pull and visit length.
-- Visitor profiles: who comes when (weekday/weekend, peaks), how long they stay, how they browse.
-- Calibration against mall door counters and Wi-Fi data.
+1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, in progress).
+2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front.
+3. **Crowds and evacuation:** peak-hour crowding at entrances and escalators; how fast the building empties.
+4. **Calibration:** compare against mall door counters and Wi-Fi data.
 
 **Later:** schools and other building types; thermal, light and noise models; the layout optimiser; calibration against real Sri Lankan buildings.
 
