@@ -1,5 +1,5 @@
 import type { FixtureType } from "../../../contracts/floorplan.ts";
-import { FIXTURE_TYPES } from "../model/planOps.ts";
+import { CONNECTOR_TYPES, FIXTURE_TYPES } from "../model/planOps.ts";
 import { type Tool, useEditor } from "../state/store.ts";
 
 const I = (d: string) => (
@@ -16,13 +16,15 @@ export const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactN
   { tool: "window", label: "Window", key: "N", icon: I("M3 9h18M3 12h18M3 15h18") },
   { tool: "room", label: "Room", key: "R", icon: I("M4 4h16v16H4zM4 4l16 16") },
   { tool: "fixture", label: "Furniture", key: "F", icon: I("M4 9h16v4H4zM6 13v6M18 13v6") },
+  { tool: "connector", label: "Stairs", key: "T", icon: I("M3 20h5v-5h5v-5h5V5h3") },
 ];
 
 export function Toolbar() {
   const tool = useEditor((s) => s.tool);
   const fixtureType = useEditor((s) => s.fixtureType);
+  const connectorKind = useEditor((s) => s.connectorKind);
   const hasUnderlay = useEditor((s) => !!s.plan.underlay);
-  const { setTool, setFixtureType } = useEditor.getState();
+  const { setTool, setFixtureType, setConnectorKind } = useEditor.getState();
 
   return (
     <nav className="toolbar">
@@ -46,6 +48,15 @@ export function Toolbar() {
               onClick={() => setFixtureType(f.type as FixtureType)}
             >
               {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tool === "connector" && (
+        <div className="subtools">
+          {CONNECTOR_TYPES.map((c) => (
+            <button key={c.kind} className={connectorKind === c.kind ? "chip active" : "chip"} onClick={() => setConnectorKind(c.kind)}>
+              {c.label}
             </button>
           ))}
         </div>

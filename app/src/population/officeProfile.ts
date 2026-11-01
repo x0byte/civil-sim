@@ -231,7 +231,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
 
   return {
     scenario: {
-      version: "0.3",
+      version: "0.4",
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,

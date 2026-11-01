@@ -3,8 +3,11 @@
 // fields (space doors, fixture rooms) worked out the same way.
 
 import type {
+  Connector,
+  ConnectorKind,
   FixtureType,
   FloorPlan,
+  Level,
   Opening,
   Privacy,
   Space,
@@ -23,7 +26,7 @@ import {
   wallLength,
 } from "./geometry.ts";
 
-export type ItemKind = "wall" | "opening" | "space" | "fixture";
+export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector";
 export interface ItemRef {
   kind: ItemKind;
   id: string;
@@ -42,6 +45,10 @@ export const SPACE_TYPES: { type: SpaceType; label: string; privacy: Privacy }[]
   { type: "reception", label: "Reception", privacy: "public" },
   { type: "corridor", label: "Corridor", privacy: "public" },
   { type: "storage", label: "Storage", privacy: "shared" },
+  { type: "shop", label: "Shop", privacy: "public" },
+  { type: "food_court", label: "Food court", privacy: "public" },
+  { type: "atrium", label: "Atrium / concourse", privacy: "public" },
+  { type: "service", label: "Back of house", privacy: "private" },
   { type: "other", label: "Other", privacy: "shared" },
 ];
 export const spaceTypeLabel = (t: SpaceType) => SPACE_TYPES.find((s) => s.type === t)?.label ?? t;
@@ -53,22 +60,57 @@ export const FIXTURE_TYPES: { type: FixtureType; label: string }[] = [
   { type: "printer", label: "Printer" },
 ];
 
+export const CONNECTOR_TYPES: { kind: ConnectorKind; label: string }[] = [
+  { kind: "stairs", label: "Stairs" },
+  { kind: "escalator", label: "Escalator" },
+  { kind: "lift", label: "Lift" },
+];
+export const connectorLabel = (k: ConnectorKind) => CONNECTOR_TYPES.find((c) => c.kind === k)?.label ?? k;
+
+export const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
+/** Floor-to-floor height for a new floor when there's no floor above ground to copy it from. */
+export const DEFAULT_FLOOR_HEIGHT = 4;
+export const DEFAULT_LIFT_CAPACITY = 8;
+
 export function blankPlan(name: string, width: number, height: number): FloorPlan {
   return {
-    version: "0.1",
+    version: "0.2",
     id: `plan-${Date.now().toString(36)}`,
     name,
     units: "m",
     bounds: { width, height },
+    levels: [GROUND],
     walls: [],
     openings: [],
     spaces: [],
     fixtures: [],
+    connectors: [],
+  };
+}
+
+/**
+ * Brings a plan saved in an older format up to date. A single-floor v0.1 plan becomes
+ * one "Ground floor" with everything on it; anything already current is returned as is.
+ */
+export function upgradePlan(plan: FloorPlan): FloorPlan {
+  if ((plan as { version: string }).version !== "0.1") return plan;
+  const raw = plan as Omit<FloorPlan, "connectors"> & Partial<Pick<FloorPlan, "connectors">>;
+  const level = GROUND.id;
+  return {
+    ...raw,
+    version: "0.2",
+    levels: [GROUND],
+    walls: raw.walls.map((w) => ({ ...w, levelId: w.levelId ?? level })),
+    spaces: raw.spaces.map((x) => ({ ...x, levelId: x.levelId ?? level })),
+    fixtures: raw.fixtures.map((f) => ({ ...f, levelId: f.levelId ?? level })),
+    connectors: raw.connectors ?? [],
   };
 }
 
 function allIds(plan: FloorPlan): Set<string> {
-  return new Set([...plan.walls, ...plan.openings, ...plan.spaces, ...plan.fixtures].map((x) => x.id));
+  return new Set(
+    [...plan.levels, ...plan.walls, ...plan.openings, ...plan.spaces, ...plan.fixtures, ...plan.connectors].map((x) => x.id),
+  );
 }
 
 export function nextId(plan: FloorPlan, prefix: string): string {
@@ -93,35 +135,174 @@ export function isBoundaryWall(plan: FloorPlan, w: Wall, eps = 0.05): boolean {
 }
 
 /**
- * Recomputes derived fields:
+ * Recomputes derived fields, each within its own floor:
  * - each space's doorIds: doors whose centre sits on the space's outline
  * - each fixture's spaceId: the smallest space containing it ("" if none)
- * - drops openings whose wall no longer exists
+ * - drops openings whose wall no longer exists, and connector floors that no longer exist
  */
 export function normalize(plan: FloorPlan): FloorPlan {
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
   const openings = plan.openings.filter((o) => wallById.has(o.wallId));
   const doorCentres = openings
     .filter((o) => o.kind === "door")
-    .map((o) => ({ id: o.id, centre: pointAlong(wallById.get(o.wallId)!, o.offset) }));
+    .map((o) => {
+      const w = wallById.get(o.wallId)!;
+      return { id: o.id, levelId: w.levelId, centre: pointAlong(w, o.offset) };
+    });
 
   const spaces = plan.spaces.map((s) => ({
     ...s,
-    doorIds: doorCentres.filter((d) => distToPolygonEdge(d.centre, s.polygon) <= DOOR_ON_EDGE_TOLERANCE).map((d) => d.id),
+    doorIds: doorCentres
+      .filter((d) => d.levelId === s.levelId && distToPolygonEdge(d.centre, s.polygon) <= DOOR_ON_EDGE_TOLERANCE)
+      .map((d) => d.id),
   }));
 
   const bySize = [...spaces].sort((a, b) => polygonArea(a.polygon) - polygonArea(b.polygon));
   const fixtures = plan.fixtures.map((f) => ({
     ...f,
-    spaceId: bySize.find((s) => pointInPolygon(f.position, s.polygon))?.id ?? "",
+    spaceId: bySize.find((s) => s.levelId === f.levelId && pointInPolygon(f.position, s.polygon))?.id ?? "",
   }));
 
-  return { ...plan, openings, spaces, fixtures };
+  const known = new Set(plan.levels.map((l) => l.id));
+  const connectors = plan.connectors.map((c) =>
+    c.levelIds.every((id) => known.has(id)) ? c : { ...c, levelIds: c.levelIds.filter((id) => known.has(id)) },
+  );
+
+  return { ...plan, openings, spaces, fixtures, connectors };
 }
 
-export function addWall(plan: FloorPlan, a: Vec2, b: Vec2): { plan: FloorPlan; id: string } {
+/** Just one floor of the plan: its walls, their openings, its rooms and furniture, and connectors that stop there. */
+export function onLevel(plan: FloorPlan, levelId: string): FloorPlan {
+  const walls = plan.walls.filter((w) => w.levelId === levelId);
+  const wallIds = new Set(walls.map((w) => w.id));
+  return {
+    ...plan,
+    walls,
+    openings: plan.openings.filter((o) => wallIds.has(o.wallId)),
+    spaces: plan.spaces.filter((s) => s.levelId === levelId),
+    fixtures: plan.fixtures.filter((f) => f.levelId === levelId),
+    connectors: plan.connectors.filter((c) => c.levelIds.includes(levelId)),
+  };
+}
+
+/** The floor an item is on. Connectors report the first floor they serve. */
+export function levelOf(plan: FloorPlan, ref: ItemRef): string | undefined {
+  switch (ref.kind) {
+    case "opening": {
+      const o = plan.openings.find((x) => x.id === ref.id);
+      return o && plan.walls.find((w) => w.id === o.wallId)?.levelId;
+    }
+    case "connector":
+      return plan.connectors.find((c) => c.id === ref.id)?.levelIds[0];
+    default:
+      return getItem(plan, ref.kind, ref.id)?.levelId;
+  }
+}
+
+/** Adds a floor on top of the building. The outside walls (and their windows) of `copyFrom` are copied up. */
+export function addLevel(plan: FloorPlan, copyFrom?: string): { plan: FloorPlan; id: string } {
+  const top = plan.levels[plan.levels.length - 1];
+  const below = plan.levels[plan.levels.length - 2];
+  const height = below ? top.elevation - below.elevation : DEFAULT_FLOOR_HEIGHT;
+  let id = "";
+  for (let n = plan.levels.length; ; n++) {
+    id = `level-${n}`;
+    if (!allIds(plan).has(id)) break;
+  }
+  const level: Level = { id, name: `Level ${plan.levels.length}`, elevation: Math.round((top.elevation + height) * 100) / 100 };
+  let next: FloorPlan = { ...plan, levels: [...plan.levels, level] };
+  if (copyFrom) {
+    for (const w of plan.walls.filter((x) => x.levelId === copyFrom && isBoundaryWall(plan, x))) {
+      const added = addWall(next, w.a, w.b, id);
+      next = updateItem(added.plan, "wall", added.id, (x) => ({ ...x, thickness: w.thickness, height: w.height }));
+      for (const o of plan.openings.filter((x) => x.wallId === w.id && x.kind === "window")) {
+        next = { ...next, openings: [...next.openings, { ...o, id: nextId(next, "window"), wallId: added.id }] };
+      }
+    }
+  }
+  return { plan: next, id };
+}
+
+/** Removes a floor and everything on it. Connectors stop serving it. The last floor can't be removed. */
+export function removeLevel(plan: FloorPlan, levelId: string): FloorPlan {
+  if (plan.levels.length <= 1) return plan;
+  const keep = <T extends { levelId: string }>(xs: T[]) => xs.filter((x) => x.levelId !== levelId);
+  const walls = keep(plan.walls);
+  const wallIds = new Set(walls.map((w) => w.id));
+  return {
+    ...plan,
+    levels: plan.levels.filter((l) => l.id !== levelId),
+    walls,
+    openings: plan.openings.filter((o) => wallIds.has(o.wallId)),
+    spaces: keep(plan.spaces),
+    fixtures: keep(plan.fixtures),
+    connectors: plan.connectors.map((c) => ({ ...c, levelIds: c.levelIds.filter((id) => id !== levelId) })),
+  };
+}
+
+/** Renames a floor or changes its height; floors stay listed from lowest to highest. */
+export function updateLevel(plan: FloorPlan, levelId: string, change: Partial<Omit<Level, "id">>): FloorPlan {
+  const levels = plan.levels.map((l) => (l.id === levelId ? { ...l, ...change } : l));
+  return { ...plan, levels: [...levels].sort((a, b) => a.elevation - b.elevation) };
+}
+
+/**
+ * The floors a new connector drawn on `levelId` serves: a lift serves every floor; stairs and
+ * escalators join this floor and the one above (or below, from the top floor).
+ */
+export function defaultConnectorLevels(plan: FloorPlan, kind: ConnectorKind, levelId: string): string[] {
+  const ids = plan.levels.map((l) => l.id);
+  if (kind === "lift") return ids;
+  const i = ids.indexOf(levelId);
+  if (i < 0) return [levelId];
+  if (i + 1 < ids.length) return [ids[i], ids[i + 1]];
+  return i > 0 ? [ids[i - 1], ids[i]] : [ids[i]];
+}
+
+export function addConnector(
+  plan: FloorPlan,
+  polygon: Vec2[],
+  kind: ConnectorKind,
+  levelId: string,
+): { plan: FloorPlan; id: string } {
+  const id = nextId(plan, kind);
+  const count = plan.connectors.filter((c) => c.kind === kind).length + 1;
+  const connector: Connector = {
+    id,
+    name: `${connectorLabel(kind)} ${count}`,
+    kind,
+    polygon: polygon.map((p) => clampToBounds(plan, p)),
+    levelIds: defaultConnectorLevels(plan, kind, levelId),
+  };
+  if (kind === "escalator") connector.direction = "up";
+  if (kind === "lift") connector.capacity = DEFAULT_LIFT_CAPACITY;
+  return { plan: { ...plan, connectors: [...plan.connectors, connector] }, id };
+}
+
+/** Changes what kind of connector it is, fixing up the fields that only some kinds have. */
+export function setConnectorKind(plan: FloorPlan, id: string, kind: ConnectorKind): FloorPlan {
+  return updateItem(plan, "connector", id, (c) => {
+    const { direction: _d, capacity: _c, ...rest } = c;
+    const next: Connector = { ...rest, kind };
+    const autoName = new RegExp(`^${connectorLabel(c.kind)}( \\d+)?$`).test(c.name);
+    if (autoName) next.name = c.name.replace(connectorLabel(c.kind), connectorLabel(kind));
+    if (kind === "escalator") next.direction = c.direction ?? "up";
+    if (kind === "lift") {
+      next.capacity = c.capacity ?? DEFAULT_LIFT_CAPACITY;
+      // A lift that replaces stairs serves the same floors and every floor between them.
+      const ids = plan.levels.map((l) => l.id);
+      const at = c.levelIds.map((x) => ids.indexOf(x)).filter((i) => i >= 0);
+      if (at.length) next.levelIds = ids.slice(Math.min(...at), Math.max(...at) + 1);
+    } else if (c.levelIds.length > 2) {
+      next.levelIds = c.levelIds.slice(0, 2);
+    }
+    return next;
+  });
+}
+
+export function addWall(plan: FloorPlan, a: Vec2, b: Vec2, levelId = plan.levels[0].id): { plan: FloorPlan; id: string } {
   const id = nextId(plan, "wall");
-  const wall: Wall = { id, a, b, thickness: DEFAULT_WALL_THICKNESS, height: DEFAULT_WALL_HEIGHT };
+  const wall: Wall = { id, levelId, a, b, thickness: DEFAULT_WALL_THICKNESS, height: DEFAULT_WALL_HEIGHT };
   return { plan: { ...plan, walls: [...plan.walls, wall] }, id };
 }
 
@@ -167,12 +348,18 @@ export function addOpening(
   return { plan: { ...plan, openings: [...plan.openings, opening] }, id };
 }
 
-export function addSpace(plan: FloorPlan, polygon: Vec2[], type: SpaceType = "other"): { plan: FloorPlan; id: string } {
+export function addSpace(
+  plan: FloorPlan,
+  polygon: Vec2[],
+  type: SpaceType = "other",
+  levelId = plan.levels[0].id,
+): { plan: FloorPlan; id: string } {
   const id = nextId(plan, "room");
   const meta = SPACE_TYPES.find((s) => s.type === type)!;
   const count = plan.spaces.filter((s) => s.type === type).length + 1;
   const space: Space = {
     id,
+    levelId,
     name: type === "other" ? `Room ${plan.spaces.length + 1}` : `${meta.label} ${count}`,
     type,
     privacy: meta.privacy,
@@ -182,10 +369,16 @@ export function addSpace(plan: FloorPlan, polygon: Vec2[], type: SpaceType = "ot
   return { plan: { ...plan, spaces: [...plan.spaces, space] }, id };
 }
 
-export function addFixture(plan: FloorPlan, type: FixtureType, position: Vec2): { plan: FloorPlan; id: string } {
+export function addFixture(
+  plan: FloorPlan,
+  type: FixtureType,
+  position: Vec2,
+  levelId = plan.levels[0].id,
+): { plan: FloorPlan; id: string } {
   const id = nextId(plan, type);
+  const fixture = { id, levelId, type, position: clampToBounds(plan, position), rotation: 0, spaceId: "" };
   return {
-    plan: { ...plan, fixtures: [...plan.fixtures, { id, type, position: clampToBounds(plan, position), rotation: 0, spaceId: "" }] },
+    plan: { ...plan, fixtures: [...plan.fixtures, fixture] },
     id,
   };
 }
@@ -204,6 +397,8 @@ export function removeItem(plan: FloorPlan, ref: ItemRef): FloorPlan {
       return { ...plan, spaces: plan.spaces.filter((s) => s.id !== ref.id) };
     case "fixture":
       return { ...plan, fixtures: plan.fixtures.filter((f) => f.id !== ref.id) };
+    case "connector":
+      return { ...plan, connectors: plan.connectors.filter((c) => c.id !== ref.id) };
   }
 }
 
@@ -213,9 +408,11 @@ type ItemOf<K extends ItemKind> = K extends "wall"
     ? Opening
     : K extends "space"
       ? Space
-      : FloorPlan["fixtures"][number];
+      : K extends "connector"
+        ? Connector
+        : FloorPlan["fixtures"][number];
 
-const listKey = { wall: "walls", opening: "openings", space: "spaces", fixture: "fixtures" } as const;
+const listKey = { wall: "walls", opening: "openings", space: "spaces", fixture: "fixtures", connector: "connectors" } as const;
 
 export function getItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string): ItemOf<K> | undefined {
   return (plan[listKey[kind]] as { id: string }[]).find((x) => x.id === id) as ItemOf<K> | undefined;
@@ -245,11 +442,12 @@ function refitOpenings(plan: FloorPlan, wallIds: Set<string>): FloorPlan {
   };
 }
 
-/** Moves a wall corner, and every other wall end joined at the same corner. */
-export function moveCorner(plan: FloorPlan, from: Vec2, to: Vec2): FloorPlan {
+/** Moves a wall corner, and every other wall end joined at the same corner on the same floor. */
+export function moveCorner(plan: FloorPlan, from: Vec2, to: Vec2, levelId = plan.levels[0].id): FloorPlan {
   const target = clampToBounds(plan, to);
   const touched = new Set<string>();
   const walls = plan.walls.map((w) => {
+    if (w.levelId !== levelId) return w;
     const a = samePoint(w.a, from);
     const b = samePoint(w.b, from);
     if (!a && !b) return w;
@@ -278,12 +476,15 @@ export function contentExtent(plan: FloorPlan): { x: number; y: number } {
     ...plan.walls.flatMap((w) => [w.a, w.b]),
     ...plan.spaces.flatMap((s) => s.polygon),
     ...plan.fixtures.map((f) => f.position),
+    ...plan.connectors.flatMap((c) => c.polygon),
   ];
   return { x: Math.max(0, ...points.map((p) => p.x)), y: Math.max(0, ...points.map((p) => p.y)) };
 }
 
 export function planStats(plan: FloorPlan) {
   return {
+    floors: plan.levels.length,
+    connectors: plan.connectors.length,
     walls: plan.walls.length,
     doors: plan.openings.filter((o) => o.kind === "door").length,
     windows: plan.openings.filter((o) => o.kind === "window").length,
@@ -300,5 +501,10 @@ export function editorWarnings(plan: FloorPlan): string[] {
   if (unplaced.length) warnings.push(`${unplaced.length} fixture(s) are not inside a room. Draw a room around them.`);
   if (!plan.fixtures.some((f) => f.type === "desk")) warnings.push("No desks yet. People need desks to sit at.");
   if (!plan.spaces.some((s) => s.type === "toilet")) warnings.push("No toilet room yet.");
+  if (plan.levels.length > 1) {
+    const served = new Set(plan.connectors.filter((c) => c.levelIds.length >= 2).flatMap((c) => c.levelIds));
+    const cutOff = plan.levels.filter((l) => !served.has(l.id)).map((l) => l.name);
+    if (cutOff.length) warnings.push(`No stairs, escalator or lift reaches ${cutOff.join(", ")}. Draw one with the Stairs tool.`);
+  }
   return warnings;
 }

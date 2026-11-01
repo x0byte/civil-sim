@@ -15,12 +15,17 @@ function crosses(p1: Vec2, p2: Vec2, q1: Vec2, q2: Vec2): boolean {
   return o(p1, p2, q1) * o(p1, p2, q2) < 0 && o(q1, q2, p1) * o(q1, q2, p2) < 0;
 }
 
+/** Track segments that cross a wall on their own floor. Floor changes (stairs, lifts) aren't checked against walls. */
 function wallCrossings(p: FloorPlan, r: SimulationResult): number {
-  const solids = p.walls.flatMap((w) => solidSpans(w, p.openings).map((s) => [pointAlong(w, s.from), pointAlong(w, s.to)]));
+  const solids = p.walls.flatMap((w) =>
+    solidSpans(w, p.openings).map((s) => ({ levelId: w.levelId, a: pointAlong(w, s.from), b: pointAlong(w, s.to) })),
+  );
   let n = 0;
   for (const tr of r.tracks) {
     for (let i = 1; i < tr.points.length; i++) {
-      for (const [a, b] of solids) if (crosses(tr.points[i - 1], tr.points[i], a, b)) n++;
+      const [from, to] = [tr.points[i - 1], tr.points[i]];
+      if (from.levelId !== to.levelId) continue;
+      for (const w of solids) if (w.levelId === from.levelId && crosses(from, to, w.a, w.b)) n++;
     }
   }
   return n;
@@ -58,5 +63,24 @@ describe("engine with editor-built scenarios", () => {
     expect(r.warnings.map((w) => w.code)).toContain("unreachable_desk");
     const p = r.tracks.find((t) => t.points.every((x) => x.activity === "absent"));
     expect(p).toBeDefined();
+  });
+
+  it("takes people on the first floor of the mall down to the toilets and back", () => {
+    const mall = plan("mall-2f");
+    const r = run(mall);
+    expect(wallCrossings(mall, r)).toBe(0);
+    const upstairs = new Set(mall.fixtures.filter((f) => f.levelId === "first").map((f) => f.id));
+    const scenario = expandProfile(defaultProfile(mall), mall).scenario;
+    const firstFloorStaff = scenario.people.filter((p) => upstairs.has(p.deskId)).map((p) => p.id);
+    expect(firstFloorStaff.length).toBeGreaterThan(0);
+    const changes = r.tracks.reduce((n, tr) => n + tr.points.filter((p, i) => i > 0 && p.levelId !== tr.points[i - 1].levelId).length, 0);
+    expect(changes).toBeGreaterThan(0);
+    expect(r.metrics.connectors.reduce((n, c) => n + c.trips, 0)).toBe(changes);
+    for (const id of firstFloorStaff) {
+      const tr = r.tracks.find((t) => t.personId === id)!;
+      if (r.events.some((e) => e.personId === id && e.type === "toilet_visit")) {
+        expect(new Set(tr.points.map((p) => p.levelId))).toEqual(new Set(["ground", "first"]));
+      }
+    }
   });
 });

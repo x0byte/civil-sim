@@ -1,16 +1,21 @@
-import type { Privacy, Space, SpaceType } from "../../../contracts/floorplan.ts";
+import { useEffect, useState } from "react";
+import type { Connector, ConnectorKind, Level, Privacy, Space, SpaceType } from "../../../contracts/floorplan.ts";
 import { polygonArea, wallLength } from "../model/geometry.ts";
 import {
+  CONNECTOR_TYPES,
   FIXTURE_TYPES,
   SPACE_TYPES,
   fitOpening,
   getItem,
   planStats,
   removeItem,
+  removeLevel,
   setBounds,
+  setConnectorKind,
   setWallLength,
   spaceTypeLabel,
   updateItem,
+  updateLevel,
 } from "../model/planOps.ts";
 import { FindWalls } from "../importers/FindWalls.tsx";
 import { useEditor } from "../state/store.ts";
@@ -179,6 +184,11 @@ export function Inspector() {
     );
   }
 
+  if (selection.kind === "connector") {
+    const c = getItem(plan, "connector", selection.id);
+    return c ? <ConnectorPanel connector={c} levels={plan.levels} onDelete={remove} /> : null;
+  }
+
   const f = getItem(plan, "fixture", selection.id);
   if (!f) return null;
   const room = plan.spaces.find((s) => s.id === f.spaceId);
@@ -219,6 +229,7 @@ function PlanPanel() {
       <TextField label="Name" value={plan.name} onCommit={(name) => commit((p) => ({ ...p, name }))} />
       <NumField label="Width" value={plan.bounds.width} min={1} step={0.5} onCommit={(v) => commit((p) => setBounds(p, v, p.bounds.height))} />
       <NumField label="Depth" value={plan.bounds.height} min={1} step={0.5} onCommit={(v) => commit((p) => setBounds(p, p.bounds.width, v))} />
+      <Floors levels={plan.levels} />
       {plan.underlay && (
         <>
           <label className="field">
@@ -255,7 +266,165 @@ function PlanPanel() {
         </dd>
         <dt>Desks</dt>
         <dd>{st.desks}</dd>
+        {st.floors > 1 && (
+          <>
+            <dt>Stairs, escalators, lifts</dt>
+            <dd>{st.connectors}</dd>
+          </>
+        )}
       </dl>
+    </Panel>
+  );
+}
+
+/** Floor names and heights. Adding a floor is on the canvas (+ Floor); removing one is here. */
+function Floors({ levels }: { levels: Level[] }) {
+  const plan = useEditor((s) => s.plan);
+  const { commit, notify } = useEditor.getState();
+  const items = (id: string) =>
+    plan.walls.filter((w) => w.levelId === id).length + plan.spaces.filter((x) => x.levelId === id).length + plan.fixtures.filter((x) => x.levelId === id).length;
+  const remove = (l: Level) => {
+    const n = items(l.id);
+    if (n && !window.confirm(`Remove ${l.name} and the ${n} walls, rooms and furniture on it?`)) return;
+    commit((p) => removeLevel(p, l.id));
+    notify(`${l.name} removed. Undo brings it back.`);
+  };
+  const setElevation = (l: Level, v: number) => {
+    if (levels.some((x) => x.id !== l.id && Math.abs(x.elevation - v) < 0.01)) return notify("Another floor is already at that height.");
+    commit((p) => updateLevel(p, l.id, { elevation: v }));
+  };
+  return (
+    <div className="field stacked">
+      <span>Floors and their height above ground</span>
+      <div className="floor-list">
+        {[...levels].reverse().map((l) => (
+          <div key={l.id} className="floor-row">
+            <FloorName level={l} />
+            <ElevationInput value={l.elevation} onCommit={(v) => setElevation(l, v)} />
+            <button className="danger" disabled={levels.length < 2} onClick={() => remove(l)} title={`Remove ${l.name}`}>
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FloorName({ level }: { level: Level }) {
+  const [text, setText] = useState(level.name);
+  useEffect(() => setText(level.name), [level.name]);
+  const { commit } = useEditor.getState();
+  return (
+    <input
+      type="text"
+      aria-label="Floor name"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => (text.trim() && text !== level.name ? commit((p) => updateLevel(p, level.id, { name: text.trim() })) : setText(level.name))}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+    />
+  );
+}
+
+function ElevationInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  return (
+    <span className="input-unit">
+      <input
+        type="number"
+        aria-label="Height above ground"
+        step={0.1}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const v = Number(text);
+          if (text.trim() !== "" && Number.isFinite(v) && v !== value) onCommit(v);
+          else setText(String(value));
+        }}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      />
+      m
+    </span>
+  );
+}
+
+function ConnectorPanel({ connector: c, levels, onDelete }: { connector: Connector; levels: Level[]; onDelete: () => void }) {
+  const { commit } = useEditor.getState();
+  const upd = (fn: (x: Connector) => Connector) => commit((p) => updateItem(p, "connector", c.id, fn));
+  const name = (id: string) => levels.find((l) => l.id === id)?.name ?? id;
+  const order = levels.map((l) => l.id);
+  const served = [...c.levelIds].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const lower = served[0];
+  const upper = served[1];
+  const pairs = levels.slice(0, -1).map((l, i) => ({ value: l.id, label: `${l.name} ↔ ${levels[i + 1].name}` }));
+
+  return (
+    <Panel title={CONNECTOR_TYPES.find((t) => t.kind === c.kind)?.label ?? "Connector"} sub={c.name} onDelete={onDelete}>
+      <TextField label="Name" value={c.name} onCommit={(n) => upd((x) => ({ ...x, name: n }))} />
+      <SelectField<ConnectorKind>
+        label="Type"
+        value={c.kind}
+        options={CONNECTOR_TYPES.map((t) => ({ value: t.kind, label: t.label }))}
+        onChange={(kind) => commit((p) => setConnectorKind(p, c.id, kind))}
+      />
+      {levels.length < 2 ? (
+        <p className="warn">There's only one floor. Add a floor (+ Floor, top left of the plan) for this to lead somewhere.</p>
+      ) : c.kind === "lift" ? (
+        <div className="field">
+          <span>Stops at</span>
+          {[...levels].reverse().map((l) => (
+            <label key={l.id} className="check">
+              <input
+                type="checkbox"
+                checked={c.levelIds.includes(l.id)}
+                onChange={(e) =>
+                  upd((x) => ({
+                    ...x,
+                    levelIds: order.filter((id) => (id === l.id ? e.target.checked : x.levelIds.includes(id))),
+                  }))
+                }
+              />
+              {l.name}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <SelectField<string>
+          label="Joins"
+          value={pairs.some((p) => p.value === lower) && upper ? lower : ""}
+          options={[...(upper ? [] : [{ value: "", label: "Pick two floors" }]), ...pairs]}
+          onChange={(id) => {
+            if (!id) return;
+            const i = order.indexOf(id);
+            upd((x) => ({ ...x, levelIds: [order[i], order[i + 1]] }));
+          }}
+        />
+      )}
+      {c.kind === "escalator" && lower && upper && (
+        <SelectField<"up" | "down">
+          label="Direction"
+          value={c.direction ?? "up"}
+          options={[
+            { value: "up", label: `Up: ${name(lower)} → ${name(upper)}` },
+            { value: "down", label: `Down: ${name(upper)} → ${name(lower)}` },
+          ]}
+          onChange={(direction) => upd((x) => ({ ...x, direction }))}
+        />
+      )}
+      {c.kind === "lift" && (
+        <NumField label="Capacity" unit="people" step={1} min={1} value={c.capacity ?? 8} onCommit={(v) => upd((x) => ({ ...x, capacity: Math.round(v) }))} />
+      )}
+      <p className="muted">
+        {c.kind === "lift"
+          ? "One car. People wait inside the outline, then ride."
+          : c.kind === "escalator"
+            ? "Runs one way only. Draw a second escalator for the other direction."
+            : "Walkable both ways."}{" "}
+        People step on and off anywhere inside the outline; walls don't need a gap for it.
+      </p>
+      {c.kind === "lift" && c.levelIds.length === 1 && <p className="warn">A lift needs at least two stops.</p>}
     </Panel>
   );
 }

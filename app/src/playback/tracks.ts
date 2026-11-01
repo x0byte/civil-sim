@@ -3,6 +3,8 @@ import type { Activity, Track } from "../../../contracts/results.ts";
 export interface Pose {
   x: number;
   y: number;
+  /** While changing floor, the floor they're leaving until they arrive. */
+  levelId: string;
   activity: Activity;
 }
 
@@ -21,9 +23,9 @@ export function poseAt(track: Track, t: number): Pose | null {
   const a = pts[lo];
   if (a.activity === "absent") return null;
   const b = pts[lo + 1];
-  if (!b || b.t <= a.t) return { x: a.x, y: a.y, activity: a.activity };
+  if (!b || b.t <= a.t) return { x: a.x, y: a.y, levelId: a.levelId, activity: a.activity };
   const k = (t - a.t) / (b.t - a.t);
-  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, activity: a.activity };
+  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, levelId: a.levelId, activity: a.activity };
 }
 
 /** "HH:MM" for t seconds after a "HH:MM" start. */

@@ -4,7 +4,7 @@ import { SAMPLE_PLANS } from "../model/samples.ts";
 import { type Comparison, runComparison } from "../sim/runSimulation.ts";
 import { scoreRows, summarySentences, verdict } from "../sim/scorecard.ts";
 import { useEditor } from "../state/store.ts";
-import { HeatToggle, Legend, PlanPlayer, Timeline, heatValues, usePlayClock } from "./Playback.tsx";
+import { HeatToggle, Legend, PlanPlayer, Timeline, heatPeak, usePlayClock } from "./Playback.tsx";
 
 const INSETS = { top: 56, right: 24, bottom: 84, left: 24 };
 
@@ -14,10 +14,8 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
   const clock = usePlayClock(Math.max(a.result.durationS, b.result.durationS), comparison);
   const heat = useEditor((s) => s.heat);
   const setHeat = useEditor((s) => s.setHeat);
-  const va = heatValues(a.result, heat);
-  const vb = heatValues(b.result, heat);
-  // One scale for both, so the same colour means the same amount in each layout.
-  const heatMax = va && vb ? Math.max(1, ...va, ...vb) : 1;
+  // One scale for both (and every floor), so the same colour means the same amount in each layout.
+  const heatMax = Math.max(heatPeak(a.result, heat), heatPeak(b.result, heat));
   return (
     <div className="canvas-wrap">
       <div className="compare-panes">

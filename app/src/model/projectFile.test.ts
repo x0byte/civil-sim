@@ -28,6 +28,21 @@ describe("project files", () => {
     expect(opened.kind).toBe("plan");
   });
 
+  it("opens single-floor files saved before floors existed, and keeps every floor of a newer one", () => {
+    const strip = <T extends { levelId: string }>(xs: T[]) => xs.map(({ levelId: _, ...x }) => x);
+    const { levels: _l, connectors: _c, ...rest } = a;
+    const old = { ...rest, version: "0.1", walls: strip(a.walls), spaces: strip(a.spaces), fixtures: strip(a.fixtures) };
+    const opened = parseProjectOrPlan(JSON.stringify({ format: "civil-sim-project", version: 1, savedAt: "", plan: old, options: [{ id: "o", name: "Old", plan: old, savedAt: 1 }], people: {} }));
+    if (opened.kind !== "project") throw new Error("expected a project");
+    expect(opened.project.plan).toEqual(a);
+    expect(opened.project.options[0].plan.levels).toHaveLength(1);
+    expect(opened.warnings).toEqual([]);
+
+    const mall = SAMPLE_PLANS.find((p) => p.id === "mall-2f")!.plan;
+    const again = parseProjectOrPlan(JSON.stringify(buildProject(mall, [], {})));
+    expect(again.kind === "project" && again.project.plan).toEqual(mall);
+  });
+
   it("explains files it can't open", () => {
     expect(() => parseProjectOrPlan("not json")).toThrow("it isn't a valid JSON file");
     expect(() => parseProjectOrPlan('{"hello":1}')).toThrow("it isn't a civil-sim project or floor plan");

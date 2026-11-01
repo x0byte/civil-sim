@@ -30,7 +30,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 4. **Smarter input:** ✓ DXF import from AutoCAD, ✓ wall suggestions from plan images.
 
 **Phase 2: shopping malls**
-1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, in progress).
+1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, done).
 2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front.
 3. **Crowds and evacuation:** peak-hour crowding at entrances and escalators; how fast the building empties.
 4. **Calibration:** compare against mall door counters and Wi-Fi data.

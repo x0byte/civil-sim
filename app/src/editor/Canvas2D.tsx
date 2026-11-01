@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { dist, pointAlong, projectOntoSegment, samePoint, wallDir } from "../model/geometry.ts";
 import {
   DEFAULT_WIDTH,
+  addConnector,
   addFixture,
   addOpening,
   addSpace,
@@ -11,6 +12,7 @@ import {
   fitOpening,
   getItem,
   moveCorner,
+  onLevel,
   removeItem,
   updateItem,
 } from "../model/planOps.ts";
@@ -20,6 +22,7 @@ import { type SnapKind, snapPoint } from "./snap.ts";
 import { type Camera, useCamera } from "./useCamera.ts";
 import { useImageSize } from "./useImageSize.ts";
 import { useDeskColors } from "../population/PeoplePanel.tsx";
+import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
 
 type Drag =
   | { type: "pan"; startX: number; startY: number; cam: Camera }
@@ -36,6 +39,8 @@ const HINTS: Record<Tool, string> = {
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
   fixture: "Click to place. Pick the type in the toolbar.",
+  connector:
+    "Drag the footprint of the stairs, escalator or lift. It joins this floor to the one above; change the floors on the right.",
   calibrate: "Click both ends of something on the plan image whose real length you know.",
 };
 
@@ -53,6 +58,14 @@ export function Canvas2D() {
   const snapToGrid = useEditor((s) => s.snapToGrid);
   const gridSize = useEditor((s) => s.gridSize);
   const fixtureType = useEditor((s) => s.fixtureType);
+  const connectorKind = useEditor((s) => s.connectorKind);
+  const level = useEditor((s) => s.level);
+  // Everything drawn, snapped to and clicked is on the floor being edited; edits still go to the whole plan.
+  const view = useMemo(() => onLevel(plan, level), [plan, level]);
+  const below = useMemo(() => {
+    const i = plan.levels.findIndex((l) => l.id === level);
+    return i > 0 ? plan.walls.filter((w) => w.levelId === plan.levels[i - 1].id) : [];
+  }, [plan, level]);
   const { commit, beginDrag, drag: dragPlan, select, notify, setTool } = useEditor.getState();
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -72,10 +85,10 @@ export function Canvas2D() {
     setDraft([]);
     setRect(null);
     setCalib(null);
-  }, [tool, plan.id]);
+  }, [tool, plan.id, level]);
 
   const snap = (raw: Vec2, shift: boolean, opts: { walls?: boolean; ignore?: Set<string> } = {}) => {
-    const p: FloorPlan = opts.ignore ? { ...plan, walls: plan.walls.filter((w) => !opts.ignore!.has(w.id)) } : plan;
+    const p: FloorPlan = opts.ignore ? { ...view, walls: view.walls.filter((w) => !opts.ignore!.has(w.id)) } : view;
     return snapPoint(raw, p, {
       scale: cam.s,
       grid: snapToGrid ? gridSize : null,
@@ -90,7 +103,7 @@ export function Canvas2D() {
     if ((tool !== "door" && tool !== "window") || !raw) return null;
     const tol = 18 / cam.s;
     let best: { wallId: string; along: number; d: number } | null = null;
-    for (const w of plan.walls) {
+    for (const w of view.walls) {
       const proj = projectOntoSegment(raw, w.a, w.b);
       if (proj.dist < tol && (!best || proj.dist < best.d)) best = { wallId: w.id, along: proj.along, d: proj.dist };
     }
@@ -103,16 +116,18 @@ export function Canvas2D() {
 
   const finishChain = () => setDraft([]);
 
+  /** Finishes a drawn outline: a room, or the footprint of stairs, an escalator or a lift. */
   const closeRoom = (poly: Vec2[]) => {
     const clean = poly.filter((p, i) => i === 0 || !samePoint(p, poly[i - 1]));
     if (clean.length < 3) return;
+    const connector = tool === "connector";
     let id = "";
     commit((p) => {
-      const r = addSpace(p, clean);
+      const r = connector ? addConnector(p, clean, connectorKind, level) : addSpace(p, clean, "other", level);
       id = r.id;
       return r.plan;
     });
-    select({ kind: "space", id });
+    select({ kind: connector ? "connector" : "space", id });
     setDraft([]);
   };
 
@@ -133,7 +148,7 @@ export function Canvas2D() {
       case "select": {
         if (kind === "corner") {
           const from = { x: Number(target!.getAttribute("data-x")), y: Number(target!.getAttribute("data-y")) };
-          const ignore = new Set(plan.walls.filter((w) => samePoint(w.a, from) || samePoint(w.b, from)).map((w) => w.id));
+          const ignore = new Set(view.walls.filter((w) => samePoint(w.a, from) || samePoint(w.b, from)).map((w) => w.id));
           dragRef.current = { type: "corner", from, ignore, started: false };
         } else if (kind === "fixture") {
           select({ kind: "fixture", id });
@@ -142,7 +157,7 @@ export function Canvas2D() {
         } else if (kind === "opening") {
           select({ kind: "opening", id });
           dragRef.current = { type: "opening", id, started: false };
-        } else if (kind === "wall" || kind === "space") {
+        } else if (kind === "wall" || kind === "space" || kind === "connector") {
           select({ kind, id });
         } else {
           select(null);
@@ -155,7 +170,7 @@ export function Canvas2D() {
         const last = draft[draft.length - 1];
         if (!last) return setDraft([p]);
         if (samePoint(p, last, 1e-4)) return;
-        commit((pl) => addWall(pl, last, p).plan);
+        commit((pl) => addWall(pl, last, p, level).plan);
         if (draft.length >= 3 && samePoint(p, draft[0], 1e-4)) return finishChain();
         return setDraft([...draft, p]);
       }
@@ -174,7 +189,8 @@ export function Canvas2D() {
         if (newId) select({ kind: "opening", id: newId });
         return;
       }
-      case "room": {
+      case "room":
+      case "connector": {
         const p = snap(raw, e.shiftKey).point;
         if (draft.length >= 3 && dist(p, draft[0]) < 10 / cam.s) return closeRoom(draft);
         dragRef.current = { type: "room", start: p, moved: false };
@@ -184,7 +200,7 @@ export function Canvas2D() {
         const p = snap(raw, false, { walls: false }).point;
         let newId = "";
         commit((pl) => {
-          const r = addFixture(pl, fixtureType, p);
+          const r = addFixture(pl, fixtureType, p, level);
           newId = r.id;
           return r.plan;
         });
@@ -221,7 +237,7 @@ export function Canvas2D() {
           d.started = true;
         }
         const from = d.from;
-        dragPlan((p) => moveCorner(p, from, s.point));
+        dragPlan((p) => moveCorner(p, from, s.point, level));
         d.from = s.point;
         return;
       }
@@ -272,7 +288,7 @@ export function Canvas2D() {
 
   const onDoubleClick = () => {
     if (tool === "wall") finishChain();
-    if (tool === "room" && draft.length >= 3) closeRoom(draft);
+    if ((tool === "room" || tool === "connector") && draft.length >= 3) closeRoom(draft);
   };
 
   useEffect(() => {
@@ -292,7 +308,7 @@ export function Canvas2D() {
           setTool("select");
         }
       } else if (e.key === "Enter") {
-        if (tool === "room" && draft.length >= 3) closeRoom(draft);
+        if ((tool === "room" || tool === "connector") && draft.length >= 3) closeRoom(draft);
         else if (tool === "wall") finishChain();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selection) {
         e.preventDefault();
@@ -337,7 +353,8 @@ export function Canvas2D() {
 
   const sx = (n: number) => n / cam.s;
   const anchor = draft[draft.length - 1];
-  const drawing = tool === "wall" || tool === "room" || tool === "calibrate";
+  const outlining = tool === "room" || tool === "connector";
+  const drawing = tool === "wall" || outlining || tool === "calibrate";
   const cursorStyle =
     tool === "pan" || dragRef.current?.type === "pan" ? "grabbing" : tool === "select" ? "default" : "crosshair";
 
@@ -358,7 +375,16 @@ export function Canvas2D() {
         }}
       >
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          <PlanDrawing plan={plan} scale={cam.s} selection={selection} underlaySize={underlaySize} deskColors={deskColors} suggestions={suggestions} />
+          <PlanDrawing
+            plan={view}
+            scale={cam.s}
+            selection={selection}
+            underlaySize={underlaySize}
+            deskColors={deskColors}
+            suggestions={suggestions}
+            level={level}
+            below={below}
+          />
 
           {/* drafts */}
           {draft.length > 0 && (
@@ -372,7 +398,7 @@ export function Canvas2D() {
           {drawing && anchor && cursor && (
             <PreviewSegment a={anchor} b={cursor.point} scale={cam.s} dashed={tool !== "wall"} />
           )}
-          {tool === "room" && draft.length >= 3 && cursor && (
+          {outlining && draft.length >= 3 && cursor && (
             <polygon
               points={[...draft, cursor.point].map((p) => `${p.x},${p.y}`).join(" ")}
               fill="var(--accent)"
@@ -445,6 +471,8 @@ export function Canvas2D() {
           )}
         </g>
       </svg>
+
+      <FloorSwitcher levels={plan.levels} canAdd />
 
       <div className="canvas-zoom">
         <button onClick={() => zoomBy(1.25)} title="Zoom in">

@@ -8,6 +8,8 @@ import { useEditor } from "../state/store.ts";
 import { ACTIVITY_STYLE, HEAT_GRADIENT, heatColor } from "./colors.ts";
 import { deskDisturbance } from "../sim/officeMeasures.ts";
 import { type Pose, clockAt, poseAt } from "./tracks.ts";
+import { onLevel } from "../model/planOps.ts";
+import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
 
 export type HeatMode = "off" | "footfall" | "dwell";
 
@@ -22,15 +24,32 @@ const HEAT_LABEL: Record<Exclude<HeatMode, "off">, { title: string; unit: string
   dwell: { title: "Time spent", unit: "person-minutes" },
 };
 
-export const heatValues = (r: SimulationResult, mode: HeatMode) =>
-  mode === "off" ? null : mode === "footfall" ? r.heatmaps.footfall : r.heatmaps.dwellS;
+/** The heatmap of one floor (the first floor if none is given). */
+export function heatValues(r: SimulationResult, mode: HeatMode, levelId?: string): number[] | null {
+  if (mode === "off") return null;
+  const floor = r.heatmaps.levels?.find((l) => l.levelId === levelId);
+  if (floor) return mode === "footfall" ? floor.footfall : floor.dwellS;
+  return mode === "footfall" ? r.heatmaps.footfall : r.heatmaps.dwellS;
+}
+
+/** Highest heatmap value on any floor, so every floor shares one colour scale. */
+export function heatPeak(r: SimulationResult, mode: HeatMode): number {
+  if (mode === "off") return 1;
+  const grids = r.heatmaps.levels?.length ? r.heatmaps.levels.map((l) => heatValues(r, mode, l.levelId)!) : [heatValues(r, mode)!];
+  return Math.max(1, ...grids.map((g) => g.reduce((m, v) => (v > m ? v : m), 0)));
+}
+
+/** The floor to show for a run: the one picked in the floor switcher if this plan has it, else its first floor. */
+export function useShownLevel(run: SimRun): string {
+  const level = useEditor((s) => s.level);
+  return run.plan.levels.some((l) => l.id === level) ? level : run.plan.levels[0].id;
+}
 
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
   const clock = usePlayClock(run.result.durationS, run.result);
   const heat = useEditor((s) => s.heat);
   const setHeat = useEditor((s) => s.setHeat);
-  const values = heatValues(run.result, heat);
   const ringed = useMemo(
     () => deskDisturbance(run.plan, run.scenario, run.result).filter((d) => d.passBys > 0).slice(0, 3).map((d) => d.deskId),
     [run],
@@ -42,7 +61,7 @@ export function Playback({ run }: { run: SimRun }) {
         ringDesks={ringed}
         t={clock.t}
         heat={heat}
-        heatMax={values ? Math.max(1, ...values) : 1}
+        heatMax={heatPeak(run.result, heat)}
         insets={{ top: 64, right: 32, bottom: 84, left: 220 }}
         legend
       />
@@ -185,16 +204,22 @@ export function PlanPlayer({
   const [hover, setHover] = useState<{ x: number; y: number; text: string[] } | null>(null);
   const pan = useRef<{ x: number; y: number; cam: Camera } | null>(null);
 
+  const level = useShownLevel(run);
+  const floors = plan.levels.length > 1;
+  const view = useMemo(() => onLevel(plan, level), [plan, level]);
   const people = useMemo(() => new Map(scenario.people.map((p) => [p.id, p])), [scenario]);
   const teams = useMemo(() => new Map(scenario.teams.map((x) => [x.id, x.name])), [scenario]);
-  const poses = result.tracks
+  const everyone = result.tracks
     .map((tr) => ({ id: tr.personId, visitor: tr.kind === "visitor", pose: poseAt(tr, t) }))
     .filter((p): p is { id: string; visitor: boolean; pose: Pose } => p.pose !== null);
+  const poses = floors ? everyone.filter((p) => p.pose.levelId === level) : everyone;
+  const perFloor = new Map<string, number>();
+  for (const p of everyone) perFloor.set(p.pose.levelId, (perFloor.get(p.pose.levelId) ?? 0) + 1);
 
   const counts = new Map<Activity, number>();
   for (const p of poses) counts.set(p.pose.activity, (counts.get(p.pose.activity) ?? 0) + 1);
 
-  const values = heatValues(result, heat);
+  const values = heatValues(result, heat, level);
   const g = result.heatmaps.grid;
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -247,7 +272,8 @@ export function PlanPlayer({
       >
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
           <PlanDrawing
-            plan={plan}
+            plan={view}
+            level={level}
             scale={cam.s}
             selection={null}
             underlaySize={null}
@@ -272,7 +298,7 @@ export function PlanPlayer({
             }
           />
           {ringDesks?.map((id) => {
-            const f = plan.fixtures.find((x) => x.id === id);
+            const f = view.fixtures.find((x) => x.id === id);
             return f ? (
               <circle
                 key={`ring-${id}`}
@@ -312,7 +338,7 @@ export function PlanPlayer({
       {title && (
         <div className="player-title">
           {title}
-          <span className="muted"> · {poses.length} in the building</span>
+          <span className="muted"> · {everyone.length} in the building</span>
         </div>
       )}
 
@@ -338,7 +364,23 @@ export function PlanPlayer({
         </button>
       </div>
 
-      {legend && <Legend counts={counts} present={poses.length} total={result.tracks.length} heat={heat} />}
+      {floors && (
+        <FloorSwitcher
+          levels={plan.levels}
+          counts={new Map(plan.levels.map((l) => [l.id, perFloor.get(l.id) ?? 0]))}
+          right
+        />
+      )}
+
+      {legend && (
+        <Legend
+          counts={counts}
+          present={everyone.length}
+          total={result.tracks.length}
+          heat={heat}
+          floor={floors ? { name: plan.levels.find((l) => l.id === level)?.name ?? level, people: poses.length } : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -348,24 +390,39 @@ export function Legend({
   present,
   total,
   heat,
+  floor,
 }: {
   counts: Map<Activity, number> | null;
   present: number | null;
   total: number | null;
   heat: HeatMode;
+  /** For a building with several floors: the floor showing, and how many people are on it. Counts are for that floor. */
+  floor?: { name: string; people: number };
 }) {
+  // Activities that share a label (both ways of changing floor) get one row.
+  const rows: { label: string; color: string; keys: Activity[] }[] = [];
+  for (const [key, s] of Object.entries(ACTIVITY_STYLE)) {
+    const row = rows.find((r) => r.label === s.label);
+    if (row) row.keys.push(key as Activity);
+    else rows.push({ ...s, keys: [key as Activity] });
+  }
   return (
     <div className="legend">
       {present !== null && (
         <div className="legend-title">
           {present} of {total} people and visitors in the building
+          {floor && (
+            <div className="muted">
+              {floor.people} on {floor.name}
+            </div>
+          )}
         </div>
       )}
-      {Object.entries(ACTIVITY_STYLE).map(([key, s]) => (
-        <div key={key} className="legend-row">
+      {rows.map((s) => (
+        <div key={s.label} className="legend-row">
           <span className="swatch" style={{ background: s.color }} />
           <span>{s.label}</span>
-          {counts && <span className="legend-count">{counts.get(key as Activity) ?? 0}</span>}
+          {counts && <span className="legend-count">{s.keys.reduce((n, k) => n + (counts.get(k) ?? 0), 0)}</span>}
         </div>
       ))}
       <div className="legend-row">

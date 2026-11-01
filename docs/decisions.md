@@ -2,6 +2,19 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Floors in the app; engine v0.4 merged
+- **Reviewed and merged Codex's engine v0.4.** Independent checks: office plans give identical results to v0.3 apart from the new fields; in `mall-day` no path crosses a wall on its own floor, escalators are only used in their direction, connector trips match the floor changes in the tracks (stairs 29, lift 8, escalators 2 up / 3 down), toilet peak 2 of 4, every shopper reaches their shop; with only the lift, a capacity-1 car never carries two people and its waiting count matches the tracks. *(Claude)*
+- **The editor shows one floor at a time.** A floor switcher (top floor first, like a lift panel) on the plan, 3D and playback; "+ Floor" adds one on top at the same floor height with the outside walls and windows copied up; the floor below shows faintly for lining walls up. Floors are renamed, re-heighted and removed in the Plan panel. *(Claude)*
+- **One "Stairs" tool for stairs, escalators and lifts.** Drag a footprint; stairs and escalators join this floor and the one above (or below, from the top floor), lifts stop at every floor; change it in the inspector. Escalators default to "up". *(Claude)*
+- **Older single-floor plans open as one "Ground floor"** (autosave, saved options, project and plan files). *(Claude)*
+- **Floor changes share one neutral colour ("Changing floor")** rather than a ninth activity hue, since the 8-colour palette is full and floor changes are short. *(Claude)*
+- **3D stacks floors up to the one picked; only that floor is cut open.** Upper floors get a slab with openings where stairs, escalators and lifts come through. *(Claude)*
+- **`mall-2f` concourse now lists its doors**, as the editor works them out; engine results are unchanged. *(Claude)*
+
+## 2026-11-01: Engine v0.4 floors and lift policy
+- **Keep floor geometry and room accounting separate; join footprint portals by expected time.** Directed escalators require fresh return routes; distance matrices use expected connector seconds × 1.3 m/s and may be asymmetric. Existing floorless hotspots refer to the first floor, like the compatibility heatmaps. Single-floor regression hashes preserve the complete prior outputs. *(Codex, engine v0.4 brief)*
+- **One deterministic FCFS car per lift, initially on its lowest served floor.** Batch consecutive calls at one pickup up to capacity, finish requested drop-offs in call order, then serve the next call. Each pickup/drop-off has an eight-second door operation. Route estimates allow pickup doors plus half a shaft traverse; tracks use actual waits. Cancel impossible protected-deadline journeys before boarding. Details and performance fixture are in `engine/README.md`. *(Codex modelling choices within the approved brief)*
+
 ## 2026-11-01: Mall phase starts; contract v0.4 (floors)
 - **Approved: several floors in one plan, stacked on the same coordinates, joined by stairs, escalators (one-way) and lifts.** Floor plan v0.2, scenario and results v0.4. Mall space types added (shop, food court, atrium, service). *(Product owner)*
 - **Mall order after floors: shops and visitors first** (attractors, arrivals through the day, browsing, foot traffic past shop fronts); crowds and evacuation later. *(Product owner)*
@@ -121,7 +134,3 @@ Newest first. One entry per decision: what, why, who decided.
 - **Parallel build: Claude on the editor (`app/`), Codex on the simulation core (`engine/`), meeting only at `contracts/`.** *(Product owner)*
 - **Floor plan input starts as upload-and-trace plus drawing.** Automatic wall detection and DXF import come later. *(Agreed)*
 - **TypeScript, runs in the browser.** Pitching should be as simple as sending a link. *(Claude)*
-
-## 2026-11-01: Engine v0.4 floors and lift policy
-- **Keep floor geometry and room accounting separate; join footprint portals by expected time.** Directed escalators require fresh return routes; distance matrices use expected connector seconds × 1.3 m/s and may be asymmetric. Existing floorless hotspots refer to the first floor, like the compatibility heatmaps. Single-floor regression hashes preserve the complete prior outputs. *(Codex, engine v0.4 brief)*
-- **One deterministic FCFS car per lift, initially on its lowest served floor.** Batch consecutive calls at one pickup up to capacity, finish requested drop-offs in call order, then serve the next call. Each pickup/drop-off has an eight-second door operation. Route estimates allow pickup doors plus half a shaft traverse; tracks use actual waits. Cancel impossible protected-deadline journeys before boarding. Details and performance fixture are in `engine/README.md`. *(Codex modelling choices within the approved brief)*

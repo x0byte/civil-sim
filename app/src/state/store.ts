@@ -1,13 +1,13 @@
 import { create } from "zustand";
-import type { FixtureType, FloorPlan } from "../../../contracts/floorplan.ts";
-import { type ItemRef, normalize } from "../model/planOps.ts";
+import type { ConnectorKind, FixtureType, FloorPlan } from "../../../contracts/floorplan.ts";
+import { type ItemRef, levelOf, normalize, upgradePlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import type { HeatMode } from "../playback/Playback.tsx";
 import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
-export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "calibrate";
+export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "connector" | "calibrate";
 export type ViewMode = "2d" | "3d" | "sim" | "compare";
 
 /** A saved copy of a layout, so design options can be compared. */
@@ -33,6 +33,9 @@ interface EditorState {
   snapToGrid: boolean;
   gridSize: number;
   fixtureType: FixtureType;
+  connectorKind: ConnectorKind;
+  /** The floor being edited or watched. Always one of the plan's floors. */
+  level: string;
   toast: string | null;
   /** Latest simulation run. Kept when the plan changes so the user can see it's out of date. */
   run: SimRun | null;
@@ -62,6 +65,8 @@ interface EditorState {
   setSnap: (on: boolean) => void;
   setGridSize: (size: number) => void;
   setFixtureType: (type: FixtureType) => void;
+  setConnectorKind: (kind: ConnectorKind) => void;
+  setLevel: (levelId: string) => void;
   notify: (msg: string | null) => void;
   setRun: (run: SimRun | null) => void;
   setComparison: (comparison: Comparison | null) => void;
@@ -82,7 +87,7 @@ interface EditorState {
 function loadSaved(): FloorPlan | null {
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY);
-    return raw ? (JSON.parse(raw) as FloorPlan) : null;
+    return raw ? upgradePlan(JSON.parse(raw) as FloorPlan) : null;
   } catch {
     return null;
   }
@@ -91,7 +96,7 @@ function loadSaved(): FloorPlan | null {
 function loadOptions(): LayoutOption[] {
   try {
     const raw = localStorage.getItem(OPTIONS_KEY);
-    return raw ? (JSON.parse(raw) as LayoutOption[]) : [];
+    return raw ? (JSON.parse(raw) as LayoutOption[]).map((o) => ({ ...o, plan: upgradePlan(o.plan) })) : [];
   } catch {
     return [];
   }
@@ -130,8 +135,13 @@ function save(plan: FloorPlan) {
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
+/** Keeps the floor being shown valid after the plan changes (a floor removed, undo, a new plan). */
+const keepLevel = (plan: FloorPlan, level: string) => (plan.levels.some((l) => l.id === level) ? level : plan.levels[0].id);
+
+const initialPlan = loadSaved() ?? SAMPLE_PLANS[0].plan;
+
 export const useEditor = create<EditorState>()((set, get) => ({
-  plan: loadSaved() ?? SAMPLE_PLANS[0].plan,
+  plan: initialPlan,
   past: [],
   future: [],
   tool: "select",
@@ -140,6 +150,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   snapToGrid: true,
   gridSize: 0.25,
   fixtureType: "desk",
+  connectorKind: "stairs",
+  level: initialPlan.levels[0].id,
   toast: null,
   run: null,
   comparison: null,
@@ -152,16 +164,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
   commit: (fn) => {
     const { plan, past } = get();
     const next = normalize(fn(plan));
-    set({ plan: next, past: [...past, plan].slice(-HISTORY_LIMIT), future: [] });
+    set({ plan: next, past: [...past, plan].slice(-HISTORY_LIMIT), future: [], level: keepLevel(next, get().level) });
   },
   beginDrag: () => {
     const { plan, past } = get();
     set({ past: [...past, plan].slice(-HISTORY_LIMIT), future: [] });
   },
   drag: (fn) => set({ plan: normalize(fn(get().plan)) }),
-  load: (plan) =>
+  load: (raw) => {
+    const plan = normalize(upgradePlan(raw));
     set({
-      plan: normalize(plan),
+      plan,
+      level: plan.levels[0].id,
       past: [],
       future: [],
       selection: null,
@@ -169,23 +183,33 @@ export const useEditor = create<EditorState>()((set, get) => ({
       run: null,
       wallSuggestions: null,
       view: get().view === "sim" || get().view === "compare" ? "2d" : get().view,
-    }),
+    });
+  },
   undo: () => {
     const { plan, past, future } = get();
     if (!past.length) return;
-    set({ plan: past[past.length - 1], past: past.slice(0, -1), future: [plan, ...future], selection: null });
+    const prev = past[past.length - 1];
+    set({ plan: prev, past: past.slice(0, -1), future: [plan, ...future], selection: null, level: keepLevel(prev, get().level) });
   },
   redo: () => {
     const { plan, past, future } = get();
     if (!future.length) return;
-    set({ plan: future[0], past: [...past, plan], future: future.slice(1), selection: null });
+    set({ plan: future[0], past: [...past, plan], future: future.slice(1), selection: null, level: keepLevel(future[0], get().level) });
   },
   setTool: (tool) => set({ tool, selection: tool === "select" ? get().selection : null }),
-  select: (selection) => set({ selection }),
+  select: (selection) => {
+    // Selecting something on another floor (e.g. from the problem list) shows that floor.
+    const on = selection && levelOf(get().plan, selection);
+    const level = get().level;
+    const stays = !on || on === level || (selection?.kind === "connector" && get().plan.connectors.some((c) => c.id === selection.id && c.levelIds.includes(level)));
+    set({ selection, level: stays ? level : on });
+  },
+  setLevel: (level) => set({ level: keepLevel(get().plan, level), selection: null }),
   setView: (view) => set({ view }),
   setSnap: (snapToGrid) => set({ snapToGrid }),
   setGridSize: (gridSize) => set({ gridSize }),
   setFixtureType: (fixtureType) => set({ fixtureType, tool: "fixture" }),
+  setConnectorKind: (connectorKind) => set({ connectorKind, tool: "connector" }),
   setRun: (run) => set({ run }),
   setComparison: (comparison) => set({ comparison }),
   setHeat: (heat) => set({ heat }),

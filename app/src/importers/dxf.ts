@@ -152,6 +152,7 @@ export function dxfToPlan(drawing: DxfDrawing, opts: DxfImportOptions): { plan: 
   const plan = blankPlan(opts.name, width, height);
   const walls: Wall[] = lines.map((l, n) => ({
     id: `wall-${n + 1}`,
+    levelId: plan.levels[0].id,
     a: { x: round(l.a.x), y: round(l.a.y) },
     b: { x: round(l.b.x), y: round(l.b.y) },
     thickness: round(Math.max(0.05, l.thickness)),

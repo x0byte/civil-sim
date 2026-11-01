@@ -1,7 +1,7 @@
 // Draws a floor plan in plan metres. Purely visual; Canvas2D handles input.
 // Interactive shapes carry data-kind / data-id so Canvas2D can tell what was clicked.
 
-import type { FloorPlan, Opening, Vec2, Wall } from "../../../contracts/floorplan.ts";
+import type { Connector, FloorPlan, Opening, Vec2, Wall } from "../../../contracts/floorplan.ts";
 import { pointAlong, polygonArea, polygonCentroid, solidSpans, wallDir, wallLength } from "../model/geometry.ts";
 import type { ItemRef } from "../model/planOps.ts";
 import { SPACE_COLORS } from "./colors.ts";
@@ -20,6 +20,10 @@ interface Props {
   deskColors?: Map<string, string>;
   /** Suggested walls (e.g. found in the traced image), drawn dashed for review. */
   suggestions?: { a: Vec2; b: Vec2; thickness: number }[] | null;
+  /** The floor being drawn, for connector labels ("up to Level 1"). Defaults to the first floor. */
+  level?: string;
+  /** Walls of the floor below, drawn faintly to line the floors up. */
+  below?: Wall[];
 }
 
 const pts = (poly: Vec2[]) => poly.map((p) => `${p.x},${p.y}`).join(" ");
@@ -29,7 +33,7 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below }: Props) {
   const px = (n: number) => n / scale;
   const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
@@ -44,6 +48,9 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         <pattern id="grid-major" width={5} height={5} patternUnits="userSpaceOnUse">
           <rect width={5} height={5} fill="url(#grid-minor)" />
           <path d="M 5 0 L 0 0 0 5" fill="none" stroke="var(--grid-major)" strokeWidth={px(1)} />
+        </pattern>
+        <pattern id="treads" width={0.3} height={0.3} patternUnits="userSpaceOnUse">
+          <path d="M 0 0 L 0.3 0" fill="none" stroke="var(--ink-3)" strokeWidth={px(1)} />
         </pattern>
       </defs>
 
@@ -84,6 +91,21 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
           fillOpacity={muted ? 1 : isSel("space", s.id) ? 0.55 : 0.35}
           stroke={isSel("space", s.id) ? "var(--accent)" : muted ? "var(--line)" : SPACE_COLORS[s.type]}
           strokeWidth={px(isSel("space", s.id) ? 2.5 : 1)}
+        />
+      ))}
+
+      {below?.map((w) => (
+        <line
+          key={`below-${w.id}`}
+          x1={w.a.x}
+          y1={w.a.y}
+          x2={w.b.x}
+          y2={w.b.y}
+          stroke="var(--ink-3)"
+          strokeOpacity={0.35}
+          strokeWidth={Math.max(w.thickness, px(1))}
+          strokeDasharray={`${px(4)} ${px(3)}`}
+          style={{ pointerEvents: "none" }}
         />
       ))}
 
@@ -133,6 +155,17 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
           </g>
         );
       })}
+
+      {plan.connectors.map((c) => (
+        <ConnectorShape
+          key={c.id}
+          connector={c}
+          plan={plan}
+          level={level ?? plan.levels[0]?.id}
+          selected={isSel("connector", c.id)}
+          scale={scale}
+        />
+      ))}
 
       {plan.spaces.map((s) => {
         const c = polygonCentroid(s.polygon);
@@ -272,6 +305,77 @@ function OpeningShape({ wall, opening, selected, scale }: { wall: Wall; opening:
         strokeDasharray={`${4 / scale} ${3 / scale}`}
       />
       {hit}
+    </g>
+  );
+}
+
+/** What a connector does from this floor, e.g. "↑ Level 1" or "arrives from Ground floor". */
+export function connectorNote(c: Connector, plan: FloorPlan, level: string): string {
+  const order = plan.levels.map((l) => l.id);
+  const name = (id: string) => plan.levels.find((l) => l.id === id)?.name ?? id;
+  const here = order.indexOf(level);
+  const others = c.levelIds.filter((id) => id !== level && order.includes(id));
+  if (!others.length) return "joins no other floor";
+  if (c.kind === "lift") return `${c.levelIds.length} floors · ${c.capacity ?? 8} people`;
+  const other = others[0];
+  const up = order.indexOf(other) > here;
+  if (c.kind === "escalator" && c.direction && (c.direction === "up") !== up) return `arrives from ${name(other)}`;
+  return `${up ? "↑" : "↓"} ${name(other)}`;
+}
+
+function ConnectorShape({
+  connector: c,
+  plan,
+  level,
+  selected,
+  scale,
+}: {
+  connector: Connector;
+  plan: FloorPlan;
+  level: string;
+  selected: boolean;
+  scale: number;
+}) {
+  const px = (n: number) => n / scale;
+  const centre = polygonCentroid(c.polygon);
+  const broken = c.levelIds.length < 2;
+  const stroke = selected ? "var(--accent)" : broken ? "var(--danger)" : "var(--ink-2)";
+  const fs = px(11);
+  // Labels run along tall, narrow footprints (escalators) so they stay inside them.
+  const xs = c.polygon.map((p) => p.x);
+  const ys = c.polygon.map((p) => p.y);
+  const upright = Math.max(...ys) - Math.min(...ys) > 1.6 * (Math.max(...xs) - Math.min(...xs));
+  return (
+    <g data-kind="connector" data-id={c.id}>
+      <polygon points={pts(c.polygon)} fill="var(--paper)" fillOpacity={0.85} />
+      <polygon
+        data-kind="connector"
+        data-id={c.id}
+        points={pts(c.polygon)}
+        fill={c.kind === "lift" ? "var(--grid-major)" : "url(#treads)"}
+        fillOpacity={c.kind === "lift" ? 0.6 : 1}
+        stroke={stroke}
+        strokeWidth={px(selected ? 2.5 : 1.5)}
+        strokeDasharray={broken ? `${px(5)} ${px(3)}` : undefined}
+      />
+      {/* the usual plan symbol for a lift shaft: a cross */}
+      {c.kind === "lift" && c.polygon.length === 4 && (
+        <path
+          d={`M ${c.polygon[0].x} ${c.polygon[0].y} L ${c.polygon[2].x} ${c.polygon[2].y} M ${c.polygon[1].x} ${c.polygon[1].y} L ${c.polygon[3].x} ${c.polygon[3].y}`}
+          stroke={stroke}
+          strokeOpacity={0.4}
+          strokeWidth={px(1)}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+      <g style={{ pointerEvents: "none" }} transform={upright ? `rotate(-90 ${centre.x} ${centre.y})` : undefined}>
+        <text x={centre.x} y={centre.y - fs * 0.2} fontSize={fs} textAnchor="middle" fill="var(--ink)" style={{ fontWeight: 600 }} className="halo">
+          {c.name}
+        </text>
+        <text x={centre.x} y={centre.y + fs * 1.05} fontSize={fs * 0.9} textAnchor="middle" fill="var(--ink-2)" className="halo">
+          {connectorNote(c, plan, level)}
+        </text>
+      </g>
     </g>
   );
 }

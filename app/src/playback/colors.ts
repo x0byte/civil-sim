@@ -10,6 +10,9 @@ export const ACTIVITY_STYLE: Record<Exclude<Activity, "absent">, { label: string
   lunch: { label: "Lunch (pantry)", color: "#008300" },
   waiting: { label: "Visitor waiting", color: "#6250d6" },
   queuing: { label: "Queuing", color: "#e34948" },
+  // Floor changes are short and rare, so they share one neutral colour instead of a ninth hue.
+  climbing: { label: "Changing floor", color: "#7a8494" },
+  in_lift: { label: "Changing floor", color: "#7a8494" },
 };
 
 /** Single-hue sequential ramp, light (little) to dark (a lot). */

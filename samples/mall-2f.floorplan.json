@@ -499,7 +499,15 @@
           "y": 24
         }
       ],
-      "doorIds": []
+      "doorIds": [
+        "g-d-shop-1",
+        "g-d-shop-2",
+        "g-d-shop-3",
+        "g-d-shop-4",
+        "g-d-main",
+        "g-d-side",
+        "g-d-wc"
+      ]
     },
     {
       "id": "g-toilets",
@@ -674,7 +682,12 @@
           "y": 16
         }
       ],
-      "doorIds": []
+      "doorIds": [
+        "f-d-shop-1",
+        "f-d-shop-2",
+        "f-d-shop-3",
+        "f-d-shop-4"
+      ]
     },
     {
       "id": "f-food-court",

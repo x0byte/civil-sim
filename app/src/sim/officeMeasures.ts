@@ -50,7 +50,7 @@ export function teamDistances(plan: FloorPlan, scenario: Scenario, collaboration
   const hit = cache.get(scenario)?.get(collaborations);
   if (hit) return hit;
 
-  const desks = new Map(plan.fixtures.map((f) => [f.id, f.position]));
+  const desks = new Map(plan.fixtures.map((f) => [f.id, { ...f.position, levelId: f.levelId }]));
   const seated = scenario.people.filter((p) => desks.has(p.deskId));
   const index = new Map(seated.map((p, i) => [p.id, i]));
   const matrix = seated.length >= 2 ? walkingDistances(plan, seated.map((p) => desks.get(p.deskId)!)) : [];
@@ -102,7 +102,7 @@ export interface DeskDisturbance {
  * 1.5 m circle around it while walking. The person who sits there doesn't count.
  */
 export function deskDisturbance(plan: FloorPlan, scenario: Scenario, result: SimulationResult): DeskDisturbance[] {
-  const desks = new Map(plan.fixtures.map((f) => [f.id, f.position]));
+  const desks = new Map(plan.fixtures.map((f) => [f.id, { ...f.position, levelId: f.levelId }]));
   const seated = scenario.people.filter((p) => desks.has(p.deskId));
   const counts = new Map(seated.map((p) => [p.deskId, 0]));
   const owner = new Map(seated.map((p) => [p.deskId, p.id]));
@@ -116,13 +116,13 @@ export function deskDisturbance(plan: FloorPlan, scenario: Scenario, result: Sim
     .sort((a, b) => b.passBys - a.passBys || (a.deskId < b.deskId ? -1 : 1));
 }
 
-/** Calls `onEnter` each time a walking person moves into the circle around a target. */
-function walkPast(track: Track, targets: { id: string; at: Vec2 }[], onEnter: (id: string) => void) {
+/** Calls `onEnter` each time a walking person moves into the circle around a target on their floor. */
+function walkPast(track: Track, targets: { id: string; at: Vec2 & { levelId: string } }[], onEnter: (id: string) => void) {
   const inside = new Set<string>();
   for (let i = 0; i + 1 < track.points.length; i++) {
     const a = track.points[i];
     const b = track.points[i + 1];
-    if (a.activity !== "walking") {
+    if (a.activity !== "walking" || a.levelId !== b.levelId) {
       inside.clear();
       continue;
     }
@@ -130,7 +130,7 @@ function walkPast(track: Track, targets: { id: string; at: Vec2 }[], onEnter: (i
     for (let k = 0; k <= n; k++) {
       const p = { x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n };
       for (const t of targets) {
-        const near = dist(p, t.at) <= DESK_PASS_RADIUS_M;
+        const near = t.at.levelId === a.levelId && dist(p, t.at) <= DESK_PASS_RADIUS_M;
         if (near && !inside.has(t.id)) {
           inside.add(t.id);
           onEnter(t.id);

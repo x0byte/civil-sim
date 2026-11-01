@@ -9,5 +9,9 @@ export const SPACE_COLORS: Record<SpaceType, string> = {
   reception: "#a9d07a",
   corridor: "#c9ced6",
   storage: "#b8a99a",
+  shop: "#e6a3c8",
+  food_court: "#f5c98a",
+  atrium: "#dfe3e8",
+  service: "#a7adb5",
   other: "#d6d9de",
 };

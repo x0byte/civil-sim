@@ -311,7 +311,8 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             { x: 32, y: H },
             { x: 0, y: H },
           ],
-          doorIds: [],
+          // Every door on its outline: the shop fronts, both entrances and the toilets.
+          doorIds: [...[1, 2, 3, 4].map((i) => `${p}d-shop-${i}`), `${p}d-main`, `${p}d-side`, `${p}d-wc`],
         }
       : {
           id: `${p}concourse`,
@@ -327,7 +328,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             { x: 14, y: 16 },
             { x: 0, y: 16 },
           ],
-          doorIds: [],
+          doorIds: [1, 2, 3, 4].map((i) => `${p}d-shop-${i}`),
         },
     ...(ground
       ? [

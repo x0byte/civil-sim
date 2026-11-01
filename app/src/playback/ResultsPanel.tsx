@@ -11,8 +11,16 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const currentPlan = useEditor((s) => s.plan);
   const { plan, result, scenario } = run;
   const stale = currentPlan !== plan;
-  const { summary, spaceExposure, hotspots } = result.metrics;
+  const { summary, spaceExposure } = result.metrics;
   const spaces = new Map(plan.spaces.map((s) => [s.id, s]));
+  const floors = plan.levels.length > 1;
+  const floorName = new Map(plan.levels.map((l) => [l.id, l.name]));
+  // With several floors, room names say which floor they're on.
+  const roomName = (id: string) => {
+    const s = spaces.get(id);
+    if (!s) return id;
+    return floors ? `${s.name} · ${floorName.get(s.levelId) ?? s.levelId}` : s.name;
+  };
   const present = result.metrics.perPerson.filter((p) => p.walkingTimeS > 0).length;
   const { teams, partners, unreachablePairs } = teamDistances(plan, scenario, run.collaborations);
   const disturbance = deskDisturbance(plan, scenario, result);
@@ -23,24 +31,34 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const deskRoom = new Map(plan.fixtures.map((f) => [f.id, spaces.get(f.spaceId)?.name ?? ""]));
   const deskLabel = (id: string) => `${id.replace(/^desk-?0*/i, "Desk ")} · ${deskRoom.get(id)}`;
 
-  // Smallest room containing a point, for naming hotspots.
-  const roomAt = (x: number, y: number) =>
-    plan.spaces
-      .filter((s) => pointInPolygon({ x, y }, s.polygon))
-      .sort((a, b) => polygonArea(a.polygon) - polygonArea(b.polygon))[0]?.name ?? "outside the rooms";
+  // Smallest room on that floor containing a point, for naming hotspots.
+  const roomAt = (x: number, y: number, levelId: string) => {
+    const room = plan.spaces
+      .filter((s) => s.levelId === levelId && pointInPolygon({ x, y }, s.polygon))
+      .sort((a, b) => polygonArea(a.polygon) - polygonArea(b.polygon))[0];
+    return room ? roomName(room.id) : floors ? `outside the rooms · ${floorName.get(levelId)}` : "outside the rooms";
+  };
 
   // The engine's top cells often sit in the same room; show each room once, at its busiest.
-  const busiestRooms = [...new Map(hotspots.map((h) => [roomAt(h.x, h.y), h.footfall])).entries()]
+  const busiestRooms = [...new Map(busiestCells(run).map((h) => [roomAt(h.x, h.y, h.levelId), h.footfall])).entries()]
     .map(([room, footfall]) => ({ room, footfall }))
     .sort((a, b) => b.footfall - a.footfall);
 
   const queues = result.metrics.queues ?? [];
 
+  const connectorById = new Map(plan.connectors.map((c) => [c.id, c]));
+  const connectors = (result.metrics.connectors ?? []).map((m) => ({
+    ...m,
+    name: connectorById.get(m.connectorId)?.name ?? m.connectorId,
+    kind: connectorById.get(m.connectorId)?.kind,
+  }));
+  const unused = connectors.filter((c) => c.trips === 0).map((c) => c.name);
+
   // Shared rooms people gather in; open-plan areas and corridors are left out to keep this short.
   const peaks = (result.metrics.peakOccupancy ?? [])
     .map((p) => {
       const s = spaces.get(p.spaceId);
-      return { ...p, name: s?.name ?? p.spaceId, type: s?.type, capacity: s?.capacity, over: s?.capacity !== undefined && p.peak > s.capacity };
+      return { ...p, name: roomName(p.spaceId), type: s?.type, capacity: s?.capacity, over: s?.capacity !== undefined && p.peak > s.capacity };
     })
     .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
     .sort((a, b) => b.peak - a.peak);
@@ -214,7 +232,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               <tbody>
                 {spaceExposure.map((e) => (
                   <tr key={e.spaceId}>
-                    <td>{spaces.get(e.spaceId)?.name ?? e.spaceId}</td>
+                    <td>{roomName(e.spaceId)}</td>
                     <td>{e.passBys}</td>
                     <td>{e.distinctPeople}</td>
                   </tr>
@@ -246,7 +264,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               <tbody>
                 {queues.map((q) => (
                   <tr key={q.spaceId}>
-                    <td>{spaces.get(q.spaceId)?.name ?? q.spaceId}</td>
+                    <td>{roomName(q.spaceId)}</td>
                     <td>{q.peopleWhoWaited}</td>
                     <td>{waitText(q.longestWaitS)}</td>
                     <td className={q.gaveUp ? "over" : undefined}>{q.gaveUp}</td>
@@ -258,6 +276,45 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               {queues.some((q) => q.peopleWhoWaited)
                 ? `${minutes(queues.reduce((sum, q) => sum + q.totalWaitS, 0))} spent queuing across the team.`
                 : "Nobody had to wait."}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {connectors.length > 0 && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>Stairs, escalators and lifts</h2>
+              <span className="muted">Getting between floors</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Way up or down</th>
+                  <th>Trips</th>
+                  <th>Most waiting</th>
+                  <th>Longest wait</th>
+                </tr>
+              </thead>
+              <tbody>
+                {connectors.map((c) => (
+                  <tr key={c.connectorId}>
+                    <td>{c.name}</td>
+                    <td>{c.trips}</td>
+                    <td>{c.kind === "lift" ? c.peakWaiting : "–"}</td>
+                    <td>{c.kind === "lift" ? waitText(c.longestWaitS) : "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              {connectors.some((c) => c.trips)
+                ? `${connectors.reduce((n, c) => n + c.trips, 0)} floor changes in the day. A trip is one person going up or down one way.`
+                : "Nobody changed floor."}
+              {unused.length > 0 && ` Not used: ${unused.join(", ")}.`}
             </p>
           </div>
         </section>
@@ -357,4 +414,24 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
       </section>
     </>
   );
+}
+
+/** Up to five busiest cells across every floor, busiest first. */
+function busiestCells(run: SimRun): { x: number; y: number; levelId: string; footfall: number }[] {
+  const { grid, levels, footfall } = run.result.heatmaps;
+  const floors = levels?.length ? levels : [{ levelId: run.plan.levels[0].id, footfall }];
+  const cells: { x: number; y: number; levelId: string; footfall: number }[] = [];
+  for (const f of floors) {
+    f.footfall.forEach((v, i) => {
+      if (v > 0) {
+        cells.push({
+          x: grid.originX + ((i % grid.cols) + 0.5) * grid.cellSize,
+          y: grid.originY + (Math.floor(i / grid.cols) + 0.5) * grid.cellSize,
+          levelId: f.levelId,
+          footfall: v,
+        });
+      }
+    });
+  }
+  return cells.sort((a, b) => b.footfall - a.footfall).slice(0, 5);
 }

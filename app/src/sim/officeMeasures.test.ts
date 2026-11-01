@@ -9,7 +9,7 @@ const officeA = SAMPLE_PLANS.find((s) => s.id === "office-a")!.plan;
 
 // desk-01 is at (3, 8), desk-02 at (6, 8), desk-07 at (3, 11)
 const scenario: Scenario = {
-  version: "0.3",
+  version: "0.4",
   id: "t",
   name: "t",
   seed: 1,
@@ -58,7 +58,7 @@ describe("deskDisturbance", () => {
   const track = (personId: string, points: [number, number, number, string][]) => ({
     personId,
     kind: "staff" as const,
-    points: points.map(([t, x, y, activity]) => ({ t, x, y, activity: activity as "walking" })),
+    points: points.map(([t, x, y, activity]) => ({ t, x, y, levelId: "ground", activity: activity as "walking" })),
   });
   const result = (tracks: ReturnType<typeof track>[]) => ({ tracks }) as unknown as SimulationResult;
 

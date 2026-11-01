@@ -4,6 +4,7 @@
 
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { checkFloorPlan } from "../../../contracts/validate.ts";
+import { upgradePlan } from "./planOps.ts";
 import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { LayoutOption } from "../state/store.ts";
 
@@ -56,22 +57,31 @@ export function parseProjectOrPlan(text: string): Opened {
     }
     const p = obj as unknown as ProjectFile;
     if (!isPlan(p.plan)) throw new Error("its floor plan is missing or damaged");
-    const options = Array.isArray(p.options) ? p.options.filter((o) => o && typeof o.name === "string" && isPlan(o.plan)) : [];
+    const options = Array.isArray(p.options)
+      ? p.options.filter((o) => o && typeof o.name === "string" && isPlan(o.plan)).map((o) => ({ ...o, plan: upgradePlan(o.plan) }))
+      : [];
     const people = p.people && typeof p.people === "object" ? p.people : {};
     const okPeople = Object.fromEntries(Object.entries(people).filter(([, v]) => isProfile(v)));
-    const warnings = [...planWarnings(p.plan)];
+    const plan = upgradePlan(p.plan);
+    const warnings = [...planWarnings(plan)];
     const dropped = (Array.isArray(p.options) ? p.options.length : 0) - options.length;
     if (dropped) warnings.push(`${dropped} saved option(s) were damaged and left out.`);
     if (Object.keys(okPeople).length < Object.keys(people).length) warnings.push("Some People settings were damaged and left out.");
-    return { kind: "project", project: { ...p, options, people: okPeople }, warnings };
+    return { kind: "project", project: { ...p, plan, options, people: okPeople }, warnings };
   }
-  if (isPlan(obj)) return { kind: "plan", plan: obj as unknown as FloorPlan, warnings: planWarnings(obj as unknown as FloorPlan) };
+  if (isPlan(obj)) {
+    const plan = upgradePlan(obj);
+    return { kind: "plan", plan, warnings: planWarnings(plan) };
+  }
   throw new Error("it isn't a civil-sim project or floor plan");
 }
 
+/** Single-floor plans from before floors existed (v0.1) are accepted and upgraded. */
 function isPlan(x: unknown): x is FloorPlan {
   const p = x as FloorPlan;
-  return !!p && p.version === "0.1" && typeof p.id === "string" && Array.isArray(p.walls) && Array.isArray(p.spaces);
+  const version = (p as { version?: string } | undefined)?.version;
+  const known = version === "0.1" || (version === "0.2" && Array.isArray(p.levels) && p.levels.length > 0);
+  return !!p && known && typeof p.id === "string" && Array.isArray(p.walls) && Array.isArray(p.spaces);
 }
 
 function isProfile(x: unknown): x is OfficeProfile {

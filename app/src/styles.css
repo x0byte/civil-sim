@@ -898,3 +898,73 @@ button.icon {
   gap: 8px;
   padding: 8px 0;
 }
+
+/* Floors */
+.halo {
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 0.25em;
+  stroke-linejoin: round;
+}
+.floors {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgb(255 255 255 / 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  z-index: 2;
+}
+.floors button {
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.floors button:hover {
+  background: var(--accent-soft);
+}
+.floors button.active {
+  background: var(--ink);
+  color: #fff;
+}
+.floors .floor-add {
+  color: var(--accent);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+}
+.floor-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.floor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.floor-row {
+  display: grid;
+  grid-template-columns: 1fr 72px auto;
+  gap: 6px;
+  align-items: center;
+}
+.floor-row input {
+  width: 100%;
+  min-width: 0;
+}
+.floors.floors-right {
+  left: auto;
+  right: 12px;
+  top: 56px;
+}
