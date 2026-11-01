@@ -68,3 +68,39 @@ Template:
 - App (Claude): capacity for pantries in the side panel, a "Queuing" colour, a "Queues" table in results, queue rows in the comparison scorecard, and a max-wait setting in the People tab.
 - Samples: the pantry gets a capacity; the toilet keeps capacity 2.
 
+## v0.4: Buildings with several floors
+- Requested by: Claude, 2026-11-01
+- Status: open
+
+**In plain words.** Shopping malls (and most offices bigger than a single floor) have several levels joined by stairs, escalators and lifts. This change lets one plan hold several floors stacked on top of each other, plus the things that connect them. The simulation can then show, for example, crowding at the bottom of an escalator, or how long people wait for a lift. It's the first step of the mall phase; shops, visitor profiles and calibration come after.
+
+**Key choice: floors share one set of coordinates.** Floors sit directly above each other, so a point (x, y) is the same spot on every floor, as in a real building and in architects' drawings. A stair is drawn once and serves every floor it reaches.
+
+**Change: `floorplan.ts` (version "0.1" → "0.2")**
+- New `levels: { id; name; elevation }[]` (elevation in metres above the ground floor), at least one. A plan with one level behaves exactly as today.
+- Walls, openings (through their wall), spaces and fixtures gain `levelId`. A v0.1 plan opens as a single "Ground floor".
+- New `connectors: Connector[]`:
+  `{ id; name; kind: "stairs" | "escalator" | "lift"; polygon: Vec2[]; levelIds: string[]; direction?: "up" | "down"; capacity?: number }`
+  - `polygon` is the footprint, the same on every level it serves; people step on and off anywhere inside it.
+  - `levelIds`: the floors it stops at (two or more; stairs and escalators connect consecutive floors).
+  - `direction`: escalators only; a single escalator runs one way. Missing means both ways (stairs, lifts).
+  - `capacity`: lifts only, people per trip (default 8).
+- New space types for malls: `"shop"`, `"food_court"`, `"atrium"` (open void or concourse), `"service"` (back-of-house). Shops and food courts don't do anything special yet; attractors come in the next step.
+
+**Change: `scenario.ts` (version "0.3" → "0.4")**
+- No new fields. Desks and spaces may be on any level; people take stairs, escalators or lifts as needed.
+
+**Change: `results.ts` (version "0.3" → "0.4")**
+- `TrackPoint` gains `levelId`. A person moving between floors appears at the connector on one level, then on the other.
+- `Activity` adds `"climbing"` (on stairs or an escalator) and `"in_lift"` (waiting for or riding a lift).
+- `Heatmaps` gains `levels: { levelId; footfall; dwellS }[]`, one grid per floor. The existing `footfall` and `dwellS` stay, as the first floor's grid.
+- `Metrics` adds `connectors: { connectorId; trips; peakWaiting; longestWaitS }[]`: how many people used each connector, the most waiting at once, and the longest wait (mainly lifts).
+
+**Change: `validate.ts`**
+- Levels: unique ids, at least one, every item's `levelId` exists. Connectors: polygon inside bounds, at least two known levels, `direction` only on escalators, `capacity` only on lifts.
+
+**Breaks**
+- Engine (Codex): one walkable grid per level joined through connectors; routes across floors; climbing and lift waiting; per-level heatmaps; connector metrics. Brief: `docs/codex-brief-v0.4.md`.
+- App (Claude): a floor switcher in the editor and playback; drawing stairs, escalators and lifts; 3D view stacks the floors; project files carry all floors; v0.1 plans open as one floor.
+- Samples: a two-floor sample (small mall: shops on both floors, an escalator pair, stairs and a lift).
+
