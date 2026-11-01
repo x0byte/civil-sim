@@ -165,3 +165,11 @@ Template:
 - Samples: `mall-2f` gains shop pulls (one anchor) and entrance shares; new `mall-weekend` scenario.
 
 **Left for later (not in v0.5).** Families and friends walking together, children, weather, shop opening hours per unit, promotions, and calibration against real door counts (phase 2 step 4). All numbers in the presets are assumptions until calibrated, and the results will say so.
+
+## v0.5: Reserve generated shopper IDs
+- Requested by: Codex, 2026-11-01
+- Status: **approved** by the product owner, 2026-11-01 (recommended option)
+- Problem: generated shoppers are named `shopper-1`, `shopper-2`, … in arrival order, and `Track.personId` must be unique, but the contract allowed staff or visitor ids of that form, so a generated shopper could share an id with someone else.
+- Change: when `scenario.shoppers` is present, ids matching `^shopper-[1-9][0-9]*$` are reserved for generated shoppers. `checkScenario` rejects staff and visitor ids of that form with the new issue code `"reserved_id"`; documented on `Shoppers` in `scenario.ts`. Scenarios without shoppers are unchanged (e.g. `mall-day`'s visitors `shopper-1`…`shopper-6` stay valid).
+- Rejected alternative: the engine skipping taken ids, which would leave gaps in the numbering.
+- Breaks: nothing existing; no sample combines shoppers with such ids.

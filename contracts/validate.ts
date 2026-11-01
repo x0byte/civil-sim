@@ -51,7 +51,8 @@ export type IssueCode =
   | "lunch"
   | "visitor"
   | "queueing"
-  | "shoppers";
+  | "shoppers"
+  | "reserved_id";
 
 export interface ValidationIssue {
   code: IssueCode;
@@ -266,6 +267,9 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
 
   const shoppers = scenario.shoppers;
   if (shoppers) {
+    for (const id of [...personIds, ...visitorIds]) {
+      if (/^shopper-[1-9][0-9]*$/.test(id)) err("reserved_id", `"${id}" is reserved for generated shoppers; rename this person or visitor`);
+    }
     const chance = (n: number) => n >= 0 && n <= 1;
     let last = start ?? 0;
     shoppers.arrivals.forEach((a, i) => {

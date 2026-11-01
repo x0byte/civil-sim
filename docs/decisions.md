@@ -5,6 +5,7 @@ Newest first. One entry per decision: what, why, who decided.
 ## 2026-11-01: Contract v0.5 (shoppers)
 - **Approved: shoppers as a generated crowd** (arrival curve, shopper types, impulse visits, food court, toilets), shops chosen by pull against walking distance, and per-shop pass-bys, visits and conversion. Floor plan v0.3, scenario and results v0.5. *(Product owner)*
 - **Shop pull and entrance shares live in the floor plan; the crowd lives in the scenario,** so the same Saturday crowd can be run on two layouts. *(Product owner, as proposed)*
+- **Generated shoppers are named `shopper-1`, `shopper-2`, … and those ids are reserved** whenever a scenario has shoppers; the check rejects staff or visitors named that way (code `reserved_id`). Raised by Codex. *(Product owner)*
 - **Families walking together, per-shop opening hours, promotions and calibration are left for later.** Preset numbers are assumptions until calibrated against door counts. *(Product owner, as proposed)*
 - **New sample `mall-weekend`:** Saturday 10:00–21:00, about 850 shoppers (quick trip 35%, browsing 45%, family outing 20%); `mall-2f` gets shop pulls (Clothing is the anchor at 3) and a 70/30 main/side entrance split. v0.5 lives on branch `contracts/v0.5-shoppers` until the engine and app support it. *(Claude)*
 
