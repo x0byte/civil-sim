@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-01: Contract v0.5 (shoppers)
+- **Approved: shoppers as a generated crowd** (arrival curve, shopper types, impulse visits, food court, toilets), shops chosen by pull against walking distance, and per-shop pass-bys, visits and conversion. Floor plan v0.3, scenario and results v0.5. *(Product owner)*
+- **Shop pull and entrance shares live in the floor plan; the crowd lives in the scenario,** so the same Saturday crowd can be run on two layouts. *(Product owner, as proposed)*
+- **Families walking together, per-shop opening hours, promotions and calibration are left for later.** Preset numbers are assumptions until calibrated against door counts. *(Product owner, as proposed)*
+- **New sample `mall-weekend`:** Saturday 10:00–21:00, about 850 shoppers (quick trip 35%, browsing 45%, family outing 20%); `mall-2f` gets shop pulls (Clothing is the anchor at 3) and a 70/30 main/side entrance split. v0.5 lives on branch `contracts/v0.5-shoppers` until the engine and app support it. *(Claude)*
+
 ## 2026-11-01: Floors in the app; engine v0.4 merged
 - **Reviewed and merged Codex's engine v0.4.** Independent checks: office plans give identical results to v0.3 apart from the new fields; in `mall-day` no path crosses a wall on its own floor, escalators are only used in their direction, connector trips match the floor changes in the tracks (stairs 29, lift 8, escalators 2 up / 3 down), toilet peak 2 of 4, every shopper reaches their shop; with only the lift, a capacity-1 car never carries two people and its waiting count matches the tracks. *(Claude)*
 - **The editor shows one floor at a time.** A floor switcher (top floor first, like a lift panel) on the plan, 3D and playback; "+ Floor" adds one on top at the same floor height with the outside walls and windows copied up; the floor below shows faintly for lining walls up. Floors are renamed, re-heighted and removed in the Plan panel. *(Claude)*

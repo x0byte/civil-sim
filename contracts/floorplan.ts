@@ -1,8 +1,8 @@
-// Floor plan contract, v0.2: a building of one or more floors.
+// Floor plan contract, v0.3: a building of one or more floors.
 // The editor (app/) writes this; the engine (engine/) reads it.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const FLOORPLAN_VERSION = "0.2";
+export const FLOORPLAN_VERSION = "0.3";
 
 /**
  * A point in metres. Origin is the top-left of the plan,
@@ -62,6 +62,11 @@ export interface Opening {
   width: number;
   /** Doors only: true if it leads outside. People arrive and leave through exterior doors. */
   exterior?: boolean;
+  /**
+   * Exterior doors only, 0–1: the share of shoppers who come in (and mostly leave) this way,
+   * e.g. 0.6 for the car-park door. Entrances without a share split what's left equally.
+   */
+  arrivalShare?: number;
 }
 
 export type SpaceType =
@@ -106,6 +111,11 @@ export interface Space {
    * Meeting rooms: a warning only; meetings are not queued.
    */
   capacity?: number;
+  /**
+   * Shops and food courts only: how strongly it pulls shoppers in, relative to a typical
+   * shop = 1 (an anchor store or supermarket might be 5, a kiosk 0.3). Missing means 1.
+   */
+  attraction?: number;
 }
 
 export type FixtureType = "desk" | "water" | "printer" | "coffee";

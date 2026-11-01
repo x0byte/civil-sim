@@ -25,7 +25,7 @@ interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "w
 const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
 const singleFloor = (d: Draft): FloorPlan => ({
   ...d,
-  version: "0.2",
+  version: "0.3",
   levels: [GROUND],
   walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
   spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
@@ -214,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.4",
+  version: "0.5",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -241,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.4",
+  version: "0.5",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -277,13 +277,16 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
     ...[5, 15, 25, 35].map((x, i) => door(`${p}d-shop-${i + 1}`, `${p}w-shops`, x, 2.4)),
     ...(ground
       ? [
-          door(`${p}d-main`, `${p}w-bottom`, 20, 3, true),
-          door(`${p}d-side`, `${p}w-left`, 15, 1.8, true),
+          // The main door faces the street and the bus stop; the side door is from the car park.
+          { ...door(`${p}d-main`, `${p}w-bottom`, 20, 3, true), arrivalShare: 0.7 },
+          { ...door(`${p}d-side`, `${p}w-left`, 15, 1.8, true), arrivalShare: 0.3 },
           door(`${p}d-wc`, `${p}w-wc`, 4, 1.2),
         ]
       : []),
   ];
   const shopNames = ground ? ["Pharmacy", "Bookshop", "Phone store", "Clothing"] : ["Sports", "Electronics", "Shoes", "Toys"];
+  // How strongly each shop pulls shoppers; the clothing store is the anchor.
+  const shopPull = ground ? [1, 0.6, 1.2, 3] : [1.5, 2, 1, 0.8];
   const spaces: Space[] = [
     ...[0, 10, 20, 30].map(
       (x0, i): Space => ({
@@ -294,6 +297,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
         privacy: "public",
         polygon: rect(x0, 0, x0 + 10, 7),
         doorIds: [`${p}d-shop-${i + 1}`],
+        attraction: shopPull[i],
       }),
     ),
     ground
@@ -352,6 +356,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             privacy: "public",
             polygon: rect(0, 16, 14, H),
             doorIds: [],
+            attraction: 2.5,
           } satisfies Space,
         ]),
   ];
@@ -377,7 +382,7 @@ const connectors: Connector[] = [
   { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
 ];
 const mall: FloorPlan = {
-  version: "0.2",
+  version: "0.3",
   id: "mall-2f",
   name: "Small mall: two floors",
   units: "m",
@@ -393,7 +398,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.4",
+  version: "0.5",
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -414,6 +419,37 @@ const mallScenario: Scenario = {
   queueing: { maxWaitMin: 10 },
 };
 
+// A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
+// Arrival rates and shopper types are assumptions until calibrated against door counts.
+const mallWeekend: Scenario = {
+  version: "0.5",
+  id: "mall-weekend",
+  name: "Saturday: shop staff and about 850 shoppers",
+  seed: 21,
+  workday: { start: "10:00", end: "21:00" },
+  teams: [{ id: "shops", name: "Shop staff" }],
+  people: mallScenario.people,
+  meetings: [],
+  rates: { toiletVisitsPerDay: 3, pantryVisitsPerDay: 0 },
+  queueing: { maxWaitMin: 10 },
+  shoppers: {
+    arrivals: [
+      { from: "10:00", to: "12:00", perHour: 40 },
+      { from: "12:00", to: "14:00", perHour: 80 },
+      { from: "14:00", to: "17:00", perHour: 70 },
+      { from: "17:00", to: "20:00", perHour: 120 },
+      { from: "20:00", to: "20:30", perHour: 80 },
+    ],
+    types: [
+      { id: "quick", name: "Quick trip", share: 0.35, shops: { min: 1, max: 2 }, minutesPerShop: 8, foodCourtChance: 0.15, maxStayMin: 40 },
+      { id: "browse", name: "Browsing", share: 0.45, shops: { min: 3, max: 6 }, minutesPerShop: 12, foodCourtChance: 0.5, maxStayMin: 150 },
+      { id: "family", name: "Family outing", share: 0.2, shops: { min: 2, max: 4 }, minutesPerShop: 15, foodCourtChance: 0.8, maxStayMin: 180 },
+    ],
+    impulse: 0.04,
+    toiletVisitsPerHour: 0.35,
+  },
+};
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
@@ -422,6 +458,7 @@ const out: Record<string, unknown> = {
   "sealed-day.scenario.json": sealedScenario,
   "mall-2f.floorplan.json": mall,
   "mall-day.scenario.json": mallScenario,
+  "mall-weekend.scenario.json": mallWeekend,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

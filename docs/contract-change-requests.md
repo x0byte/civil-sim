@@ -104,3 +104,64 @@ Template:
 - App (Claude): a floor switcher in the editor and playback; drawing stairs, escalators and lifts; 3D view stacks the floors; project files carry all floors; v0.1 plans open as one floor.
 - Samples: a two-floor sample (small mall: shops on both floors, an escalator pair, stairs and a lift).
 
+
+## v0.5: Shoppers, shop pull and shop-front footfall
+- Requested by: Claude, 2026-11-01
+- Status: **approved** by the product owner, 2026-11-01
+
+**In plain words.** Today the mall is filled with office-style people who sit at desks. This change adds **shoppers**: hundreds or thousands of people who arrive through the day, wander from shop to shop, maybe eat at the food court, and leave. Where they go depends on how strongly each shop pulls people in and how far away it is. The result tells a mall designer, for every shop, **how many people walk past its front, how many go in, and how long they stay**, which is what decides rents and whether a unit at the end of a corridor will survive.
+
+**How a shopper behaves (the engine's model, explained in the results' assumptions).**
+1. Arrives at a time drawn from the day's **arrival curve**, through an entrance picked by its **share** (e.g. the car-park door takes 60%).
+2. Plans to visit a number of shops (set by their **shopper type**, e.g. "quick trip" 1–2, "browsing" 4–8).
+3. Picks each next shop by **pull ÷ walking effort**: a big, attractive shop far away can beat a small one next door (the standard "gravity" model of retail).
+4. While walking, may **pop into a shop it passes** (impulse visit, a small chance per shop front).
+5. May go to the **food court** (more likely around meal times) and the **toilets** (by time spent in the mall).
+6. Leaves through an entrance when done or out of time.
+
+**Key choice: shop pull belongs to the floor plan; the crowd belongs to the scenario.** Where the anchor store goes is a design decision being tested, so it lives with the layout. Who comes and when (a weekday vs a Poya-day weekend) is the scenario, so the same crowd can run on two layouts and be compared.
+
+**Change: `floorplan.ts` (version "0.2" → "0.3")**
+- `Space.attraction?: number`: how strongly a shop or food court pulls shoppers, relative to a typical shop = 1 (a supermarket or anchor store might be 5, a kiosk 0.3). Only for shops and food courts. Missing means 1.
+- `Opening.arrivalShare?: number`: for exterior doors, the share of shoppers who come in (and mostly leave) this way. Missing shares are split equally among the remaining entrances.
+
+**Change: `scenario.ts` (version "0.4" → "0.5")**
+- New optional `shoppers`:
+  ```ts
+  shoppers?: {
+    /** Shoppers arriving per hour, as a step curve over the day. */
+    arrivals: { from: ClockTime; to: ClockTime; perHour: number }[];
+    types: ShopperType[];          // shares add up to 1
+    impulse: number;               // chance of popping into a shop just passed, 0–1 (e.g. 0.03)
+    toiletVisitsPerHour: number;   // per shopper, e.g. 0.3
+  }
+  ShopperType {
+    id; name;
+    share: number;                 // of all shoppers, 0–1
+    shops: { min: number; max: number };   // shops planned
+    minutesPerShop: number;        // average time inside a shop
+    foodCourtChance: number;       // 0–1, higher around 12:00–14:00 and 19:00–21:00
+    maxStayMin: number;            // leaves by then whatever is left
+  }
+  ```
+- Office fields (`people`, `meetings`, `visitors`) stay; shop staff are still people at counters.
+
+**Change: `results.ts` (version "0.4" → "0.5")**
+- `Track.kind` adds `"shopper"`. `Activity` adds `"shopping"` (inside a shop) and `"eating"` (food court).
+- Events add `"shop_visit"` (with `spaceId`) for shoppers; `arrive`/`leave` also cover shoppers.
+- `Metrics` adds:
+  - `shops: { spaceId; passBys; visits; conversion; meanDwellS; peak }[]` for every shop and food court: people walking within 2 m of its doors, visits, visits ÷ pass-bys, average stay, most inside at once.
+  - `headcount: { t; count }[]`: people in the building every 15 minutes, so the busiest hour is visible.
+  - `shoppers: { count; meanStayMin; meanShopsVisited; meanWalkM }`.
+- Shoppers count in heatmaps, room peaks, queues and connector use, but not in the staff `perPerson` list or the staff `summary`.
+
+**Change: `validate.ts`**
+- `attraction` positive, only on shops and food courts; `arrivalShare` 0–1, only on exterior doors, shares sum ≤ 1.
+- Shoppers: arrival steps in order inside the day, rates ≥ 0, type shares sum to 1, `shops.min ≤ max`, chances 0–1.
+
+**Breaks**
+- Engine (Codex): shopper generation from the arrival curve, the gravity choice of shops, impulse visits, food court and toilets, shop metrics, headcount. Must stay deterministic and fast (target: 3,000 shoppers on a 2-floor mall in under 3 s).
+- App (Claude): a "Shoppers" tab in People (day type presets: weekday, weekend, Poya/holiday, festive season; types and their shares), shop pull and entrance share in the inspector, shop-front results (best and worst shops, pass-bys vs visits), a headcount-through-the-day chart, shoppers drawn as small triangles.
+- Samples: `mall-2f` gains shop pulls (one anchor) and entrance shares; new `mall-weekend` scenario.
+
+**Left for later (not in v0.5).** Families and friends walking together, children, weather, shop opening hours per unit, promotions, and calibration against real door counts (phase 2 step 4). All numbers in the presets are assumptions until calibrated, and the results will say so.

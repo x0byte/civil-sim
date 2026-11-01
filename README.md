@@ -31,7 +31,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 
 **Phase 2: shopping malls**
 1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, done).
-2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front.
+2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front (contract v0.5, in progress).
 3. **Crowds and evacuation:** peak-hour crowding at entrances and escalators; how fast the building empties.
 4. **Calibration:** compare against mall door counters and Wi-Fi data.
 

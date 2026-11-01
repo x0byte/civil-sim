@@ -35,6 +35,8 @@ export type IssueCode =
   | "level"
   | "unknown_level"
   | "connector"
+  | "attraction"
+  | "arrival_share"
   // scenario
   | "seed"
   | "workday"
@@ -48,7 +50,8 @@ export type IssueCode =
   | "not_a_meeting_room"
   | "lunch"
   | "visitor"
-  | "queueing";
+  | "queueing"
+  | "shoppers";
 
 export interface ValidationIssue {
   code: IssueCode;
@@ -103,6 +106,7 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
   const doorIds = new Set<string>();
   const spansByWall = new Map<string, { id: string; from: number; to: number }[]>();
   let exteriorDoors = 0;
+  let shareSum = 0;
   for (const o of plan.openings) {
     claim(o.id, "opening");
     const len = wallLength.get(o.wallId);
@@ -124,8 +128,14 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
     } else if (o.exterior !== undefined) {
       err("exterior_window", `opening ${o.id}: only doors can set "exterior"`);
     }
+    if (o.arrivalShare !== undefined) {
+      if (o.kind !== "door" || !o.exterior) err("arrival_share", `opening ${o.id}: only exterior doors have an arrivalShare`);
+      else if (!(o.arrivalShare >= 0 && o.arrivalShare <= 1)) err("arrival_share", `door ${o.id} arrivalShare must be 0–1`);
+      else shareSum += o.arrivalShare;
+    }
   }
   if (exteriorDoors === 0) err("no_exterior_door", "plan needs at least one exterior door");
+  if (shareSum > 1 + 1e-9) err("arrival_share", "entrance arrivalShares add up to more than 1");
 
   const spaceIds = new Set<string>();
   for (const s of plan.spaces) {
@@ -153,6 +163,10 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
       }
     }
     if (s.capacity !== undefined && !(s.capacity > 0)) err("capacity", `space ${s.id} capacity must be positive`);
+    if (s.attraction !== undefined) {
+      if (s.type !== "shop" && s.type !== "food_court") err("attraction", `space ${s.id}: only shops and food courts have an attraction`);
+      else if (!(s.attraction > 0)) err("attraction", `space ${s.id} attraction must be positive`);
+    }
   }
 
   for (const f of plan.fixtures) {
@@ -250,6 +264,39 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
 
   if (scenario.queueing && !(scenario.queueing.maxWaitMin >= 0)) err("queueing", "queueing maxWaitMin must be zero or more");
 
+  const shoppers = scenario.shoppers;
+  if (shoppers) {
+    const chance = (n: number) => n >= 0 && n <= 1;
+    let last = start ?? 0;
+    shoppers.arrivals.forEach((a, i) => {
+      const from = parseClock(a.from);
+      const to = parseClock(a.to);
+      if (from === null || to === null) return err("shoppers", `shopper arrivals step ${i + 1}: from/to must be HH:MM`);
+      if (to <= from) err("shoppers", `shopper arrivals step ${i + 1} must end after it starts`);
+      if (from < last) err("shoppers", `shopper arrivals step ${i + 1} overlaps the one before or starts before the day`);
+      if (!inDay(from, to - from)) err("shoppers", `shopper arrivals step ${i + 1} falls outside the day`);
+      if (!(a.perHour >= 0)) err("shoppers", `shopper arrivals step ${i + 1}: perHour must be zero or more`);
+      last = Math.max(last, to);
+    });
+    if (!shoppers.types.length) err("shoppers", "shoppers need at least one shopper type");
+    const typeIds = new Set<string>();
+    let typeShare = 0;
+    for (const t of shoppers.types) {
+      if (!t.id || typeIds.has(t.id)) err("shoppers", `shopper type ids must be unique and non-empty ("${t.id}")`);
+      typeIds.add(t.id);
+      if (!chance(t.share)) err("shoppers", `shopper type ${t.id}: share must be 0–1`);
+      typeShare += t.share;
+      if (!Number.isInteger(t.shops.min) || !Number.isInteger(t.shops.max) || t.shops.min < 0 || t.shops.min > t.shops.max) {
+        err("shoppers", `shopper type ${t.id}: shops min and max must be whole numbers with 0 ≤ min ≤ max`);
+      }
+      if (!(t.minutesPerShop > 0) || !(t.maxStayMin > 0)) err("shoppers", `shopper type ${t.id}: minutesPerShop and maxStayMin must be positive`);
+      if (!chance(t.foodCourtChance)) err("shoppers", `shopper type ${t.id}: foodCourtChance must be 0–1`);
+    }
+    if (shoppers.types.length && Math.abs(typeShare - 1) > 1e-6) err("shoppers", "shopper type shares must add up to 1");
+    if (!chance(shoppers.impulse)) err("shoppers", "shopper impulse must be 0–1");
+    if (!(shoppers.toiletVisitsPerHour >= 0)) err("shoppers", "shopper toiletVisitsPerHour must be zero or more");
+  }
+
   if (plan) {
     const desks = new Set(plan.fixtures.filter((f) => f.type === "desk").map((f) => f.id));
     for (const p of scenario.people) {
@@ -263,6 +310,9 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
     }
     for (const v of scenario.visitors ?? []) {
       if (!rooms.has(v.spaceId)) err("unknown_space", `visitor ${v.id}: space "${v.spaceId}" is not in plan ${plan.id}`);
+    }
+    if (shoppers && !plan.spaces.some((s) => s.type === "shop" || s.type === "food_court")) {
+      err("shoppers", `plan ${plan.id} has no shops or food court for shoppers to visit`);
     }
   }
 

@@ -1,0 +1,143 @@
+{
+  "version": "0.5",
+  "id": "mall-weekend",
+  "name": "Saturday: shop staff and about 850 shoppers",
+  "seed": 21,
+  "workday": {
+    "start": "10:00",
+    "end": "21:00"
+  },
+  "teams": [
+    {
+      "id": "shops",
+      "name": "Shop staff"
+    }
+  ],
+  "people": [
+    {
+      "id": "staff-1",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-1"
+    },
+    {
+      "id": "staff-2",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-2"
+    },
+    {
+      "id": "staff-3",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-3"
+    },
+    {
+      "id": "staff-4",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-4"
+    },
+    {
+      "id": "staff-5",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-1"
+    },
+    {
+      "id": "staff-6",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-2"
+    },
+    {
+      "id": "staff-7",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-3"
+    },
+    {
+      "id": "staff-8",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-4"
+    }
+  ],
+  "meetings": [],
+  "rates": {
+    "toiletVisitsPerDay": 3,
+    "pantryVisitsPerDay": 0
+  },
+  "queueing": {
+    "maxWaitMin": 10
+  },
+  "shoppers": {
+    "arrivals": [
+      {
+        "from": "10:00",
+        "to": "12:00",
+        "perHour": 40
+      },
+      {
+        "from": "12:00",
+        "to": "14:00",
+        "perHour": 80
+      },
+      {
+        "from": "14:00",
+        "to": "17:00",
+        "perHour": 70
+      },
+      {
+        "from": "17:00",
+        "to": "20:00",
+        "perHour": 120
+      },
+      {
+        "from": "20:00",
+        "to": "20:30",
+        "perHour": 80
+      }
+    ],
+    "types": [
+      {
+        "id": "quick",
+        "name": "Quick trip",
+        "share": 0.35,
+        "shops": {
+          "min": 1,
+          "max": 2
+        },
+        "minutesPerShop": 8,
+        "foodCourtChance": 0.15,
+        "maxStayMin": 40
+      },
+      {
+        "id": "browse",
+        "name": "Browsing",
+        "share": 0.45,
+        "shops": {
+          "min": 3,
+          "max": 6
+        },
+        "minutesPerShop": 12,
+        "foodCourtChance": 0.5,
+        "maxStayMin": 150
+      },
+      {
+        "id": "family",
+        "name": "Family outing",
+        "share": 0.2,
+        "shops": {
+          "min": 2,
+          "max": 4
+        },
+        "minutesPerShop": 15,
+        "foodCourtChance": 0.8,
+        "maxStayMin": 180
+      }
+    ],
+    "impulse": 0.04,
+    "toiletVisitsPerHour": 0.35
+  }
+}
