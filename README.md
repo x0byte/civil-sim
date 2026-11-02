@@ -31,14 +31,15 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 
 **Phase 2: shopping malls**
 1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, done).
-2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front (contract v0.5, in progress).
+2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front (contract v0.5, done).
 3. **People who differ, and crowding:** wheelchair users, older adults, children, first-time visitors and lift-lovers drawn from bell curves; crowds slow people down; "who struggled" results (contract v0.6; engine and app done).
-4. **Evacuation:** alarm, exits, refuge points for step-free people; how fast the building empties (contract v0.7).
-5. **Calibration:** compare against mall door counters and Wi-Fi data.
+4. **Comfort:** what each spot sounds and looks like (noise, daylight, lighting, glare, floor and wall contrast) against each kind of person's tolerances; "how it felt" results and one person's day (contract v0.7, proposed).
+5. **Evacuation:** alarm, exits, refuge points for step-free people; how fast the building empties (contract v0.8).
+6. **Calibration:** compare against mall door counters and Wi-Fi data.
 
 **Design assistant:** ✓ describe a change in plain words; Claude proposes the edit to the plan or the people, and you apply it.
 
-**Later:** schools and other building types; thermal, light and noise models; the layout optimiser; calibration against real Sri Lankan buildings.
+**Later:** schools and other building types; heat and airflow; the layout optimiser; calibration against real Sri Lankan buildings.
 
 ## Commands
 

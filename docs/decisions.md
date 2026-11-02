@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-03: Comfort before evacuation
+- **Comfort (sound, light, contrast) becomes contract v0.7 and evacuation moves to v0.8.** The product owner wants to see how the building feels to the people in it; evacuation builds on proven crowding and loses nothing by waiting. *(Product owner, agreeing with Claude's recommendation)*
+- **"Feelings" are the gap between what a spot is like and what that person tolerates**, added up along their actual path, like "felt crowded" in v0.6; no psychology is simulated. Colour starts as floor-and-wall contrast for low vision only; colour moods stay out until there's evidence. *(Product owner, agreeing; details in the v0.7 change request)*
+
 ## 2026-11-02: Crowding on by default for every building
 - **Engine v0.6.1 fixed office meetings under crowding, so the app now turns crowding on for offices too**, as the v0.6 approval asked. The office warning in People and the closing-time caution in results are gone: departures before closing are now spread out. *(Claude, after checking the fixes independently)*
 

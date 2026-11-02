@@ -287,3 +287,147 @@ interface Person {     // and Visitor
 - Decision: route choice happens first (access, then `prefers`); `meanDetourPct` and familiarity are measured against the shortest path through the connectors chosen. Familiarity 1 is always 0% detour. Preference-driven extra distance still shows in walking distance, walking time and lift waits. Wording updated on `ProfileMetrics.meanDetourPct` and `PersonProfile.familiarity`; no new fields.
 - Rejected: counting preference-driven distance as detour, which would mix choices with getting lost.
 - Breaks: nothing; clarifies meaning before the engine implements it.
+
+## v0.7: Comfort — sound, light and contrast
+- Requested by: Claude, 2026-11-03
+- Status: **open**. The order is settled (comfort before evacuation, product owner 2026-11-02); the details below need approval.
+
+**In plain words.** We already know where every person is, second by second. This change describes what each spot in the building *sounds* and *looks* like, gives each kind of person their own sensitivities, and adds up what each person experienced along the path they actually walked. That answers **"how did it feel to be here, and for whom?"**:
+- "Desks 4–7 get direct sun through the west windows from 15:30; the people sitting there have glare for about 70 minutes a day."
+- "The open office next to the pantry averages 58 dB(A) at lunch, too loud to concentrate for 9 of the 13 staff."
+- "The food court reaches 74 dB(A) at 19:00; 60% of older adults and everyone sensitive to noise found it uncomfortable."
+- "The corridor to the toilets is dim (80 lux) and its floor and walls are the same shade: people with low vision struggle there."
+- "Twelve people had two or more discomforts at once (loud, crowded and glare) for over 10 minutes: likely sensory overload."
+
+"Feelings" are worked out as the gap between what a place is like and what that person tolerates, the same way "felt crowded" already works. Nobody's psychology is simulated. These are simplified comfort scores for **comparing layouts**, not lighting or acoustic engineering; results will say so, and the numbers are assumptions until checked against measurements.
+
+**Key choice 1: the building describes its environment; the people describe their tolerances.** The plan gains which way is north, window heights, glass and shading, room lighting levels, how echoey each room is, floor and wall shades, and noise sources such as a busy road. Profiles gain how much noise, dimness and glare each kind of person tolerates, and whether they have low vision.
+
+**Key choice 2: sensible defaults by room type, so nobody has to type it all in.** Missing lighting levels and acoustics take typical values for the room type (an office about 500 lux, a corridor about 150; a food court with hard surfaces, an office mixed). The assistant can fill in the rest from a sentence like "glass shopfronts, tiled floors, a main road on the west side". Floor and wall shades have **no default**: without them contrast is reported as "not checked", never guessed.
+
+**Key choice 3: colour means contrast, for now.** Light-to-dark contrast between floors, walls and doors is well established for people with low vision (a difference of about 30 points of light reflectance). Claims like "blue feels calm" have weak evidence and stay out until there's a reason to add them.
+
+**Key choice 4: activity matters.** The same 60 dB(A) is fine while eating in a food court and too loud at a desk. Noise and light tolerances have a general value and a stricter value for focused work (at a desk, in a meeting).
+
+**Key choice 5: without the new fields, results are exactly v0.6.** Comfort is optional in the scenario, so older scenarios and their results stay the same.
+
+**Change: `floorplan.ts` (version "0.3" → "0.4"; all new fields optional)**
+```ts
+interface FloorPlan {
+  // … plus:
+  /** Where the building is and which way it faces. Missing: north is up the page, latitude 6.9° (Colombo). */
+  site?: {
+    /** Direction of north, degrees clockwise from "up the page" (−y). */
+    northDeg: number;
+    /** Degrees, positive north. */
+    latitude?: number;
+  };
+  /** Things that make noise: a road outside, plant, music, a generator. People, escalators and lifts are counted by the engine. */
+  noiseSources?: NoiseSource[];
+}
+
+interface NoiseSource {
+  id: string;
+  levelId: string;
+  name: string;            // "Galle Road", "Generator", "Background music"
+  position: Vec2;          // may be outside the walls, e.g. on the road
+  /** Loudness in dB(A) measured 1 m away (a busy road at the kerb ≈ 75, quiet plant ≈ 55, background music ≈ 65). */
+  dbA: number;
+  /** When it's on ("HH:MM"). Missing: all day. */
+  hours?: { from: string; to: string };
+}
+
+interface Opening {
+  // … plus, windows only:
+  /** Height of the bottom and top of the glass above the floor, m. Missing: 0.9 and 2.1. */
+  sillM?: number;
+  headM?: number;
+  /** Share of daylight the glass lets through, 0–1: clear ≈ 0.7, tinted ≈ 0.4, frosted ≈ 0.5 (frosted also stops glare). Missing: 0.7. */
+  transmittance?: number;
+  frosted?: boolean;
+  /** Blinds, louvres or a deep overhang that stop direct sun. Missing: false. */
+  shaded?: boolean;
+}
+
+interface Space {
+  // … plus:
+  /** Electric lighting on a table-height surface during opening hours, lux. Missing: typical for the room type. */
+  lightingLux?: number;
+  /** How much sound bounces around: "hard" (tile, glass, concrete), "mixed", "soft" (carpet, acoustic ceiling). Missing: typical for the room type. */
+  acoustics?: "hard" | "mixed" | "soft";
+  /** Light reflectance of the floor and walls, 0 (black) to 100 (white). Missing: contrast isn't checked. */
+  floorLRV?: number;
+  wallLRV?: number;
+}
+
+interface Fixture {
+  /** Degrees, clockwise from +x. For desks, the way the person sitting there faces (used for glare). */
+  rotation: number;        // meaning extended: was "visual only"
+}
+```
+
+**Change: `scenario.ts` (version "0.6" → "0.7")**
+```ts
+interface Scenario {
+  // … plus:
+  /** Work out sound, light and contrast comfort. Missing: off (v0.6 behaviour). */
+  comfort?: {
+    enabled: true;
+    /** The day simulated, for the sun's path. Missing: 2026-03-21 (in Colombo the sun passes straight overhead in early April and early September). */
+    date?: string;         // "YYYY-MM-DD"
+    /** "clear": direct sun and glare; "overcast": soft daylight, no glare. Missing: "clear". */
+    sky?: "clear" | "overcast";
+  };
+}
+
+interface PersonProfile {
+  // … plus, all optional (missing: typical adult values, stated in the assumptions):
+  /** Loudest dB(A) they're comfortable with while walking, shopping or eating (typical ≈ 70; noise-sensitive ≈ 60). */
+  noiseComfort?: Spread;
+  /** Loudest dB(A) for focused work at a desk or in a meeting (typical ≈ 50). */
+  focusNoiseComfort?: Spread;
+  /** Least light they need to see comfortably for tasks, lux (typical ≈ 300; older or low vision ≈ 500). */
+  taskLux?: Spread;
+  /** How much glare they put up with, 0–1 on the engine's glare scale (typical ≈ 0.4; light-sensitive ≈ 0.25). */
+  glareComfort?: Spread;
+  /** Needs strong contrast between floor and walls to find their way. */
+  lowVision?: boolean;
+}
+```
+
+**How the engine works it out (explained in the assumptions, no algorithm names).**
+- *Light:* each room's electric lighting while open, plus daylight from its windows that fades with distance from the glass and stops at walls; outdoor light from the sun's height for the date, time and sky. Sampled every 15 minutes on the existing grid.
+- *Glare:* direct sun through an unshaded, unfrosted window reaching where someone is; or someone seated at a desk facing a sunlit window. Scored 0 (none) to 1 (unbearable).
+- *Sound:* each source fades with distance (about 6 dB quieter for every doubling) and loses more through walls, glass and doors; echoey rooms are louder. People add sound by how many are talking where (a busy food court louder than a quiet office); escalators and lifts add their own. Averaged every minute.
+- *Contrast:* low where a room's floor and walls are within 30 points of each other.
+- *Discomfort:* any minute where a person's spot is louder, dimmer or glarier than their own drawn tolerance (the stricter value while working), in low contrast with low vision, or crowded (as in v0.6). Two or more at once counts as **overload**.
+
+**Change: `results.ts` (version "0.6" → "0.7")**
+- `Heatmaps.levels[]` adds, when comfort is on: `noiseDbA` (loudest 15-minute average in each cell), `lightLux` (dimmest while open), `glare` (worst glare seen). Empty arrays when comfort is off.
+- `Track` adds `discomfort?: { from: number; to: number; cause: DiscomfortCause }[]`, the stretches when this person was uncomfortable, so the app can show "one person's day".
+- `type DiscomfortCause = "loud" | "dim" | "glare" | "low_contrast" | "crowded"`.
+- `Metrics` adds `comfort: ComfortMetrics | null` (null when comfort is off):
+  - `byProfile`: one per profile (one row with `profileId: ""` without profiles): `{ profileId; people; minutes: Record<DiscomfortCause, number>; peopleAffected: Record<DiscomfortCause, number>; overloadMinutes; overloadPeople }`.
+  - `bySpace`: one per space anyone entered: `{ spaceId; loudestDbA; loudestT; dimmestLux; worstGlare; worstGlareT; contrast: "ok" | "low" | "not_checked"; discomfortMinutes }`.
+  - `desks`: one per desk with glare or noise above focus comfort: `{ deskId; glareMinutes; loudMinutes }`.
+- `WarningCode` adds `"comfort"`, in plain words naming rooms or desks: "Desk 6 gets direct sun from 15:30 to 16:40", "The corridor to the toilets is dim (80 lux) for its use".
+
+**Change: `validate.ts`**
+- `northDeg` 0–360; latitude −90–90; noise `dbA` 0–140 with valid hours; window heights `0 ≤ sillM < headM`, only on windows; `transmittance` 0–1; `lightingLux ≥ 0`; LRVs 0–100; `comfort.date` a real date; new spreads valid as before; `glareComfort` within 0–1.
+
+**Breaks**
+- Engine (Codex): sun position, daylight, electric light and glare; sound from sources, people, escalators and lifts through walls and doors; contrast; per-person discomfort against drawn tolerances; the new heatmaps, metrics, track stretches and warnings. Exactly v0.6 when comfort is off; deterministic; tolerances on the profile random stream so turning comfort on changes no movement. Target: the people mall with comfort on in under 8 s.
+- App (Claude):
+  - Inputs: a north arrow on the plan; window glass and shading in the inspector; room lighting, acoustics and shades; a noise-source tool; comfort settings (date, sky) in People. Defaults shown as assumptions.
+  - Kinds of people gain sensitivities (noise-sensitive, light-sensitive, low vision, sensory overload as a preset kind).
+  - Results: **"How it felt"** per kind by cause, comfort by room, desks with glare or noise; noise, light and glare heatmaps; "one person's day" in playback.
+  - The assistant fills environment and sensitivities from a description.
+- Samples: plans move to v0.4 with no new fields (results unchanged). New `office-a-comfort` plan (west windows, a pantry beside desks, a road outside) with an `office-day-comfort` scenario, and a `mall-weekend-comfort` scenario on a mall plan with finishes, glass shopfronts and road noise.
+
+**Left for later.** Heat and airflow (needs a cooling and ventilation model; matters in Sri Lanka, so it's the natural next comfort step); smell; colour moods; signage and wayfinding by sight; evacuation (now v0.8).
+
+**Decisions for the product owner**
+1. **Scope:** sound, light (daylight, electric lighting, glare) and contrast; no colour moods; heat later. Recommended.
+2. **Defaults:** lighting and acoustics default by room type, marked as assumptions; floor and wall shades have no default, so contrast says "not checked" until someone enters them. Recommended.
+3. **Desk direction:** desk rotation starts to mean which way the person faces, so glare can be judged; the editor already lets you rotate desks. Recommended.
+4. **On by default in the app**, like crowding, while staying optional in the contract. Recommended.
