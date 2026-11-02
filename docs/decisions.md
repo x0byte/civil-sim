@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-03: Contract v0.7 (comfort)
+- **Approved: sound, light (daylight, electric lighting, glare) and floor-and-wall contrast**, worked out per spot and compared with each person's own drawn tolerances along their actual path; "overload" is two or more discomforts at once. Floor plan v0.4, scenario and results v0.7. *(Product owner)*
+- **Lighting levels and acoustics default by room type, shown as assumptions; floor and wall shades have no default, so contrast reads "not checked" until entered. Desk rotation means the way the sitter faces. Comfort is on by default in the app but optional in the contract.** *(Product owner, as recommended)*
+
 ## 2026-11-03: Comfort before evacuation
 - **Comfort (sound, light, contrast) becomes contract v0.7 and evacuation moves to v0.8.** The product owner wants to see how the building feels to the people in it; evacuation builds on proven crowding and loses nothing by waiting. *(Product owner, agreeing with Claude's recommendation)*
 - **"Feelings" are the gap between what a spot is like and what that person tolerates**, added up along their actual path, like "felt crowded" in v0.6; no psychology is simulated. Colour starts as floor-and-wall contrast for low vision only; colour moods stay out until there's evidence. *(Product owner, agreeing; details in the v0.7 change request)*

@@ -1,4 +1,4 @@
-# Contracts (v0.6)
+# Contracts (v0.7)
 
 These files define how the parts of civil-sim talk to each other. The editor and the
 engine are built separately, by different agents, and only ever meet here.
@@ -25,6 +25,7 @@ engine are built separately, by different agents, and only ever meet here.
 - **Every number shown to a user is traceable.** Results carry an `assumptions` list in plain language.
 
 ## Version history
+- **v0.7** (floor plan v0.4, scenario, results): comfort. Plans can say which way is north (`site`), list `noiseSources`, describe window glass (`sillM`, `headM`, `transmittance`, `frosted`, `shaded`) and rooms' `lightingLux`, `acoustics`, `floorLRV` and `wallLRV`; desk `rotation` now means the way the sitter faces. Scenarios gain `comfort` (date, sky) and profiles gain noise, light and glare tolerances and `lowVision`. Results gain noise, light and glare grids per floor, `Track.discomfort` stretches, `metrics.comfort` (by kind of person, by space, desks) and the `comfort` warning.
 - **v0.5** (floor plan v0.3, scenario, results): shoppers (`shoppers`: arrivals through the day, shopper types, impulse visits), shop pull (`Space.attraction`) and entrance shares (`Opening.arrivalShare`); results gain shopper tracks, `"shopping"` and `"eating"`, `shop_visit` events, per-shop pass-bys, visits and conversion, a headcount through the day, and shopper totals.
 - **v0.6** (scenario, results; floor plan stays v0.3): people who differ (`profiles`: kinds of person with bell-curve speed, familiarity and crowd comfort, step-free or no-escalator access, size in a crowd, lift/escalator/stairs preference, and shares for staff, visitors and shoppers; `Person.profileId` / `Visitor.profileId` for a known person) and `crowding` (density slows walking, door and escalator flow limits). Results gain `Track.profileId`, `blocked` events, per-profile "who struggled" metrics, per-space crowding, a peak-density grid per floor, and the `not_step_free` warning.
 - **v0.4** (floor plan v0.2, scenario, results): several floors stacked on the same coordinates (`levels`, `levelId`), stairs, escalators and lifts (`connectors`), mall space types; results gain the floor on every point, per-floor heatmaps and connector use.

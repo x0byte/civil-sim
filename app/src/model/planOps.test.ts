@@ -125,11 +125,16 @@ describe("floors", () => {
     const { levels: _l, connectors: _c, ...rest } = officeA;
     const old = { ...rest, version: "0.1", walls: strip(officeA.walls), spaces: strip(officeA.spaces), fixtures: strip(officeA.fixtures) };
     const up = upgradePlan(old as unknown as FloorPlan);
-    expect(up.version).toBe("0.3");
+    expect(up.version).toBe("0.4");
     expect(up.levels).toEqual([{ id: "ground", name: "Ground floor", elevation: 0 }]);
     expect(up.connectors).toEqual([]);
     expect(validateFloorPlan(up)).toEqual([]);
     expect(upgradePlan(officeA)).toBe(officeA);
+  });
+
+  it("takes v0.3 plans as they are, at the new version", () => {
+    const up = upgradePlan({ ...officeA, version: "0.3" } as unknown as FloorPlan);
+    expect(up).toEqual(officeA);
   });
 
   it("adds a floor on top with the outside walls and their windows copied up", () => {

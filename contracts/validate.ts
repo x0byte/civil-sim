@@ -37,6 +37,10 @@ export type IssueCode =
   | "connector"
   | "attraction"
   | "arrival_share"
+  | "site"
+  | "noise_source"
+  | "window"
+  | "space_comfort"
   // scenario
   | "seed"
   | "workday"
@@ -54,6 +58,7 @@ export type IssueCode =
   | "shoppers"
   | "profiles"
   | "crowding"
+  | "comfort"
   | "reserved_id";
 
 export interface ValidationIssue {
@@ -131,6 +136,14 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
     } else if (o.exterior !== undefined) {
       err("exterior_window", `opening ${o.id}: only doors can set "exterior"`);
     }
+    const glass = [o.sillM, o.headM, o.transmittance, o.frosted, o.shaded];
+    if (o.kind !== "window" && glass.some((v) => v !== undefined)) err("window", `opening ${o.id}: only windows have glass settings`);
+    if (o.kind === "window") {
+      const sill = o.sillM ?? 0.9;
+      const head = o.headM ?? 2.1;
+      if (!isNum(sill) || !isNum(head) || sill < 0 || head <= sill) err("window", `window ${o.id} needs 0 ≤ sillM < headM`);
+      if (o.transmittance !== undefined && !(o.transmittance >= 0 && o.transmittance <= 1)) err("window", `window ${o.id} transmittance must be 0–1`);
+    }
     if (o.arrivalShare !== undefined) {
       if (o.kind !== "door" || !o.exterior) err("arrival_share", `opening ${o.id}: only exterior doors have an arrivalShare`);
       else if (!(o.arrivalShare >= 0 && o.arrivalShare <= 1)) err("arrival_share", `door ${o.id} arrivalShare must be 0–1`);
@@ -170,6 +183,11 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
       if (s.type !== "shop" && s.type !== "food_court") err("attraction", `space ${s.id}: only shops and food courts have an attraction`);
       else if (!(s.attraction > 0)) err("attraction", `space ${s.id} attraction must be positive`);
     }
+    if (s.lightingLux !== undefined && !(s.lightingLux >= 0)) err("space_comfort", `space ${s.id} lightingLux must be zero or more`);
+    if (s.acoustics !== undefined && !["hard", "mixed", "soft"].includes(s.acoustics)) err("space_comfort", `space ${s.id} acoustics must be "hard", "mixed" or "soft"`);
+    for (const [name, v] of [["floorLRV", s.floorLRV], ["wallLRV", s.wallLRV]] as const) {
+      if (v !== undefined && !(v >= 0 && v <= 100)) err("space_comfort", `space ${s.id} ${name} must be 0–100`);
+    }
   }
 
   for (const f of plan.fixtures) {
@@ -199,6 +217,22 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
     if (c.kind !== "lift" && served.length > 2) err("connector", `${c.kind} ${c.id} joins exactly two levels; use a lift to serve more`);
     if (c.direction !== undefined && c.kind !== "escalator") err("connector", `connector ${c.id}: only escalators have a direction`);
     if (c.capacity !== undefined && (c.kind !== "lift" || !(c.capacity > 0))) err("connector", `connector ${c.id}: only lifts have a capacity, and it must be positive`);
+  }
+
+  if (plan.site) {
+    if (!(plan.site.northDeg >= 0 && plan.site.northDeg < 360)) err("site", "site northDeg must be 0 to under 360");
+    if (plan.site.latitude !== undefined && !(plan.site.latitude >= -90 && plan.site.latitude <= 90)) err("site", "site latitude must be −90 to 90");
+  }
+  for (const n of plan.noiseSources ?? []) {
+    claim(n.id, "noise source");
+    onLevel(`noise source ${n.id}`, n.levelId);
+    if (!inBounds(n.position)) err("outside_bounds", `noise source ${n.id} is outside bounds`);
+    if (!(n.dbA >= 0 && n.dbA <= 140)) err("noise_source", `noise source ${n.id} dbA must be 0–140`);
+    if (n.hours) {
+      const from = parseClock(n.hours.from);
+      const to = parseClock(n.hours.to);
+      if (from === null || to === null || to <= from) err("noise_source", `noise source ${n.id} hours must be HH:MM, ending after they start`);
+    }
   }
 
   return issues;
@@ -319,6 +353,13 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
       if (!pr.every((n) => n >= 0) || !pr.some((n) => n > 0)) err("profiles", `profile ${p.id}: preferences must be zero or more, at least one above 0`);
       if (!spread(p.familiarity) || p.familiarity.min < 0 || p.familiarity.max > 1) err("profiles", `profile ${p.id}: familiarity needs 0 ≤ min ≤ mean ≤ max ≤ 1 and sd ≥ 0`);
       if (!spread(p.crowdComfort) || !(p.crowdComfort.min > 0)) err("profiles", `profile ${p.id}: crowdComfort needs min ≤ mean ≤ max, sd ≥ 0, and min above 0`);
+      for (const [name, sp] of [["noiseComfort", p.noiseComfort], ["focusNoiseComfort", p.focusNoiseComfort], ["taskLux", p.taskLux]] as const) {
+        if (sp !== undefined && (!spread(sp) || !(sp.min > 0))) err("profiles", `profile ${p.id}: ${name} needs min ≤ mean ≤ max, sd ≥ 0, and min above 0`);
+      }
+      if (p.glareComfort !== undefined && (!spread(p.glareComfort) || p.glareComfort.min < 0 || p.glareComfort.max > 1)) {
+        err("profiles", `profile ${p.id}: glareComfort needs 0 ≤ min ≤ mean ≤ max ≤ 1 and sd ≥ 0`);
+      }
+      if (p.lowVision !== undefined && typeof p.lowVision !== "boolean") err("profiles", `profile ${p.id}: lowVision must be true or false`);
     }
     for (const kind of ["staff", "visitors", "shoppers"] as const) {
       const list = profiles[kind];
@@ -336,6 +377,12 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
     if (x.profileId !== undefined && !profileIds.has(x.profileId)) err("profiles", `${x.id}: profile "${x.profileId}" is not in scenario.profiles`);
   }
   if (scenario.crowding && scenario.crowding.enabled !== true) err("crowding", "crowding must be { enabled: true } or left out");
+  const comfort = scenario.comfort;
+  if (comfort) {
+    if (comfort.enabled !== true) err("comfort", "comfort must have enabled: true, or be left out");
+    if (comfort.date !== undefined && !isDate(comfort.date)) err("comfort", "comfort date must be a real date, YYYY-MM-DD");
+    if (comfort.sky !== undefined && comfort.sky !== "clear" && comfort.sky !== "overcast") err("comfort", 'comfort sky must be "clear" or "overcast"');
+  }
 
   if (plan) {
     const desks = new Set(plan.fixtures.filter((f) => f.type === "desk").map((f) => f.id));
@@ -372,6 +419,13 @@ function isNum(n: unknown): n is number {
 
 function dist(a: Vec2, b: Vec2): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function isDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
 }
 
 function parseClock(s: string): number | null {

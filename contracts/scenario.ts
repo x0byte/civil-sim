@@ -1,9 +1,9 @@
-// Scenario contract, v0.6: who is in the building and what their day looks like.
+// Scenario contract, v0.7: who is in the building and what their day looks like.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.6";
+export const SCENARIO_VERSION = "0.7";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -39,6 +39,20 @@ export interface Scenario {
   profiles?: Profiles;
   /** People slow down in crowds, and doors and escalators let only so many through (contract v0.6). Omitted means off. */
   crowding?: Crowding;
+  /** Work out sound, light and contrast comfort for everyone (contract v0.7). Omitted means off. */
+  comfort?: Comfort;
+}
+
+/**
+ * What each spot sounds and looks like, against each person's own tolerances. Missing tolerances
+ * take typical adult values, stated in the results' assumptions.
+ */
+export interface Comfort {
+  enabled: true;
+  /** The day simulated, for the sun's path, "YYYY-MM-DD". Missing: 2026-03-21. In Colombo the sun passes straight overhead in early April and early September. */
+  date?: string;
+  /** "clear": direct sun and glare; "overcast": soft daylight and no glare. Missing: "clear". */
+  sky?: "clear" | "overcast";
 }
 
 /** A spread of values: each person gets their own, drawn from a bell curve (normal) and clipped to [min, max]. sd 0 means everyone gets `mean`. */
@@ -75,6 +89,16 @@ export interface PersonProfile {
   familiarity: Spread;
   /** People per m² around them at which they start to feel uncomfortable (a typical adult about 1.5; someone anxious in crowds about 0.8). */
   crowdComfort: Spread;
+  /** Loudest dB(A) they're comfortable with while walking, shopping or eating (typical about 70; noise-sensitive about 60). Missing: typical. */
+  noiseComfort?: Spread;
+  /** Loudest dB(A) for focused work at a desk or in a meeting (typical about 50). Missing: typical. */
+  focusNoiseComfort?: Spread;
+  /** Least light they need to see comfortably for tasks, lux (typical about 300; older or low vision about 500). Missing: typical. */
+  taskLux?: Spread;
+  /** How much glare they put up with, 0–1 on the engine's glare scale, 0 none and 1 unbearable (typical about 0.4; light-sensitive about 0.25). Missing: typical. */
+  glareComfort?: Spread;
+  /** Needs strong contrast between floor and walls to find their way. Missing: false. */
+  lowVision?: boolean;
 }
 
 export interface ProfileShare {

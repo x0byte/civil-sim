@@ -25,7 +25,7 @@ interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "w
 const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
 const singleFloor = (d: Draft): FloorPlan => ({
   ...d,
-  version: "0.3",
+  version: "0.4",
   levels: [GROUND],
   walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
   spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
@@ -214,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.6",
+  version: "0.7",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -241,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.6",
+  version: "0.7",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -382,7 +382,7 @@ const connectors: Connector[] = [
   { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
 ];
 const mall: FloorPlan = {
-  version: "0.3",
+  version: "0.4",
   id: "mall-2f",
   name: "Small mall: two floors",
   units: "m",
@@ -398,7 +398,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.6",
+  version: "0.7",
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -422,7 +422,7 @@ const mallScenario: Scenario = {
 // A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
 // Arrival rates and shopper types are assumptions until calibrated against door counts.
 const mallWeekend: Scenario = {
-  version: "0.6",
+  version: "0.7",
   id: "mall-weekend",
   name: "Saturday: shop staff and about 850 shoppers",
   seed: 21,
@@ -483,6 +483,115 @@ const mallWeekendPeople: Scenario = {
   crowding: { enabled: true },
 };
 
+// ---------- comfort samples (contract v0.7) ----------
+// Environment and tolerance numbers are assumptions until measured in real buildings.
+
+// Office A turned so the desks along the bottom face west-facing glass, with a busy road outside.
+// North points left (270°), so the bottom wall (y = 14) faces west and gets the afternoon sun.
+const officeAComfort: FloorPlan = {
+  ...officeA,
+  id: "office-a-comfort",
+  name: "Office A: west windows on a busy road",
+  // The site runs past the building to the road.
+  bounds: { width: 24, height: 20 },
+  site: { northDeg: 270 },
+  noiseSources: [{ id: "road", levelId: GROUND.id, name: "Galle Road", position: { x: 12, y: 18.5 }, dbA: 75, hours: { from: "06:00", to: "21:00" } }],
+  openings: officeA.openings.map((o) => (o.id.startsWith("win-s") ? { ...o, sillM: 0.6, headM: 2.4 } : o.kind === "window" ? { ...o, shaded: true } : o)),
+  spaces: officeA.spaces.map((sp) =>
+    sp.id === "open-office"
+      ? { ...sp, acoustics: "hard" as const, lightingLux: 350, floorLRV: 35, wallLRV: 80 }
+      : sp.id === "toilet"
+        ? { ...sp, floorLRV: 70, wallLRV: 78 }
+        : sp,
+  ),
+};
+
+const comfortTraits = { noiseComfort: sp(70, 4, 60, 80), focusNoiseComfort: sp(50, 3, 42, 58), taskLux: sp(300, 50, 200, 450), glareComfort: sp(0.4, 0.05, 0.3, 0.5) };
+const officeDayComfort: Scenario = {
+  ...officeScenario,
+  id: "office-day-comfort",
+  name: "Ordinary workday with comfort: sun, road noise and sensitive staff",
+  profiles: {
+    list: [
+      { id: "office-worker", name: "Office worker", speed: sp(1.3, 0.15, 0.9, 1.7), access: "any", size: 1, prefers: { stairs: 1, escalator: 1, lift: 0.5 }, familiarity: sp(1, 0, 1, 1), crowdComfort: sp(1.5, 0.3, 0.8, 3), ...comfortTraits },
+      { id: "noise-sensitive", name: "Sensitive to noise", speed: sp(1.3, 0.15, 0.9, 1.7), access: "any", size: 1, prefers: { stairs: 1, escalator: 1, lift: 0.5 }, familiarity: sp(1, 0, 1, 1), crowdComfort: sp(1.2, 0.3, 0.6, 2), ...comfortTraits, noiseComfort: sp(60, 4, 52, 70), focusNoiseComfort: sp(44, 3, 38, 50) },
+      { id: "light-sensitive", name: "Sensitive to light", speed: sp(1.3, 0.15, 0.9, 1.7), access: "any", size: 1, prefers: { stairs: 1, escalator: 1, lift: 0.5 }, familiarity: sp(1, 0, 1, 1), crowdComfort: sp(1.5, 0.3, 0.8, 3), ...comfortTraits, glareComfort: sp(0.25, 0.04, 0.15, 0.35) },
+      { id: "low-vision-visitor", name: "Visitor with low vision", speed: sp(0.9, 0.15, 0.5, 1.3), access: "any", size: 1, prefers: { stairs: 0.5, escalator: 0, lift: 3 }, familiarity: sp(0.3, 0.1, 0, 0.6), crowdComfort: sp(1, 0.3, 0.5, 2), ...comfortTraits, taskLux: sp(500, 80, 350, 700), lowVision: true },
+    ],
+    staff: [
+      { profileId: "office-worker", share: 0.8 },
+      { profileId: "noise-sensitive", share: 0.12 },
+      { profileId: "light-sensitive", share: 0.08 },
+    ],
+    visitors: [{ profileId: "low-vision-visitor", share: 1 }],
+  },
+  crowding: { enabled: true },
+  comfort: { enabled: true, date: "2026-11-15", sky: "clear" },
+};
+
+// The mall with glass on the food court's west side, a street outside the main door, background
+// music and glossy pale floors against white walls (low contrast). North is up the page.
+const mallComfort: FloorPlan = {
+  ...mall,
+  id: "mall-2f-comfort",
+  name: "Small mall: west glass, street noise and glossy floors",
+  bounds: { width: 40, height: 30 },
+  site: { northDeg: 0 },
+  noiseSources: [
+    { id: "street", levelId: GROUND.id, name: "Main street and bus stop", position: { x: 20, y: 28 }, dbA: 78, hours: { from: "06:00", to: "22:00" } },
+    { id: "music-g", levelId: GROUND.id, name: "Background music", position: { x: 20, y: 12 }, dbA: 65, hours: { from: "10:00", to: "21:00" } },
+    { id: "music-f", levelId: FIRST.id, name: "Background music", position: { x: 20, y: 12 }, dbA: 65, hours: { from: "10:00", to: "21:00" } },
+  ],
+  openings: [
+    ...mall.openings,
+    { id: "f-win-food-west", wallId: "f-w-left", kind: "window", offset: 20, width: 6, sillM: 0.3, headM: 3.5, transmittance: 0.75 },
+    { id: "g-win-front", wallId: "g-w-bottom", kind: "window", offset: 8, width: 8, sillM: 0.3, headM: 3.5, transmittance: 0.6, shaded: true },
+  ],
+  spaces: mall.spaces.map((sp) =>
+    sp.type === "atrium"
+      ? { ...sp, acoustics: "hard" as const, floorLRV: 72, wallLRV: 80 }
+      : sp.type === "food_court"
+        ? { ...sp, acoustics: "hard" as const, lightingLux: 300, floorLRV: 45, wallLRV: 80 }
+        : sp.type === "shop"
+          ? { ...sp, lightingLux: 750 }
+          : sp.type === "toilet"
+            ? { ...sp, floorLRV: 40, wallLRV: 82 }
+            : sp,
+  ),
+};
+
+const mallList = mallWeekendPeople.profiles!.list.map((pr) => ({
+  ...pr,
+  ...comfortTraits,
+  ...(pr.id === "older" ? { noiseComfort: sp(64, 4, 55, 72), taskLux: sp(500, 80, 350, 700), glareComfort: sp(0.3, 0.05, 0.2, 0.4) } : {}),
+  ...(pr.id === "child" ? { noiseComfort: sp(74, 4, 64, 82) } : {}),
+}));
+const mallWeekendComfort: Scenario = {
+  ...mallWeekendPeople,
+  id: "mall-weekend-comfort",
+  name: "Saturday with comfort: about 850 shoppers, crowding and comfort on",
+  profiles: {
+    ...mallWeekendPeople.profiles!,
+    list: [
+      ...mallList,
+      { id: "low-vision", name: "Low vision", speed: sp(0.9, 0.15, 0.5, 1.3), access: "any", size: 1, prefers: { stairs: 0.5, escalator: 0.5, lift: 2 }, familiarity: sp(0.5, 0.2, 0, 1), crowdComfort: sp(1, 0.3, 0.5, 2), ...comfortTraits, taskLux: sp(500, 80, 350, 700), lowVision: true },
+      { id: "sensory", name: "Sensitive to noise and light", speed: sp(1.15, 0.2, 0.7, 1.6), access: "any", size: 1, prefers: { stairs: 1, escalator: 1, lift: 1 }, familiarity: sp(0.7, 0.2, 0.2, 1), crowdComfort: sp(0.8, 0.2, 0.4, 1.5), noiseComfort: sp(60, 4, 52, 70), focusNoiseComfort: sp(44, 3, 38, 50), taskLux: sp(300, 50, 200, 450), glareComfort: sp(0.25, 0.04, 0.15, 0.35) },
+    ],
+    shoppers: [
+      { profileId: "regular", share: 0.59 },
+      { profileId: "first-time", share: 0.12 },
+      { profileId: "older", share: 0.1 },
+      { profileId: "child", share: 0.08 },
+      { profileId: "pushchair", share: 0.05 },
+      { profileId: "wheelchair", share: 0.015 },
+      { profileId: "walking-aid", share: 0.015 },
+      { profileId: "low-vision", share: 0.01 },
+      { profileId: "sensory", share: 0.02 },
+    ],
+  },
+  comfort: { enabled: true, date: "2026-04-11", sky: "clear" },
+};
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
@@ -493,6 +602,10 @@ const out: Record<string, unknown> = {
   "mall-day.scenario.json": mallScenario,
   "mall-weekend.scenario.json": mallWeekend,
   "mall-weekend-people.scenario.json": mallWeekendPeople,
+  "office-a-comfort.floorplan.json": officeAComfort,
+  "office-day-comfort.scenario.json": officeDayComfort,
+  "mall-2f-comfort.floorplan.json": mallComfort,
+  "mall-weekend-comfort.scenario.json": mallWeekendComfort,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

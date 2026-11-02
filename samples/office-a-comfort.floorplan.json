@@ -1,0 +1,595 @@
+{
+  "id": "office-a-comfort",
+  "name": "Office A: west windows on a busy road",
+  "units": "m",
+  "bounds": {
+    "width": 24,
+    "height": 20
+  },
+  "walls": [
+    {
+      "id": "w-top",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 24,
+        "y": 0
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-right",
+      "a": {
+        "x": 24,
+        "y": 0
+      },
+      "b": {
+        "x": 24,
+        "y": 14
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-bottom",
+      "a": {
+        "x": 0,
+        "y": 14
+      },
+      "b": {
+        "x": 24,
+        "y": 14
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-left",
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 0,
+        "y": 14
+      },
+      "thickness": 0.25,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-strip",
+      "a": {
+        "x": 0,
+        "y": 4
+      },
+      "b": {
+        "x": 18,
+        "y": 4
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-manager-east",
+      "a": {
+        "x": 5,
+        "y": 0
+      },
+      "b": {
+        "x": 5,
+        "y": 4
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-toilet-east",
+      "a": {
+        "x": 8,
+        "y": 0
+      },
+      "b": {
+        "x": 8,
+        "y": 4
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-meeting-east",
+      "a": {
+        "x": 14,
+        "y": 0
+      },
+      "b": {
+        "x": 14,
+        "y": 4
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    },
+    {
+      "id": "w-pantry-east",
+      "a": {
+        "x": 18,
+        "y": 0
+      },
+      "b": {
+        "x": 18,
+        "y": 4
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "ground"
+    }
+  ],
+  "openings": [
+    {
+      "id": "d-entrance",
+      "wallId": "w-right",
+      "kind": "door",
+      "offset": 2,
+      "width": 1.5,
+      "exterior": true
+    },
+    {
+      "id": "d-manager",
+      "wallId": "w-strip",
+      "kind": "door",
+      "offset": 4.3,
+      "width": 0.9
+    },
+    {
+      "id": "d-toilet",
+      "wallId": "w-strip",
+      "kind": "door",
+      "offset": 5.6,
+      "width": 0.9
+    },
+    {
+      "id": "d-meeting",
+      "wallId": "w-strip",
+      "kind": "door",
+      "offset": 11,
+      "width": 1.2
+    },
+    {
+      "id": "d-pantry",
+      "wallId": "w-strip",
+      "kind": "door",
+      "offset": 16,
+      "width": 0.9
+    },
+    {
+      "id": "win-manager",
+      "wallId": "w-top",
+      "kind": "window",
+      "offset": 2.5,
+      "width": 2,
+      "shaded": true
+    },
+    {
+      "id": "win-meeting",
+      "wallId": "w-top",
+      "kind": "window",
+      "offset": 11,
+      "width": 3,
+      "shaded": true
+    },
+    {
+      "id": "win-s1",
+      "wallId": "w-bottom",
+      "kind": "window",
+      "offset": 6,
+      "width": 3,
+      "sillM": 0.6,
+      "headM": 2.4
+    },
+    {
+      "id": "win-s2",
+      "wallId": "w-bottom",
+      "kind": "window",
+      "offset": 12,
+      "width": 3,
+      "sillM": 0.6,
+      "headM": 2.4
+    },
+    {
+      "id": "win-s3",
+      "wallId": "w-bottom",
+      "kind": "window",
+      "offset": 18,
+      "width": 3,
+      "sillM": 0.6,
+      "headM": 2.4
+    }
+  ],
+  "spaces": [
+    {
+      "id": "manager",
+      "name": "Manager's office",
+      "type": "private_office",
+      "privacy": "private",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 4
+        },
+        {
+          "x": 0,
+          "y": 4
+        }
+      ],
+      "doorIds": [
+        "d-manager"
+      ],
+      "levelId": "ground"
+    },
+    {
+      "id": "toilet",
+      "name": "Toilet",
+      "type": "toilet",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 4
+        },
+        {
+          "x": 5,
+          "y": 4
+        }
+      ],
+      "doorIds": [
+        "d-toilet"
+      ],
+      "capacity": 2,
+      "levelId": "ground",
+      "floorLRV": 70,
+      "wallLRV": 78
+    },
+    {
+      "id": "meeting",
+      "name": "Meeting room",
+      "type": "meeting_room",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 8,
+          "y": 4
+        }
+      ],
+      "doorIds": [
+        "d-meeting"
+      ],
+      "capacity": 8,
+      "levelId": "ground"
+    },
+    {
+      "id": "pantry",
+      "name": "Pantry",
+      "type": "pantry",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 18,
+          "y": 0
+        },
+        {
+          "x": 18,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 4
+        }
+      ],
+      "doorIds": [
+        "d-pantry"
+      ],
+      "capacity": 4,
+      "levelId": "ground"
+    },
+    {
+      "id": "reception",
+      "name": "Reception",
+      "type": "reception",
+      "privacy": "public",
+      "polygon": [
+        {
+          "x": 18,
+          "y": 0
+        },
+        {
+          "x": 24,
+          "y": 0
+        },
+        {
+          "x": 24,
+          "y": 4
+        },
+        {
+          "x": 18,
+          "y": 4
+        }
+      ],
+      "doorIds": [
+        "d-entrance"
+      ],
+      "levelId": "ground"
+    },
+    {
+      "id": "open-office",
+      "name": "Open office",
+      "type": "open_office",
+      "privacy": "shared",
+      "polygon": [
+        {
+          "x": 0,
+          "y": 4
+        },
+        {
+          "x": 24,
+          "y": 4
+        },
+        {
+          "x": 24,
+          "y": 14
+        },
+        {
+          "x": 0,
+          "y": 14
+        }
+      ],
+      "doorIds": [
+        "d-manager",
+        "d-toilet",
+        "d-meeting",
+        "d-pantry"
+      ],
+      "levelId": "ground",
+      "acoustics": "hard",
+      "lightingLux": 350,
+      "floorLRV": 35,
+      "wallLRV": 80
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "desk-m",
+      "type": "desk",
+      "position": {
+        "x": 2.5,
+        "y": 2
+      },
+      "rotation": 90,
+      "spaceId": "manager",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-01",
+      "type": "desk",
+      "position": {
+        "x": 3,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-02",
+      "type": "desk",
+      "position": {
+        "x": 6,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-03",
+      "type": "desk",
+      "position": {
+        "x": 9,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-04",
+      "type": "desk",
+      "position": {
+        "x": 12,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-05",
+      "type": "desk",
+      "position": {
+        "x": 15,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-06",
+      "type": "desk",
+      "position": {
+        "x": 18,
+        "y": 8
+      },
+      "rotation": 270,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-07",
+      "type": "desk",
+      "position": {
+        "x": 3,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-08",
+      "type": "desk",
+      "position": {
+        "x": 6,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-09",
+      "type": "desk",
+      "position": {
+        "x": 9,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-10",
+      "type": "desk",
+      "position": {
+        "x": 12,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-11",
+      "type": "desk",
+      "position": {
+        "x": 15,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "desk-12",
+      "type": "desk",
+      "position": {
+        "x": 18,
+        "y": 11
+      },
+      "rotation": 90,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    },
+    {
+      "id": "coffee",
+      "type": "coffee",
+      "position": {
+        "x": 16,
+        "y": 2
+      },
+      "rotation": 0,
+      "spaceId": "pantry",
+      "levelId": "ground"
+    },
+    {
+      "id": "printer",
+      "type": "printer",
+      "position": {
+        "x": 22,
+        "y": 9
+      },
+      "rotation": 0,
+      "spaceId": "open-office",
+      "levelId": "ground"
+    }
+  ],
+  "version": "0.4",
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground floor",
+      "elevation": 0
+    }
+  ],
+  "connectors": [],
+  "site": {
+    "northDeg": 270
+  },
+  "noiseSources": [
+    {
+      "id": "road",
+      "levelId": "ground",
+      "name": "Galle Road",
+      "position": {
+        "x": 12,
+        "y": 18.5
+      },
+      "dbA": 75,
+      "hours": {
+        "from": "06:00",
+        "to": "21:00"
+      }
+    }
+  ]
+}

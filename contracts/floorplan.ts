@@ -1,8 +1,8 @@
-// Floor plan contract, v0.3: a building of one or more floors.
+// Floor plan contract, v0.4: a building of one or more floors, with what it looks and sounds like.
 // The editor (app/) writes this; the engine (engine/) reads it.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const FLOORPLAN_VERSION = "0.3";
+export const FLOORPLAN_VERSION = "0.4";
 
 /**
  * A point in metres. Origin is the top-left of the plan,
@@ -30,8 +30,32 @@ export interface FloorPlan {
   fixtures: Fixture[];
   /** Stairs, escalators and lifts joining floors. Empty for a single-floor plan. */
   connectors: Connector[];
+  /** Where the building is and which way it faces. Missing: north is up the page, latitude 6.9° (Colombo). */
+  site?: Site;
+  /** Things that make noise: a road outside, plant, music, a generator. People, escalators and lifts are counted by the engine. Missing: none. */
+  noiseSources?: NoiseSource[];
   /** Editor-only data (traced image, scale calibration). The engine ignores it. */
   underlay?: Underlay;
+}
+
+export interface Site {
+  /** Direction of north, degrees clockwise from "up the page" (−y), 0 to under 360. */
+  northDeg: number;
+  /** Degrees, positive north. Missing: 6.9 (Colombo). */
+  latitude?: number;
+}
+
+export interface NoiseSource {
+  id: string;
+  levelId: string;
+  /** e.g. "Galle Road", "Generator", "Background music". */
+  name: string;
+  /** Inside the plan bounds; may be outside the walls, e.g. on the road. */
+  position: Vec2;
+  /** Loudness in dB(A) 1 m away (a busy road at the kerb about 75, quiet plant about 55, background music about 65). */
+  dbA: number;
+  /** When it's on, "HH:MM". Missing: all day. */
+  hours?: { from: string; to: string };
 }
 
 export interface Level {
@@ -62,6 +86,15 @@ export interface Opening {
   width: number;
   /** Doors only: true if it leads outside. People arrive and leave through exterior doors. */
   exterior?: boolean;
+  /** Windows only: height of the bottom and top of the glass above the floor, m. Missing: 0.9 and 2.1. */
+  sillM?: number;
+  headM?: number;
+  /** Windows only: share of daylight the glass lets through, 0–1 (clear about 0.7, tinted about 0.4). Missing: 0.7. */
+  transmittance?: number;
+  /** Windows only: frosted or patterned glass, which lets light in but stops glare. Missing: false. */
+  frosted?: boolean;
+  /** Windows only: blinds, louvres or a deep overhang that stop direct sun. Missing: false. */
+  shaded?: boolean;
   /**
    * Exterior doors only, 0–1: the share of shoppers who come in (and mostly leave) this way,
    * e.g. 0.6 for the car-park door. Entrances without a share split what's left equally.
@@ -116,6 +149,13 @@ export interface Space {
    * shop = 1 (an anchor store or supermarket might be 5, a kiosk 0.3). Missing means 1.
    */
   attraction?: number;
+  /** Electric lighting on a table-height surface while the building is open, lux. Missing: typical for the room type. */
+  lightingLux?: number;
+  /** How much sound bounces around: "hard" (tile, glass, concrete), "mixed", "soft" (carpet, acoustic ceiling). Missing: typical for the room type. */
+  acoustics?: "hard" | "mixed" | "soft";
+  /** Light reflectance of the floor and of the walls, 0 (black) to 100 (white). Missing: contrast isn't checked. */
+  floorLRV?: number;
+  wallLRV?: number;
 }
 
 export type FixtureType = "desk" | "water" | "printer" | "coffee";
@@ -129,7 +169,7 @@ export interface Fixture {
   levelId: string;
   type: FixtureType;
   position: Vec2;
-  /** Degrees, clockwise from +x. Visual only. */
+  /** Degrees, clockwise from +x. For desks, the way the person sitting there faces (used for glare); otherwise visual only. */
   rotation: number;
   /** A space on the same floor. */
   spaceId: string;

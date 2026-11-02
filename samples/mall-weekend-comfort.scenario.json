@@ -1,0 +1,731 @@
+{
+  "version": "0.7",
+  "id": "mall-weekend-comfort",
+  "name": "Saturday with comfort: about 850 shoppers, crowding and comfort on",
+  "seed": 21,
+  "workday": {
+    "start": "10:00",
+    "end": "21:00"
+  },
+  "teams": [
+    {
+      "id": "shops",
+      "name": "Shop staff"
+    }
+  ],
+  "people": [
+    {
+      "id": "staff-1",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-1",
+      "profileId": "wheelchair"
+    },
+    {
+      "id": "staff-2",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-2"
+    },
+    {
+      "id": "staff-3",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-3"
+    },
+    {
+      "id": "staff-4",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "g-counter-4"
+    },
+    {
+      "id": "staff-5",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-1"
+    },
+    {
+      "id": "staff-6",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-2"
+    },
+    {
+      "id": "staff-7",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-3"
+    },
+    {
+      "id": "staff-8",
+      "teamId": "shops",
+      "role": "staff",
+      "deskId": "f-counter-4"
+    }
+  ],
+  "meetings": [],
+  "rates": {
+    "toiletVisitsPerDay": 3,
+    "pantryVisitsPerDay": 0
+  },
+  "queueing": {
+    "maxWaitMin": 10
+  },
+  "shoppers": {
+    "arrivals": [
+      {
+        "from": "10:00",
+        "to": "12:00",
+        "perHour": 40
+      },
+      {
+        "from": "12:00",
+        "to": "14:00",
+        "perHour": 80
+      },
+      {
+        "from": "14:00",
+        "to": "17:00",
+        "perHour": 70
+      },
+      {
+        "from": "17:00",
+        "to": "20:00",
+        "perHour": 120
+      },
+      {
+        "from": "20:00",
+        "to": "20:30",
+        "perHour": 80
+      }
+    ],
+    "types": [
+      {
+        "id": "quick",
+        "name": "Quick trip",
+        "share": 0.35,
+        "shops": {
+          "min": 1,
+          "max": 2
+        },
+        "minutesPerShop": 8,
+        "foodCourtChance": 0.15,
+        "maxStayMin": 40
+      },
+      {
+        "id": "browse",
+        "name": "Browsing",
+        "share": 0.45,
+        "shops": {
+          "min": 3,
+          "max": 6
+        },
+        "minutesPerShop": 12,
+        "foodCourtChance": 0.5,
+        "maxStayMin": 150
+      },
+      {
+        "id": "family",
+        "name": "Family outing",
+        "share": 0.2,
+        "shops": {
+          "min": 2,
+          "max": 4
+        },
+        "minutesPerShop": 15,
+        "foodCourtChance": 0.8,
+        "maxStayMin": 180
+      }
+    ],
+    "impulse": 0.04,
+    "toiletVisitsPerHour": 0.35
+  },
+  "profiles": {
+    "list": [
+      {
+        "id": "staff",
+        "name": "Works here",
+        "speed": {
+          "mean": 1.3,
+          "sd": 0.15,
+          "min": 0.9,
+          "max": 1.7
+        },
+        "access": "any",
+        "size": 1,
+        "prefers": {
+          "stairs": 1,
+          "escalator": 1,
+          "lift": 0.3
+        },
+        "familiarity": {
+          "mean": 1,
+          "sd": 0,
+          "min": 1,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1.8,
+          "sd": 0.3,
+          "min": 1,
+          "max": 3
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "regular",
+        "name": "Regular adult",
+        "speed": {
+          "mean": 1.25,
+          "sd": 0.2,
+          "min": 0.8,
+          "max": 1.8
+        },
+        "access": "any",
+        "size": 1,
+        "prefers": {
+          "stairs": 0.5,
+          "escalator": 2,
+          "lift": 0.5
+        },
+        "familiarity": {
+          "mean": 0.8,
+          "sd": 0.15,
+          "min": 0.3,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1.5,
+          "sd": 0.4,
+          "min": 0.6,
+          "max": 3
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "first-time",
+        "name": "First-time visitor",
+        "speed": {
+          "mean": 1.15,
+          "sd": 0.2,
+          "min": 0.7,
+          "max": 1.7
+        },
+        "access": "any",
+        "size": 1,
+        "prefers": {
+          "stairs": 0.5,
+          "escalator": 2,
+          "lift": 1
+        },
+        "familiarity": {
+          "mean": 0.35,
+          "sd": 0.15,
+          "min": 0,
+          "max": 0.8
+        },
+        "crowdComfort": {
+          "mean": 1.4,
+          "sd": 0.4,
+          "min": 0.6,
+          "max": 3
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "older",
+        "name": "Older adult",
+        "speed": {
+          "mean": 0.95,
+          "sd": 0.15,
+          "min": 0.5,
+          "max": 1.3
+        },
+        "access": "no_escalator",
+        "size": 1,
+        "prefers": {
+          "stairs": 0.3,
+          "escalator": 0,
+          "lift": 3
+        },
+        "familiarity": {
+          "mean": 0.6,
+          "sd": 0.2,
+          "min": 0.1,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1,
+          "sd": 0.3,
+          "min": 0.4,
+          "max": 2
+        },
+        "noiseComfort": {
+          "mean": 64,
+          "sd": 4,
+          "min": 55,
+          "max": 72
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 500,
+          "sd": 80,
+          "min": 350,
+          "max": 700
+        },
+        "glareComfort": {
+          "mean": 0.3,
+          "sd": 0.05,
+          "min": 0.2,
+          "max": 0.4
+        }
+      },
+      {
+        "id": "child",
+        "name": "Child with an adult",
+        "speed": {
+          "mean": 1,
+          "sd": 0.2,
+          "min": 0.6,
+          "max": 1.5
+        },
+        "access": "any",
+        "size": 0.7,
+        "prefers": {
+          "stairs": 1,
+          "escalator": 2,
+          "lift": 1
+        },
+        "familiarity": {
+          "mean": 0.5,
+          "sd": 0.2,
+          "min": 0,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 2,
+          "sd": 0.5,
+          "min": 0.8,
+          "max": 4
+        },
+        "noiseComfort": {
+          "mean": 74,
+          "sd": 4,
+          "min": 64,
+          "max": 82
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "pushchair",
+        "name": "Parent with a pushchair",
+        "speed": {
+          "mean": 1,
+          "sd": 0.15,
+          "min": 0.6,
+          "max": 1.4
+        },
+        "access": "step_free",
+        "size": 2,
+        "prefers": {
+          "stairs": 0,
+          "escalator": 0,
+          "lift": 1
+        },
+        "familiarity": {
+          "mean": 0.7,
+          "sd": 0.2,
+          "min": 0.2,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1,
+          "sd": 0.3,
+          "min": 0.4,
+          "max": 2
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "wheelchair",
+        "name": "Wheelchair user",
+        "speed": {
+          "mean": 0.9,
+          "sd": 0.15,
+          "min": 0.5,
+          "max": 1.4
+        },
+        "access": "step_free",
+        "size": 2.5,
+        "prefers": {
+          "stairs": 0,
+          "escalator": 0,
+          "lift": 1
+        },
+        "familiarity": {
+          "mean": 0.7,
+          "sd": 0.2,
+          "min": 0.2,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1,
+          "sd": 0.3,
+          "min": 0.4,
+          "max": 2
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "walking-aid",
+        "name": "Uses a walking aid",
+        "speed": {
+          "mean": 0.7,
+          "sd": 0.12,
+          "min": 0.4,
+          "max": 1
+        },
+        "access": "no_escalator",
+        "size": 1.3,
+        "prefers": {
+          "stairs": 0.2,
+          "escalator": 0,
+          "lift": 3
+        },
+        "familiarity": {
+          "mean": 0.7,
+          "sd": 0.2,
+          "min": 0.2,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 0.9,
+          "sd": 0.3,
+          "min": 0.4,
+          "max": 2
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        }
+      },
+      {
+        "id": "low-vision",
+        "name": "Low vision",
+        "speed": {
+          "mean": 0.9,
+          "sd": 0.15,
+          "min": 0.5,
+          "max": 1.3
+        },
+        "access": "any",
+        "size": 1,
+        "prefers": {
+          "stairs": 0.5,
+          "escalator": 0.5,
+          "lift": 2
+        },
+        "familiarity": {
+          "mean": 0.5,
+          "sd": 0.2,
+          "min": 0,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 1,
+          "sd": 0.3,
+          "min": 0.5,
+          "max": 2
+        },
+        "noiseComfort": {
+          "mean": 70,
+          "sd": 4,
+          "min": 60,
+          "max": 80
+        },
+        "focusNoiseComfort": {
+          "mean": 50,
+          "sd": 3,
+          "min": 42,
+          "max": 58
+        },
+        "taskLux": {
+          "mean": 500,
+          "sd": 80,
+          "min": 350,
+          "max": 700
+        },
+        "glareComfort": {
+          "mean": 0.4,
+          "sd": 0.05,
+          "min": 0.3,
+          "max": 0.5
+        },
+        "lowVision": true
+      },
+      {
+        "id": "sensory",
+        "name": "Sensitive to noise and light",
+        "speed": {
+          "mean": 1.15,
+          "sd": 0.2,
+          "min": 0.7,
+          "max": 1.6
+        },
+        "access": "any",
+        "size": 1,
+        "prefers": {
+          "stairs": 1,
+          "escalator": 1,
+          "lift": 1
+        },
+        "familiarity": {
+          "mean": 0.7,
+          "sd": 0.2,
+          "min": 0.2,
+          "max": 1
+        },
+        "crowdComfort": {
+          "mean": 0.8,
+          "sd": 0.2,
+          "min": 0.4,
+          "max": 1.5
+        },
+        "noiseComfort": {
+          "mean": 60,
+          "sd": 4,
+          "min": 52,
+          "max": 70
+        },
+        "focusNoiseComfort": {
+          "mean": 44,
+          "sd": 3,
+          "min": 38,
+          "max": 50
+        },
+        "taskLux": {
+          "mean": 300,
+          "sd": 50,
+          "min": 200,
+          "max": 450
+        },
+        "glareComfort": {
+          "mean": 0.25,
+          "sd": 0.04,
+          "min": 0.15,
+          "max": 0.35
+        }
+      }
+    ],
+    "staff": [
+      {
+        "profileId": "staff",
+        "share": 1
+      }
+    ],
+    "shoppers": [
+      {
+        "profileId": "regular",
+        "share": 0.59
+      },
+      {
+        "profileId": "first-time",
+        "share": 0.12
+      },
+      {
+        "profileId": "older",
+        "share": 0.1
+      },
+      {
+        "profileId": "child",
+        "share": 0.08
+      },
+      {
+        "profileId": "pushchair",
+        "share": 0.05
+      },
+      {
+        "profileId": "wheelchair",
+        "share": 0.015
+      },
+      {
+        "profileId": "walking-aid",
+        "share": 0.015
+      },
+      {
+        "profileId": "low-vision",
+        "share": 0.01
+      },
+      {
+        "profileId": "sensory",
+        "share": 0.02
+      }
+    ]
+  },
+  "crowding": {
+    "enabled": true
+  },
+  "comfort": {
+    "enabled": true,
+    "date": "2026-04-11",
+    "sky": "clear"
+  }
+}

@@ -1,8 +1,8 @@
-// Simulation results contract, v0.6.
+// Simulation results contract, v0.7.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.6";
+export const RESULTS_VERSION = "0.7";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -55,6 +55,8 @@ export interface Track {
   /** The person's profile id, when the scenario has profiles and one applies to them. */
   profileId?: string;
   points: TrackPoint[];
+  /** With comfort on: the stretches when this person was uncomfortable, sorted by `from`. Stretches with different causes may overlap. */
+  discomfort?: { from: number; to: number; cause: DiscomfortCause }[];
 }
 
 export interface TrackPoint {
@@ -79,8 +81,11 @@ export interface Heatmaps {
   /**
    * One grid per floor, in plan level order. `footfall` and `dwellS` above repeat the first floor's.
    * `peakDensity`: the most people per m² ever seen around the cell (see Metrics.crowding for how density is measured).
+   * With comfort on (empty arrays otherwise): `noiseDbA`, the loudest 15-minute average in the cell, dB(A);
+   * `lightLux`, the dimmest light while open, lux, sampled every 15 minutes; `glare`, the worst glare 0–1 from
+   * direct sun reaching the spot (glare at desks also depends on the way the sitter faces: see Metrics.comfort.desks).
    */
-  levels: { levelId: string; footfall: number[]; dwellS: number[]; peakDensity: number[] }[];
+  levels: { levelId: string; footfall: number[]; dwellS: number[]; peakDensity: number[]; noiseDbA: number[]; lightLux: number[]; glare: number[] }[];
 }
 
 export type SimEventType =
@@ -145,6 +150,48 @@ export interface Metrics {
   profiles: ProfileMetrics[];
   /** One entry per space anyone entered, in plan order. */
   crowding: CrowdingMetrics[];
+  /** Sound, light and contrast comfort. null when `scenario.comfort` is missing. */
+  comfort: ComfortMetrics | null;
+}
+
+/** Why someone was uncomfortable at a moment. "crowded" is v0.6's crowd discomfort. */
+export type DiscomfortCause = "loud" | "dim" | "glare" | "low_contrast" | "crowded";
+
+export interface ComfortMetrics {
+  /** One per profile in `scenario.profiles.list`, in that order; without profiles, one row with profileId "". */
+  byProfile: ProfileComfort[];
+  /** One per space anyone entered, in plan order. */
+  bySpace: SpaceComfort[];
+  /** Desks that were glary, or louder than the sitter's focus comfort, at some point; in plan order. */
+  desks: { deskId: string; glareMinutes: number; loudMinutes: number }[];
+}
+
+export interface ProfileComfort {
+  profileId: string;
+  people: number;
+  /** Person-minutes uncomfortable for each cause, everyone with this profile together. A minute with two causes counts in both. */
+  minutes: Record<DiscomfortCause, number>;
+  /** How many people were uncomfortable for each cause at some point. */
+  peopleAffected: Record<DiscomfortCause, number>;
+  /** Person-minutes with two or more causes at once, and how many people that happened to. */
+  overloadMinutes: number;
+  overloadPeople: number;
+}
+
+export interface SpaceComfort {
+  spaceId: string;
+  /** Loudest one-minute average anywhere inside, dB(A), and the first time it was reached. */
+  loudestDbA: number;
+  loudestT: number;
+  /** Dimmest light anywhere inside while open, lux. */
+  dimmestLux: number;
+  /** Worst glare anywhere inside, 0–1, and the first time it was reached (t 0 when there was none). */
+  worstGlare: number;
+  worstGlareT: number;
+  /** "low" when floor and walls are within 30 points of light reflectance; "not_checked" without both shades. */
+  contrast: "ok" | "low" | "not_checked";
+  /** Person-minutes anyone spent uncomfortable inside, any cause. */
+  discomfortMinutes: number;
 }
 
 /**
@@ -250,6 +297,8 @@ export type WarningCode =
   | "meeting_over_capacity"
   /** People who need step-free routes can't reach a room or floor (no lift, or doors under 0.8 m). Names the room or floor. */
   | "not_step_free"
+  /** Comfort problems in plain words, naming rooms or desks: "Desk 6 gets direct sun from 15:30 to 16:40". Only with comfort on. */
+  | "comfort"
   | "other";
 
 export interface Warning {

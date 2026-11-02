@@ -290,7 +290,8 @@ interface Person {     // and Visitor
 
 ## v0.7: Comfort — sound, light and contrast
 - Requested by: Claude, 2026-11-03
-- Status: **open**. The order is settled (comfort before evacuation, product owner 2026-11-02); the details below need approval.
+- Status: **approved** by the product owner, 2026-11-03, with the four recommended decisions (scope: sound, light and contrast; defaults by room type but no default shades; desk rotation is the way the sitter faces; on by default in the app)
+- Implemented as proposed, with these details settled while writing the types: validation codes `site`, `noise_source`, `window`, `space_comfort` and `comfort`; window glass settings are refused on doors; heatmap glare is from direct sun reaching a spot, while glare from facing a sunlit window is reported per desk; the existing samples move to floor plan v0.4 and scenario v0.7 with no other change, and two new pairs carry comfort (`office-a-comfort` + `office-day-comfort`, `mall-2f-comfort` + `mall-weekend-comfort`).
 
 **In plain words.** We already know where every person is, second by second. This change describes what each spot in the building *sounds* and *looks* like, gives each kind of person their own sensitivities, and adds up what each person experienced along the path they actually walked. That answers **"how did it feel to be here, and for whom?"**:
 - "Desks 4–7 get direct sun through the west windows from 15:30; the people sitting there have glare for about 70 minutes a day."
