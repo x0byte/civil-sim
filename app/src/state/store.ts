@@ -46,7 +46,7 @@ interface EditorState {
   /** Population profile per plan id. A plan without one uses the default built from its desks. */
   profiles: Record<string, OfficeProfile>;
   /** Which sidebar tab is showing in the editor. */
-  sidebarTab: "plan" | "people";
+  sidebarTab: "plan" | "people" | "assistant";
   /** Walls found in the traced image, waiting for the user to accept or discard them. */
   wallSuggestions: ThickSegment[] | null;
 
@@ -75,7 +75,7 @@ interface EditorState {
   deleteOption: (id: string) => void;
   setHeat: (heat: HeatMode) => void;
   setProfile: (planId: string, profile: OfficeProfile | null) => void;
-  setSidebarTab: (tab: "plan" | "people") => void;
+  setSidebarTab: (tab: EditorState["sidebarTab"]) => void;
   setWallSuggestions: (walls: ThickSegment[] | null) => void;
   /**
    * Opens a project: its plan replaces the current one, its People settings are applied,

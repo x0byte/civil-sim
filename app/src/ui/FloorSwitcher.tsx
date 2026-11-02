@@ -11,6 +11,8 @@ export function FloorSwitcher({
   canAdd,
   counts,
   right,
+  value,
+  onPick,
 }: {
   levels: Level[];
   canAdd?: boolean;
@@ -18,9 +20,14 @@ export function FloorSwitcher({
   counts?: Map<string, number>;
   /** Sit at the top right instead of the top left. */
   right?: boolean;
+  /** Show and pick floors without the editor's floor, e.g. for a plan that isn't in the editor. */
+  value?: string;
+  onPick?: (levelId: string) => void;
 }) {
-  const level = useEditor((s) => s.level);
-  const { setLevel, commit, notify } = useEditor.getState();
+  const editorLevel = useEditor((s) => s.level);
+  const level = value ?? editorLevel;
+  const { commit, notify } = useEditor.getState();
+  const setLevel = onPick ?? useEditor.getState().setLevel;
   if (levels.length < 2 && !canAdd) return null;
 
   const add = () => {

@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Design assistant (first version)
+- **An AI assistant sets up inputs; it never runs the simulation.** The engine stays deterministic, so the same setup always gives the same result. The assistant edits a draft of the plan and people settings through the editor's own operations, and the user applies or discards it as one undo step. Apply is refused if the plan was edited by hand meanwhile. *(Product owner: "proposes and you click Apply")*
+- **Each user pastes their own Anthropic API key; the browser calls Claude directly.** Fine for the owner and testers, not for clients: a client version needs a small server so no key reaches the browser. The key is kept in memory, or in this browser's storage only if the user ticks "Remember". *(Product owner)*
+- **Model and settings:** Claude Opus 5.5, adaptive thinking at medium effort, with the API's default fallback model on a refusal; at most 24 model turns per message. The plan is sent as compact text with every message; the conversation history is append-only so it stays cacheable. *(Claude)*
+- **Order: assistant first, then people who differ (v0.6, with crowds and evacuation), then comfort (light, crowding, noise).** The assistant says plainly when asked for kinds of people the simulation can't model yet. *(Product owner left the order to Claude)*
+
 ## 2026-11-02: App side of shoppers (first pass)
 - **Shoppers are a People setting picked by kind of day** (weekday, weekend, Poya or holiday, festive season) with a crowd-size slider; plans with a shop or food court get them by default along with 10:00–21:00 opening hours. Preset numbers are assumptions until calibrated. *(Claude, for testing; owner to confirm)*
 - **No new colours for shoppers.** The 8 activity colours are taken, so "Eating" (food court) shares the lunch green and staff lunch is relabelled "Eating"; "In a shop" reuses the visitor-waiting purple, and shoppers are triangles so they're told apart by shape. The legend shows only activities that happen in the run. *(Claude; owner to confirm)*

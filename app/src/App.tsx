@@ -1,4 +1,7 @@
 import { useEffect } from "react";
+import { AssistantPanel } from "./assistant/AssistantPanel.tsx";
+import { ProposalView } from "./assistant/ProposalView.tsx";
+import { useAssistant } from "./assistant/assistant.ts";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
 import { CompareResults, CompareView } from "./playback/Compare.tsx";
 import { Playback } from "./playback/Playback.tsx";
@@ -20,6 +23,7 @@ export function App() {
   const comparison = useEditor((s) => s.comparison);
   const cmp = view === "compare" && comparison;
   const tab = useEditor((s) => s.sidebarTab);
+  const proposal = useAssistant((s) => s.proposal);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -52,9 +56,19 @@ export function App() {
     <div className="app">
       <TopBar />
       <main className="workspace">
-        {view === "2d" && <Toolbar />}
+        {view === "2d" && !proposal && <Toolbar />}
         <div className="stage">
-          {cmp ? <CompareView comparison={cmp} /> : sim ? <Playback run={sim} /> : view === "3d" ? <View3D /> : <Canvas2D />}
+          {cmp ? (
+            <CompareView comparison={cmp} />
+          ) : sim ? (
+            <Playback run={sim} />
+          ) : proposal ? (
+            <ProposalView />
+          ) : view === "3d" ? (
+            <View3D />
+          ) : (
+            <Canvas2D />
+          )}
         </div>
         <aside className={cmp ? "sidebar wide" : "sidebar"}>
           {cmp ? (
@@ -70,8 +84,13 @@ export function App() {
                 <button className={tab === "people" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("people")}>
                   People
                 </button>
+                <button className={tab === "assistant" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("assistant")}>
+                  Assistant
+                </button>
               </div>
-              {tab === "people" ? (
+              {tab === "assistant" ? (
+                <AssistantPanel />
+              ) : tab === "people" ? (
                 <PeoplePanel />
               ) : (
                 <>
