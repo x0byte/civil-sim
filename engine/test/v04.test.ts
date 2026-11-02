@@ -20,7 +20,7 @@ function building(count = 2): FloorPlan {
       { id: "lift", name: "Lift", kind: "lift", polygon: rect(4, 4, 2, 2), levelIds: Array.from({ length: count }, (_, i) => `l${i}`), capacity: 2 },
     ] };
 }
-const emptyScenario = (): Scenario => ({ version: "0.5", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
+const emptyScenario = (): Scenario => ({ version: "0.6", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
   teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } });
 
 function changes(result: SimulationResult): { track: Track; index: number }[] {
@@ -61,11 +61,11 @@ function liftIntervals(tracks: Track[]) {
 describe("v0.4 floors and compatibility", () => {
   it.each(["office-a", "office-b", "sealed-room"])("preserves the complete v0.3 output for %s apart from new fields", (id) => {
     const result = simulate(plan(id), scenario(id === "sealed-room" ? "sealed-day" : "office-day"));
-    expect(result.version).toBe("0.5");
+    expect(result.version).toBe("0.6");
     expect(result.metrics.connectors).toEqual([]);
-    expect(result.heatmaps.levels).toEqual([{ levelId: "ground", footfall: result.heatmaps.footfall, dwellS: result.heatmaps.dwellS }]);
+    expect(result.heatmaps.levels.map(({ peakDensity: _density, ...legacy }) => legacy)).toEqual([{ levelId: "ground", footfall: result.heatmaps.footfall, dwellS: result.heatmaps.dwellS }]);
     expect(result.tracks.every((t) => t.points.every((p) => p.levelId === "ground"))).toBe(true);
-    const legacy = JSON.parse(JSON.stringify(result));
+    const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[] }) => { delete l.peakDensity; });
     legacy.version = "0.3"; delete legacy.metrics.shops; delete legacy.metrics.headcount; delete legacy.metrics.shoppers; delete legacy.heatmaps.levels; delete legacy.metrics.connectors;
     legacy.tracks.forEach((t: { points: { levelId?: string }[] }) => t.points.forEach((p) => { delete p.levelId; }));
     legacy.assumptions = legacy.assumptions.slice(4);

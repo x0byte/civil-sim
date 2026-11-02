@@ -12,7 +12,7 @@ function fixture() {
     walls: [{ id: "front", levelId: "ground", a: { x: 0, y: 2 }, b: { x: 10, y: 2 }, thickness: 0.1, height: 3 }],
     openings: [{ id: "door", wallId: "front", kind: "door", offset: 4, width: 1 }],
     spaces: [{ id: "shop", levelId: "ground", name: "Shop", type: "shop", privacy: "public", polygon: rectangle(2, 2, 4, 4), doorIds: ["door"] }] };
-  const s: Scenario = { version: "0.5", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "10:00" }, teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } };
+  const s: Scenario = { version: "0.6", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "10:00" }, teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } };
   const tracks: Track[] = [
     { personId: "buyer", kind: "shopper", points: [point(0, 4, 8, "absent"), point(10, 4, 8, "walking"), point(15, 4, 3, "shopping"), point(115, 4, 3, "walking"), point(120, 4, 8, "absent"), point(3600, 4, 8, "absent")] },
     { personId: "passer", kind: "shopper", points: [point(0, 0, 3, "absent"), point(30, 0, 3, "walking"), point(38, 8, 3, "absent"), point(3600, 8, 3, "absent")] },

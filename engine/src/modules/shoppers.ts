@@ -1,10 +1,12 @@
+import type { Traveller } from "./profiles.ts";
+import { crowdReserve } from "./profiles.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, SimEvent } from "../../../contracts/results.ts";
 import type { Scenario, ShopperType } from "../../../contracts/scenario.ts";
 import { BuildingPaths } from "./building-paths.ts";
 import { levelOf } from "./levels.ts";
 import { RoomMovement, RoomMovementDenied } from "./movement.ts";
-import { travelTime } from "./pathfinding.ts";
+import { pathLength, travelTime } from "./pathfinding.ts";
 import type { Admission, PersonSchedule, RoomRequest } from "./queues.ts";
 import { personSeed, seededRandom } from "./random.ts";
 import { roomTrip } from "./room-trip.ts";
@@ -42,32 +44,59 @@ export function shopperRequests(scenario: Scenario): ShopperRequest[] {
 }
 
 export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, request: ShopperRequest,
-  duration: number, events: SimEvent[]): PersonSchedule {
+  duration: number, events: SimEvent[], person?: Traveller): PersonSchedule {
   const random = seededRandom(personSeed(request.seed, "behaviour"));
   const rule = scenario.shoppers!;
-  const entrance = world.entrance(random());
+  const usableEntrance = person ? (entrance: Entrance) => person.navigation!.entrances.some((e) => e.x === entrance.point.x && e.y === entrance.point.y && levelOf(e, world.navigation.first) === entrance.point.levelId) : undefined;
+  const entrance = world.entrance(random(), usableEntrance);
   // The validator rejects a missing exterior door for shopper scenarios.
   if (!entrance) return absentTrack(request.id, "shopper", duration, world.navigation.grid, { x: 0, y: 0 }, world.navigation.first);
-  const exitEntrance = random() < 0.8 ? entrance : world.entrance(random()) ?? entrance;
-  const track = new TrackBuilder(entrance.point, entrance.point.levelId, SHOPPER_SPEED);
-  const movement = new RoomMovement(world.plan, world.navigation, track, request.id);
+  const exitEntrance = random() < 0.8 ? entrance : world.entrance(random(), usableEntrance) ?? entrance;
+  const speed = person?.speed ?? SHOPPER_SPEED;
+  const navigation = person?.navigation ?? world.navigation;
+  const route = (a: Vec2, b: Vec2) => person ? navigation.paths.route(a, b) : world.route(a, b);
+  const choicesFor = (from: Vec2, kind: Venue["space"]["type"], excluded: Set<string>) => world.choices(from, kind, excluded).map((choice) => {
+    if (!person) return { ...choice, blocked: false };
+    const usable = route(from, choice.venue.point);
+    return { ...choice, path: usable ?? choice.path, blocked: !usable, weight: usable ? (choice.venue.space.attraction ?? 1) * Math.exp(-pathLength(usable) / 50) : choice.weight };
+  });
+  const blocked = (venue: Venue) => { if (person) events.push({ t: track.t, personId: request.id, type: "blocked", spaceId: venue.space.id }); };
+  const track = new TrackBuilder(entrance.point, entrance.point.levelId, speed, person);
+  const movement = new RoomMovement(world.plan, navigation, track, request.id);
   const visited = new Set<string>();
+  const unavailable = new Set<string>();
   const hardEnd = Math.min(duration, request.arrival + request.type.maxStayMin * 60);
-  const time = (path: Vec2[]) => travelTime(path, SHOPPER_SPEED);
-  const exitFrom = (point: Vec2) => world.exit(point, exitEntrance);
+  const time = (path: Vec2[]) => travelTime(path, speed);
+  const exitFrom = (point: Vec2) => {
+    if (!person) return world.exit(point, exitEntrance);
+    for (const entrance of [exitEntrance, ...world.entrances.filter((e) => e !== exitEntrance)]) {
+      const path = route(point, entrance.point); if (path) return { entrance, path, seconds: time(path) };
+    }
+    return null;
+  };
+  const escapePaths = person ? person.accessRoutes!.withoutLifts(person) : undefined;
+  const alternateFrom = (point: Vec2) => {
+    if (!person) return alternateExit(world, point, exitEntrance);
+    for (const entrance of [exitEntrance, ...world.entrances.filter((e) => e !== exitEntrance)]) {
+      const path = escapePaths!.route(point, entrance.point); if (path) return { entrance, path, seconds: time(path) };
+    }
+    return null;
+  };
   // Keep room for the actual car pickup, beyond the static expected wait.
   const usesLift = (path: Vec2[]) => path.some((p) => world.plan.connectors.some((c) => c.id === (p as { connectorId?: string }).connectorId && c.kind === "lift"));
   const reserve = (point: Vec2) => {
     const exit = exitFrom(point);
     if (!exit) return Infinity;
-    if (!usesLift(exit.path)) return exit.seconds;
-    const alternate = alternateExit(world, point, exitEntrance);
-    return alternate ? Math.max(exit.seconds + 60, alternate.seconds) : exit.seconds + world.liftClearanceBefore(hardEnd);
+    const physical = person ? crowdReserve(exit.path, person, hardEnd, world.plan) : exit.seconds;
+    if (!usesLift(exit.path)) return physical;
+    const alternate = alternateFrom(point);
+    const load = person ? 60 + 44 * Math.ceil(person.people.activeSize(hardEnd) / 8) : world.liftClearanceBefore(hardEnd);
+    return alternate ? Math.max(physical + 60, crowdReserve(alternate.path, person, hardEnd, world.plan)) : physical + load;
   };
   const fallbackReserve = (path: Vec2[]) => {
     let seconds = 0;
     for (let i = 1; i < path.length; i++) if (levelOf(path[i - 1], world.navigation.first) !== levelOf(path[i], world.navigation.first)) {
-      seconds = Math.max(seconds, alternateExit(world, path[i - 1], exitEntrance)?.seconds ?? 0);
+      seconds = Math.max(seconds, alternateFrom(path[i - 1])?.seconds ?? 0);
     }
     return seconds;
   };
@@ -88,14 +117,14 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     if (nextToilet > track.t) return;
     advanceToilet();
     const from = track.position;
-    const candidates = world.choices(from, "toilet", new Set()).filter((c) => world.route(c.venue.point, from)).sort((a, b) => time(a.path) - time(b.path));
+    const candidates = choicesFor(from, "toilet", new Set()).filter((c) => !c.blocked && route(c.venue.point, from)).sort((a, b) => time(a.path) - time(b.path));
     const choice = candidates[0];
-    if (!choice) return;
-    const back = world.route(choice.venue.point, from);
+    if (!choice) { const venue = world.venues.find((v) => v.space.type === "toilet"); if (venue) blocked(venue); return; }
+    const back = route(choice.venue.point, from);
     if (!back) return;
     const spot = world.spot(choice.venue, random());
-    const toSpot = world.route(choice.venue.point, spot)!;
-    const fromSpot = world.route(spot, choice.venue.point)!;
+    const toSpot = route(choice.venue.point, spot)!;
+    const fromSpot = route(spot, choice.venue.point)!;
     const service = 180 + random() * 120;
     const deadline = hardEnd - reserve(from);
     if (track.t + time(choice.path) + time(toSpot) + service + time(fromSpot) + time(back) > deadline) return;
@@ -110,12 +139,12 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
       if (nextToilet <= track.t) advanceToilet();
       return;
     }
-    const trip = roomTrip(space, choice.path, world.navigation);
+    const trip = roomTrip(space, choice.path, navigation);
     if (!trip) return;
-    const returnPath = world.route(trip.gate, from);
+    const returnPath = route(trip.gate, from);
     if (!returnPath) return;
     const inside = [...trip.inside, ...toSpot.slice(1)];
-    const returnInside = world.localRoute(spot, trip.gate)!;
+    const returnInside = (person ? navigation.paths.floors.get(levelOf(spot, navigation.first))!.route(spot, trip.gate)?.map((p) => ({ ...p, levelId: levelOf(spot, navigation.first) })) : world.localRoute(spot, trip.gate))!;
     const insideS = Math.max(time(inside), time(returnInside)); const backS = time(returnPath);
     yield* walk(trip.outside, "walking", deadline - service - insideS * 2 - backS);
     const admission = yield { personId: request.id, spaceId: space.id, track, gate: trip.gate, approach: trip.approach,
@@ -135,8 +164,8 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
 
   function* visit(venue: Venue, path: Vec2[], mean: number, eating = false): Generator<RoomRequest, boolean, Admission> {
     const spot = world.spot(venue, random());
-    const inPath = world.route(venue.point, spot);
-    const outPath = world.route(spot, venue.point);
+    const inPath = route(venue.point, spot);
+    const outPath = route(spot, venue.point);
     if (!inPath || !outPath) return false;
     const end = hardEnd - reserve(venue.point) - time(outPath);
     if (track.t + time(path) + time(inPath) >= end) return false;
@@ -161,7 +190,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
         yield* walk(inPath, eating ? "eating" : "shopping", end);
       } else break;
     }
-    yield* walk(world.route(track.position, venue.point)!, "walking", hardEnd - reserve(venue.point));
+    yield* walk(route(track.position, venue.point)!, "walking", hardEnd - reserve(venue.point));
     return emitted;
   }
 
@@ -172,13 +201,18 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     while (track.t < hardEnd) {
       if (food && completed >= foodAfter) {
         food = false;
-        const choices = world.choices(track.position, "food_court", visited).sort((a, b) => b.weight - a.weight);
-        if (choices[0]) yield* visit(choices[0].venue, choices[0].path, 1500, true);
+        const choices = choicesFor(track.position, "food_court", visited).sort((a, b) => b.weight - a.weight);
+        for (const choice of choices) { if (choice.blocked) { blocked(choice.venue); continue; } yield* visit(choice.venue, choice.path, 1500, true); break; }
       }
       if (completed >= planned) break;
       yield* toilet();
-      const choices = world.choices(track.position, "shop", visited).filter((c) => track.t + time(c.path) + reserve(c.venue.point) < hardEnd);
-      const choice = weighted(choices, (c) => c.weight, random());
+      let choices = choicesFor(track.position, "shop", new Set([...visited, ...unavailable])).filter((c) => c.blocked || track.t + time(c.path) + reserve(c.venue.point) < hardEnd);
+      let choice = weighted(choices, (c) => c.weight, random());
+      while (choice?.blocked) {
+        blocked(choice.venue); unavailable.add(choice.venue.space.id);
+        choices = choices.filter((c) => !unavailable.has(c.venue.space.id));
+        choice = weighted(choices, (c) => c.weight, seededRandom(personSeed(person!.seed, `blocked:${choice.venue.space.id}:${completed}`))());
+      }
       if (!choice) break;
       // The current planned destination is excluded; each unvisited frontage
       // gets one chance, in route order, and only the first success is taken.
@@ -187,19 +221,20 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
         .sort((a, b) => a.travelled - b.travelled);
       const impulse = encounters.find(() => random() < rule.impulse);
       if (impulse) {
-        const detour = world.route(impulse.point, impulse.venue.point);
+        const detour = route(impulse.point, impulse.venue.point);
+        if (!detour && person) { blocked(impulse.venue); unavailable.add(impulse.venue.space.id); }
         if (detour && track.t + time(impulse.prefix) + time(detour) + reserve(impulse.venue.point) + 60 < hardEnd) {
           yield* walk(impulse.prefix, "walking", hardEnd - reserve(impulse.venue.point) - time(detour) - 60);
           yield* visit(impulse.venue, detour, request.type.minutesPerShop * 30);
         }
       }
-      const path = world.route(track.position, choice.venue.point);
+      const path = route(track.position, choice.venue.point);
       if (!path || !(yield* visit(choice.venue, path, request.type.minutesPerShop * 60))) break;
       completed++;
     }
   } catch (error) {
     if (!(error instanceof RoomMovementDenied)) throw error;
-    movement.releaseAll(track.t);
+    if (!person) movement.releaseAll(track.t);
   }
   // When a real lift wait exhausted a visit's budget, keep the remaining closing
   // time for a physical exit; do not turn an interior position into absence.
@@ -208,8 +243,8 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     try { yield* walk(exit.path, "absent", duration - (usesLift(exit.path) ? fallbackReserve(exit.path) : 0)); }
     catch (error) {
       if (!(error instanceof RoomMovementDenied)) throw error;
-      movement.releaseAll(track.t);
-      exit = alternateExit(world, track.position, exitEntrance);
+      if (!person) movement.releaseAll(track.t);
+      exit = alternateFrom(track.position);
       if (!exit) throw new Error("A shopper has no physical exit after a lift timeout");
       yield* walk(exit.path, "absent", duration);
     }

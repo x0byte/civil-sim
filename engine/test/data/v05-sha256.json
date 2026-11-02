@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "73fdf9a",
+  "sha256": {
+    "office-a/office-day": "de1b4669e502edaea70a28df48f0a706aa97567fae317ff406c891b47b38135d",
+    "office-b/office-day": "bffe6d78444f7e4f7b93a1bac018b1f19ee6217a68454eeb7d4dd4493d40e65c",
+    "sealed-room/sealed-day": "fe661bceb30f0b6f00c77f37233aad793631870c1edef2446a93aa96e3b43f28",
+    "mall-2f/mall-day": "54696e53733cec26178fc214d4c5f28b888a9d17117b371f722c531e3c42a1d7",
+    "mall-2f/mall-weekend": "16e71cbf33455e3ab6c0a40d489d2238a820c27a8dac1be39a88b295c7c608a7",
+    "mall-2f/mall-weekend-people-no-new-fields": "d2592df9d40829abca1cb29482aa27e7c2f95a86ea6694b705a91dd61f257dae"
+  }
+}

@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Engine v0.6 profiles, route choices and density
+- **Connector choice precedes familiarity.** Measure detours against the shortest path through the chosen connector sequence, so familiarity 1 remains 0% even when someone prefers a longer lift route. *(Product owner, approved option 1; see contract change request.)*
+- **Profile and trait draws are independent of existing behaviour draws.** Weighted draws by profile id preserve earlier relative assignments when a new profile is appended and existing shares are rescaled equally. Access geometry and connector alternatives share cached floor searches. *(Codex, implementing the approved brief.)*
+- **Crowding uses chronological motion updates no more than four seconds apart and shared flow gates.** Larger people consume proportionally longer headways. Space admission near 4.5 weighted people/m² leaves a margin for movement between observations; waiting remains outside capped rooms. Cancellation keeps room leases until a physical exit. Closing allowances can shorten visits conservatively. *(Codex.)*
+- **Density reports use exact one-metre circles at half-metre cell centres, sampled every five seconds.** Tiny labels without a cell centre also check occupied points. Discomfort includes the person's own size; each positive sample represents the following five seconds, clipped at closing. These assumptions, overlap and calibration limits are explained in the results and engine report. *(Codex.)*
+
 ## 2026-11-02: Detour means getting lost, not preferring the lift
 - **`meanDetourPct` is measured against the shortest path through the stairs, escalators and lifts a person chose**, so familiarity 1 is always 0% and preference-driven extra distance shows in walking and lift-wait metrics instead. *(Product owner, option 1 as recommended by Codex)*
 

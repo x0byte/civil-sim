@@ -1,3 +1,5 @@
+import { connectorRate } from "./flow.ts";
+import { familiarPath, horizontalLength } from "./profiles.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import type { LevelPoint } from "./levels.ts";
 import { rideSeconds } from "./building-paths.ts";
@@ -14,6 +16,7 @@ import type { TrackBuilder } from "./track.ts";
 interface Lease { release: (t: number) => void; entered: boolean }
 
 export class RoomMovementDenied extends Error {
+  readonly movement: RoomMovement;
   readonly track: TrackBuilder;
   readonly personId: string;
   readonly spaceId: string;
@@ -22,6 +25,7 @@ export class RoomMovementDenied extends Error {
   constructor(movement: RoomMovement, spaceId: string, message: string) {
     super(message);
     this.name = "RoomMovementDenied";
+    this.movement = movement;
     this.track = movement.track;
     this.personId = movement.personId;
     this.spaceId = spaceId;
@@ -57,6 +61,24 @@ export class RoomMovement {
   releaseAll(t: number): void {
     for (const lease of this.leases.values()) lease.release(t);
     this.leases.clear();
+  }
+
+  /** Cancellation still follows an allowed physical route to an exterior door. */
+  *leave(deadline: number): Generator<RoomRequest, void, Admission> {
+    const candidates = this.navigation.entrances.flatMap((entrance) => {
+      const path = this.navigation.paths.route(this.track.position, entrance);
+      return path ? [path] : [];
+    }).sort((a, b) => travelTime(a, this.track.speed) - travelTime(b, this.track.speed));
+    if (!candidates.length) throw new Error(`${this.personId} has no usable physical exit`);
+    try { yield* this.walk(candidates[0], "absent", deadline); }
+    catch (error) {
+      if (!(error instanceof RoomMovementDenied) || !this.track.person) throw error;
+      const paths = this.track.person.accessRoutes!.withoutLifts(this.track.person);
+      const alternate = this.navigation.entrances.map((e) => paths.route(this.track.position, e)).find((p) => p !== null);
+      if (!alternate) throw error;
+      yield* this.walk(alternate, "absent", deadline);
+    }
+    this.releaseAll(this.track.t);
   }
 
   private inside(space: Space, point: Vec2): boolean {
@@ -101,6 +123,15 @@ export class RoomMovement {
   }
 
   *walk(path: Vec2[], activity: Activity, deadline: number, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
+    const trip = { baseline: 0, actual: 0, wayfind: !!this.track.person?.profile && !skipSpaceId && activity !== "absent" };
+    yield* this.walkDirect(path, activity, deadline, skipSpaceId, trip);
+    if (this.track.person && trip.baseline > 1e-9 && !skipSpaceId) {
+      this.track.person.trips++;
+      this.track.person.detourSum += Math.max(0, (trip.actual / trip.baseline - 1) * 100);
+    }
+  }
+
+  private *walkDirect(path: Vec2[], activity: Activity, deadline: number, skipSpaceId: string | undefined, trip: { baseline: number; actual: number; wayfind: boolean }): Generator<RoomRequest, void, Admission> {
     if (!path.length) return;
     path = path.map((point) => (point as LevelPoint).levelId ? point : onLevel(point, this.track.position.levelId));
     // Split before applying room admission: labels never extend to another floor.
@@ -111,7 +142,7 @@ export class RoomMovement {
       const remainingS = travelTime(path.slice(i), this.track.speed);
       const connectorDeadline = deadline - remainingS;
       const expectedS = (path[i] as LevelPoint).travelS!;
-      yield* this.walk(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId);
+      yield* this.walkDirect(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId, trip);
       const id = (path[i] as LevelPoint).connectorId;
       const connector = this.plan.connectors.find((c) => c.id === id)!;
       if (connector.kind === "lift") {
@@ -122,6 +153,11 @@ export class RoomMovement {
           ride: { connectorId: connector.id, from, to } };
         if (!admission.admitted || this.track.t > connectorDeadline + 1e-6) throw new RoomMovementDenied(this, connector.id, "Lift delay exceeds the remaining attendance time.");
       } else {
+        if (this.track.person?.people.scenario.crowding) {
+          const admission = yield { personId: this.personId, spaceId: connector.id, track: this.track, gate: this.track.position, approach: this.track.position,
+            deadline: connectorDeadline - rideSeconds(this.plan, connector, from, to), flow: { key: connector.id, rate: connectorRate(connector) } };
+          if (!admission.admitted) throw new RoomMovementDenied(this, connector.id, "Connector entry cannot fit before the protected activity.");
+        }
         this.navigation.connectorMetrics.find((m) => m.connectorId === connector.id)!.trips++;
         this.track.mark("climbing");
         this.track.t += rideSeconds(this.plan, connector, from, to);
@@ -129,12 +165,24 @@ export class RoomMovement {
       }
       this.track.mark("walking");
       this.releaseOutside([this.track.position]);
-      yield* this.walk(path.slice(i), activity, deadline, skipSpaceId);
+      yield* this.walkDirect(path.slice(i), activity, deadline, skipSpaceId, trip);
       return;
     }
     const space = this.firstRoom(path, skipSpaceId);
     if (!space) {
-      this.track.walk(path, activity);
+      trip.baseline += horizontalLength(path, this.navigation.first);
+      if (trip.wayfind) {
+        const detour = familiarPath(path, this.track.person!, this.navigation, false);
+        const pause = detour.reduce((n, p) => n + ((p as LevelPoint).hesitateS ?? 0), 0);
+        if (this.track.t + travelTime(detour, this.track.speed) + pause <= deadline + 1e-6) path = detour;
+      }
+      if (this.track.person && this.track.t + travelTime(path, this.track.speed) > deadline + 1e-6) throw new RoomMovementDenied(this, "", "No time remains for this route before the next activity.");
+      trip.actual += horizontalLength(path, this.navigation.first);
+      if (this.track.person?.people.scenario.crowding) {
+        const admission = yield { personId: this.personId, spaceId: "", track: this.track, gate: this.track.position, approach: this.track.position,
+          deadline, motion: { path, activity } };
+        if (!admission.admitted) throw new RoomMovementDenied(this, "", "Crowd delay exceeds the remaining activity time.");
+      } else this.track.walk(path, activity);
       this.releaseOutside(path);
       return;
     }
@@ -142,21 +190,21 @@ export class RoomMovement {
       `${this.personId} cannot start inside capacity-limited space ${space.id} without an entry reservation.`);
     if (this.approaching.has(space.id)) throw new RoomMovementDenied(this, space.id,
       `${this.personId} cannot reach a safe queue outside ${space.id} without crossing another full-room approach.`);
-    const trip = roomTrip(space, path, this.navigation);
-    if (!trip) throw new RoomMovementDenied(this, space.id,
+    const room = roomTrip(space, path, this.navigation);
+    if (!room) throw new RoomMovementDenied(this, space.id,
       `${this.personId} has no safe outside waiting place before crossing ${space.id}.`);
 
     this.approaching.add(space.id);
     try {
-      const remainingS = travelTime(trip.inside, this.track.speed);
-      yield* this.walk(trip.outside, "walking", deadline - remainingS, skipSpaceId);
+      const remainingS = travelTime(room.inside, this.track.speed);
+      yield* this.walkDirect(room.outside, "walking", deadline - remainingS, skipSpaceId, trip);
       const admission = yield { personId: this.personId, spaceId: space.id, track: this.track,
-        deadline: deadline - remainingS, gate: trip.gate, approach: trip.approach };
+        deadline: deadline - remainingS, gate: room.gate, approach: room.approach };
       if (admission.admitted) this.leases.set(space.id, { release: admission.release, entered: false });
-      yield* this.walk(admission.toGate, "walking", deadline - remainingS, skipSpaceId);
+      yield* this.walkDirect(admission.toGate, "walking", deadline - remainingS, skipSpaceId, trip);
       if (!admission.admitted) throw new RoomMovementDenied(this, space.id,
         `${this.personId} gave up waiting to cross ${space.id}; further travel is skipped.`);
-      yield* this.walk(trip.inside, activity, deadline, skipSpaceId);
+      yield* this.walkDirect(room.inside, activity, deadline, skipSpaceId, trip);
       // A later route split may avoid the originally intersected label. Do not
       // retain a reservation if that room was never entered and the walk ended outside.
       const lease = this.leases.get(space.id);

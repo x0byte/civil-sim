@@ -11,7 +11,7 @@ export function smallMall(): { p: FloorPlan; s: Scenario } {
       { id: "entry", wallId: "edge", kind: "door", offset: 6, width: 2, exterior: true }],
     spaces: [{ id: "near", name: "Near shop", levelId: "ground", type: "shop", privacy: "public", polygon: rectangle(0, 0, 10, 4), doorIds: ["near-door"], attraction: 0.0000001 },
       { id: "far", name: "Far shop", levelId: "ground", type: "shop", privacy: "public", polygon: rectangle(10, 0, 10, 4), doorIds: ["far-door"], attraction: 1000 }] };
-  const s: Scenario = { version: "0.5", id: "shopping", name: "Shopping", seed: 21, workday: { start: "09:00", end: "12:00" }, teams: [], people: [], meetings: [],
+  const s: Scenario = { version: "0.6", id: "shopping", name: "Shopping", seed: 21, workday: { start: "09:00", end: "12:00" }, teams: [], people: [], meetings: [],
     rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, shoppers: { arrivals: [{ from: "09:00", to: "09:05", perHour: 180 }],
       types: [{ id: "quick", name: "Quick", share: 1, shops: { min: 1, max: 1 }, minutesPerShop: 2, foodCourtChance: 0, maxStayMin: 60 }], impulse: 0, toiletVisitsPerHour: 0 } };
   return { p, s };

@@ -3,6 +3,9 @@ import type { Metrics, Track } from "../../../contracts/results.ts";
 import { pointInPolygon } from "./geometry.ts";
 
 interface Interval { from: number; to: number }
+export function polygonBounds(polygon: Vec2[]): { minX: number; maxX: number; minY: number; maxY: number } {
+  return { minX: Math.min(...polygon.map((p) => p.x)), maxX: Math.max(...polygon.map((p) => p.x)), minY: Math.min(...polygon.map((p) => p.y)), maxY: Math.max(...polygon.map((p) => p.y)) };
+}
 const cross = (ax: number, ay: number, bx: number, by: number): number => ax * by - ay * bx;
 const roundoff = (a: number, b = 0): number => Number.EPSILON * 16 * Math.max(1, Math.abs(a), Math.abs(b));
 
@@ -25,7 +28,8 @@ function inside(point: Vec2, polygon: Vec2[]): boolean {
 }
 
 /** Split at every polygon-edge crossing, including concave polygons and collinear edges. */
-export function interiorIntervals(a: Vec2, b: Vec2, polygon: Vec2[]): Interval[] {
+export function interiorIntervals(a: Vec2, b: Vec2, polygon: Vec2[], bounds?: ReturnType<typeof polygonBounds>): Interval[] {
+  if (bounds && (Math.max(a.x, b.x) < bounds.minX || Math.min(a.x, b.x) > bounds.maxX || Math.max(a.y, b.y) < bounds.minY || Math.min(a.y, b.y) > bounds.maxY)) return [];
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lengthSq = dx * dx + dy * dy;
@@ -63,6 +67,7 @@ export function interiorIntervals(a: Vec2, b: Vec2, polygon: Vec2[]): Interval[]
 
 export function peakOccupancy(plan: FloorPlan, tracks: Track[]): Metrics["peakOccupancy"] {
   return plan.spaces.map((space) => {
+    const bounds = polygonBounds(space.polygon);
     const changes: { t: number; delta: number }[] = [];
     for (const track of tracks) {
       const occupied: Interval[] = [];
@@ -71,7 +76,7 @@ export function peakOccupancy(plan: FloorPlan, tracks: Track[]): Metrics["peakOc
         const b = track.points[i + 1];
         if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift" || b.t <= a.t) continue;
         const timeAt = (fraction: number): number => fraction === 0 ? a.t : fraction === 1 ? b.t : a.t + (b.t - a.t) * fraction;
-        for (const interval of interiorIntervals(a, b, space.polygon)) {
+        for (const interval of interiorIntervals(a, b, space.polygon, bounds)) {
           const from = timeAt(interval.from);
           const to = timeAt(interval.to);
           const last = occupied.at(-1);

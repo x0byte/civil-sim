@@ -13,7 +13,7 @@ export function largeBuilding(): { p: FloorPlan; s: Scenario } {
   p.spaces.push({ id: "wc", levelId: "l0", name: "Toilet", type: "toilet", privacy: "shared", polygon: rect(70, 45, 8, 10), doorIds: [], capacity: 8 });
   for (let i = 0; i < 3; i++) p.connectors.push({ id: `stairs-${i}`, name: "Stairs", kind: "stairs", polygon: rect(37, 43, 6, 6), levelIds: [`l${i}`, `l${i + 1}`] });
   for (let i = 0; i < 500; i++) p.fixtures.push({ id: `desk-${i}`, levelId: `l${i % 4}`, type: "desk", position: { x: 2 + (Math.floor(i / 4) % 25) * 2.6, y: 2 + Math.floor(i / 100) * 5 }, rotation: 0, spaceId: `room-l${i % 4}` });
-  const s: Scenario = { version: "0.5", id: "large", name: "Large", seed: 11, workday: { start: "09:00", end: "17:00" }, teams: [{ id: "t", name: "Staff" }],
+  const s: Scenario = { version: "0.6", id: "large", name: "Large", seed: 11, workday: { start: "09:00", end: "17:00" }, teams: [{ id: "t", name: "Staff" }],
     people: p.fixtures.map((d, i) => ({ id: `p-${i}`, teamId: "t", role: "staff", deskId: d.id })), meetings: [], rates: { toiletVisitsPerDay: 3, pantryVisitsPerDay: 0 } };
   return { p, s };
 }

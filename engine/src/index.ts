@@ -13,6 +13,8 @@ import { RoomMovementDenied } from "./modules/movement.ts";
 import { scheduleShopper, shopperRequests } from "./modules/shoppers.ts";
 import { ShopperWorld } from "./modules/shopper-world.ts";
 import { RoomSpots } from "./modules/spots.ts";
+import { People, stepFreeWarnings } from "./modules/profiles.ts";
+import { AccessRoutes } from "./modules/access-routes.ts";
 import { onLevel } from "./modules/levels.ts";
 
 export class SimulationInputError extends Error {
@@ -73,6 +75,10 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     plan.spaces.forEach((space) => { if (space.attraction !== undefined) finite(space.attraction, "Shop attraction"); });
   }
   if (scenario.queueing) finite(scenario.queueing.maxWaitMin, "Maximum queue wait");
+  for (const profile of scenario.profiles?.list ?? []) {
+    finite(profile.size, `Profile ${profile.id} size`);
+    for (const kind of ["stairs", "escalator", "lift"] as const) finite(profile.prefers[kind], `Profile ${profile.id} ${kind} preference`);
+  }
   for (const space of plan.spaces) {
     if ((space.type === "toilet" || space.type === "pantry") && space.capacity !== undefined && (!Number.isInteger(space.capacity) || !Number.isFinite(space.capacity))) {
       errors.push(`Space ${space.id} capacity must be a finite whole number of people`);
@@ -91,6 +97,15 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     if (scenario.shoppers && warning.code === "unreachable_space" && plan.spaces.some((s) => warning.refIds.includes(s.id) && (s.type === "shop" || s.type === "food_court"))) return;
     warn(warning);
   });
+  const requests = shopperRequests(scenario);
+  const people = new People(scenario);
+  for (const person of scenario.people) people.add(person.id, "staff", person.profileId);
+  for (const visitor of scenario.visitors ?? []) people.add(visitor.id, "visitor", visitor.profileId);
+  for (const request of requests) people.add(request.id, "shopper", undefined, request.arrival, request.type.maxStayMin * 60);
+  const access = new AccessRoutes(plan, navigation);
+  for (const person of people.people.values()) { person.accessRoutes = access; access.personal(person); }
+  const personal = (id: string) => people.people.get(id)?.navigation ?? navigation;
+  if ([...people.people.values()].some((p) => p.profile?.access === "step_free")) stepFreeWarnings(plan, people, access.policy("step_free"), warn);
   const requiredSpaces = plan.levels.length === 1 ? undefined : new Set([
     ...scenario.meetings.map((m) => m.spaceId),
     ...plan.spaces.filter((s) => (s.type === "toilet" && scenario.rates.toiletVisitsPerDay > 0)
@@ -117,18 +132,18 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
       message: `Meeting ${meeting.id} schedules ${attendees} people in ${meeting.spaceId}, whose capacity is ${capacity}; attendance is still simulated.`, refIds: [meeting.id, meeting.spaceId] });
   }
   const events: SimulationResult["events"] = [];
-  const schedules = scenario.people.map((person) => protectSchedule(schedulePerson(plan, scenario, person, durationS, navigation, spots, events, warn), "staff", durationS, events, warn));
-  schedules.push(...(scenario.visitors ?? []).map((visitor) => protectSchedule(scheduleVisitor(plan, scenario, visitor, durationS, navigation, spots, events, warn), "visitor", durationS, events, warn)));
+  const schedules = scenario.people.map((person) => protectSchedule(schedulePerson(plan, scenario, person, durationS, personal(person.id), spots, events, warn, people.people.get(person.id)), "staff", durationS, events, warn));
+  schedules.push(...(scenario.visitors ?? []).map((visitor) => protectSchedule(scheduleVisitor(plan, scenario, visitor, durationS, personal(visitor.id), spots, events, warn, people.people.get(visitor.id)), "visitor", durationS, events, warn)));
   if (scenario.shoppers) {
-    const requests = shopperRequests(scenario);
     const world = new ShopperWorld(plan, navigation, warn, requests.map((r) => r.arrival), scenario.people.length + (scenario.visitors?.length ?? 0));
-    schedules.push(...requests.map((request) => scheduleShopper(world, scenario, request, durationS, events)));
+    schedules.push(...requests.map((request) => scheduleShopper(world, scenario, request, durationS, events, people.people.get(request.id))));
   }
   const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn);
+  for (const track of tracks) { const profile = people.people.get(track.personId)?.profile; if (profile) track.profileId = profile.id; }
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
   return {
     version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS, tracks,
-    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics), events,
+    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics, people), events,
     assumptions: assumptions(scenario), warnings,
   };
 }
@@ -139,10 +154,11 @@ function* protectSchedule(schedule: PersonSchedule, kind: Track["kind"], duratio
   catch (error) {
     if (!(error instanceof RoomMovementDenied)) throw error;
     const { track, personId, spaceId } = error;
-    error.releaseHeld();
+    if (!track.person) error.releaseHeld();
     for (let i = events.length - 1; i >= 0; i--) if (events[i].personId === personId && events[i].t > track.t) events.splice(i, 1);
     warn({ code: "unreachable_space", message: `${personId} cannot enter ${spaceId} before their next required activity or waiting limit; remaining attendance is cancelled.`, refIds: [personId, spaceId] });
-    track.mark("absent");
+    if (track.person) yield* error.movement.leave(duration);
+    else track.mark("absent");
     events.push({ t: track.t, personId, type: kind === "staff" ? "leave" : "visitor_leave" });
     if (track.t < duration) track.points.push({ t: duration, ...track.position, activity: "absent" });
     return { personId, kind, points: track.points };
@@ -196,5 +212,26 @@ function assumptions(scenario: Scenario): string[] {
     "Shop visits and time inside a shop during each visit belong to shoppers; shop peaks include everyone. Shopper walking totals and stays include actual trips and waits. Headcount is everyone present at each quarter hour.",
     "These shopper numbers and behaviours are assumptions until calibrated with real entrance and shop-door counts.",
   );
+  if (scenario.profiles) {
+    entries[2] = "People choose an allowed connector route using their preferences and its expected travel time. Zero preference avoids a way between floors unless it is the only usable way. Each lift has one car carrying eight people unless stated otherwise, travels at 1.5 metres of height per second and takes eight seconds at each stop.";
+    entries[5] = "Each person keeps their own speed, knowledge of the building and crowd comfort for the day. Shoppers browse at eleven thirteenths of their drawn walking speed. People without a profile keep the average person's traits.";
+    const browsing = entries.findIndex((entry) => entry.startsWith("Time in each shop varies"));
+    if (browsing >= 0) entries[browsing] = "Time in each shop varies around the shopper type's average, from one minute to three times that average. Shoppers use their own browsing speed, including moving in a toilet queue.";
+    entries.push(
+      "Kinds of person are assigned by the stated shares, with named assignments taking priority. Traits follow separate seeded bell curves, clipped to their stated limits. These numbers are assumptions until calibrated.",
+      "Step-free people use lifts and doors at least 80 centimetres wide. People avoiding escalators use stairs or lifts. An inaccessible requested destination is recorded as blocked; shoppers try another shop and staff skip the trip.",
+      "Less familiar people sometimes take a nearby wrong turn, then correct it, and pause for two to six seconds. Lower knowledge makes this more likely and longer. Each detour adds at most the original trip's distance and is omitted when the next activity leaves too little time. Detour percentages compare with the shortest walk through the chosen connectors.",
+      "Crowd discomfort counts five-second intervals above each person's own comfort limit. Density counts everyone within one metre, including that person's own space allowance. This is an assumed comfort measure until calibrated.",
+    );
+  }
+  if (scenario.crowding) {
+    if (!scenario.profiles) entries[5] = "Staff and visitors walk freely at 1.3 metres per second and shoppers at 1.1. Crowds can reduce these speeds. Temperature is not modelled.";
+    entries.push(
+      "Walking slows as the weighted crowd within one metre ahead grows, checked at least every four seconds during journeys. People wait for space above about 4.5 people per square metre, leaving room for movement between checks; people can overlap below that limit. Queue positions are spread outside full rooms and move at the current crowd speed.",
+      "Doors pass 1.3 people per metre of width each second in both directions together; escalators pass one per second; stairs pass 1.1 per metre of their shorter footprint side. Larger people take proportionally longer to pass. These flow and speed numbers are assumptions until calibrated.",
+      "Closing allowances reserve slow walking and possible flow and lift waits. Visits may finish early to allow a physical exit; a cancelled attendance still walks out through an allowed route.",
+    );
+  }
+  if (scenario.profiles || scenario.crowding) entries.push("Density is sampled every five seconds in exact one-metre circles around half-metre cell centres, with occupied-point checks for rooms too narrow to contain a cell centre. The same grid is used for space peaks and density heatmaps; short or smaller crowd peaks can fall between samples.");
   return entries;
 }

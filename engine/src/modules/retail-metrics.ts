@@ -3,7 +3,7 @@ import type { Metrics, PersonMetrics, SimEvent, Track } from "../../../contracts
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { distance, EPSILON, openingCentre } from "./geometry.ts";
 import { proximityIntervals } from "./frontage.ts";
-import { interiorIntervals } from "./occupancy.ts";
+import { interiorIntervals, polygonBounds } from "./occupancy.ts";
 import { clockSeconds } from "./schedule.ts";
 
 export function retailMetrics(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[], walking: PersonMetrics[], occupancy: Metrics["peakOccupancy"]): Pick<Metrics, "shops" | "headcount" | "shoppers"> {
@@ -20,6 +20,7 @@ export function retailMetrics(plan: FloorPlan, scenario: Scenario, tracks: Track
   }
   const peaks = shoppers.length ? new Map(occupancy.map((m) => [m.spaceId, m.peak])) : new Map<string, number>();
   const shops = plan.spaces.filter((s) => s.type === "shop" || s.type === "food_court").map((space) => {
+    const bounds = polygonBounds(space.polygon);
     const doors = space.doorIds.map((id) => openingCentre(plan, plan.openings.find((d) => d.id === id)!));
     const shopVisits = visits.get(space.id) ?? [];
     const visiting = new Set(shopVisits.map((e) => e.personId));
@@ -31,7 +32,7 @@ export function retailMetrics(plan: FloorPlan, scenario: Scenario, tracks: Track
       for (let i = 1; i < track.points.length; i++) {
         const a = track.points[i - 1]; const b = track.points[i];
         if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift") { inside = false; continue; }
-        if (visiting.has(track.personId) && b.t > a.t) for (const interval of interiorIntervals(a, b, space.polygon)) {
+        if (visiting.has(track.personId) && b.t > a.t) for (const interval of interiorIntervals(a, b, space.polygon, bounds)) {
           const from = a.t + (b.t - a.t) * interval.from; const to = a.t + (b.t - a.t) * interval.to;
           if (from > runEnd + Number.EPSILON * 32 * Math.max(1, from)) { finishRun(); runStart = from; visitRun = false; }
           runEnd = to;

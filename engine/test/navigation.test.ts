@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import { rasterise, WalkableGrid } from "../src/modules/grid.ts";
 import { Pathfinder } from "../src/modules/pathfinding.ts";
+import { seededRandom } from "../src/modules/random.ts";
 
 function divider(kind: "door" | "window"): FloorPlan {
   return { version: "0.3", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "grid-test", name: "Grid test", units: "m", bounds: { width: 4, height: 4 },
@@ -10,6 +11,17 @@ function divider(kind: "door" | "window"): FloorPlan {
 }
 
 describe("walkability and A*", () => {
+  it("matches cell-by-cell visibility with cached clear rectangles, including boundary ties", () => {
+    const fast = new WalkableGrid(8.1, 6.1); const slow = new WalkableGrid(8.1, 6.1); const random = seededRandom(21);
+    for (let i = 0; i < fast.blocked.length; i++) if (random() < 0.035) fast.blocked[i] = 1;
+    slow.blocked.set(fast.blocked); fast.labelComponents();
+    for (let i = 0; i < 1500; i++) {
+      const point = () => i % 3 === 0 ? { x: Math.floor(random() * 32) * 0.25, y: Math.floor(random() * 24) * 0.25 } : { x: random() * 8.1, y: random() * 6.1 };
+      const a = point(); const b = point(); expect(fast.canWalk(a, b)).toBe(slow.canWalk(a, b));
+    }
+    fast.blocked.fill(0); slow.blocked.fill(0); fast.labelComponents();
+    expect(fast.canWalk({ x: 0, y: 0 }, { x: 8.1, y: 6.1 })).toBe(slow.canWalk({ x: 0, y: 0 }, { x: 8.1, y: 6.1 }));
+  });
   it("cuts doors through full wall thickness, while windows remain blocked", () => {
     const doorGrid = rasterise(divider("door"));
     const windowGrid = rasterise(divider("window"));

@@ -11,6 +11,7 @@ export class WalkableGrid {
   readonly width: number;
   readonly height: number;
   readonly cellSize: number;
+  private blockedSums?: Int32Array;
 
   constructor(width: number, height: number, cellSize = WALK_CELL_M) {
     this.width = width;
@@ -68,6 +69,16 @@ export class WalkableGrid {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     if (dx === 0 && dy === 0) return true;
+    // A clear bounding rectangle proves visibility without visiting every cell
+    // along a long open-floor segment. Include neighbouring boundary cells.
+    if (this.blockedSums) {
+      const x0 = Math.max(0, Math.floor(Math.min(a.x, b.x) / this.cellSize) - 1);
+      const y0 = Math.max(0, Math.floor(Math.min(a.y, b.y) / this.cellSize) - 1);
+      const x1 = Math.min(this.cols, Math.floor(Math.max(a.x, b.x) / this.cellSize) + 2);
+      const y1 = Math.min(this.rows, Math.floor(Math.max(a.y, b.y) / this.cellSize) + 2);
+      const stride = this.cols + 1; const sums = this.blockedSums;
+      if (sums[y1 * stride + x1] - sums[y0 * stride + x1] - sums[y1 * stride + x0] + sums[y0 * stride + x0] === 0) return true;
+    }
     const deltaX = dx === 0 ? Infinity : this.cellSize / Math.abs(dx);
     const deltaY = dy === 0 ? Infinity : this.cellSize / Math.abs(dy);
     let col = Math.floor(a.x / this.cellSize);
@@ -90,6 +101,12 @@ export class WalkableGrid {
   }
 
   labelComponents(): void {
+    const stride = this.cols + 1;
+    const sums = this.blockedSums = new Int32Array(stride * (this.rows + 1));
+    for (let row = 0; row < this.rows; row++) {
+      let count = 0;
+      for (let col = 0; col < this.cols; col++) { count += this.blocked[row * this.cols + col]; sums[(row + 1) * stride + col + 1] = sums[row * stride + col + 1] + count; }
+    }
     this.components.fill(-1);
     const queue = new Int32Array(this.blocked.length);
     let component = 0;
