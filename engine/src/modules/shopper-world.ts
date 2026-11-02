@@ -29,8 +29,11 @@ export class ShopperWorld {
   private readonly otherPeople: number;
   private readonly clearancePerPersonS: number;
   private readonly routes = new Map<string, Vec2[] | null>();
+  private readonly anchors = new Map<string, Vec2>();
+  private readonly journeys = new WeakMap<(a: Vec2, b: Vec2) => Vec2[] | null, Map<string, Vec2[] | null>>();
   constructor(plan: FloorPlan, navigation: Navigation, warn: (warning: Warning) => void, arrivals: readonly number[] = [], otherPeople = 0) {
     this.plan = plan; this.navigation = navigation; this.arrivals = arrivals; this.otherPeople = otherPeople;
+    for (const floor of navigation.paths.floors.values()) floor.retainTrees(512);
     let cycle = 0;
     const lifts = plan.connectors.filter((c) => c.kind === "lift");
     for (const lift of lifts) {
@@ -107,6 +110,38 @@ export class ShopperWorld {
   }
   spot(venue: Venue, draw: number): LevelPoint {
     return venue.spots[Math.min(venue.spots.length - 1, Math.floor(draw * venue.spots.length))] ?? venue.point;
+  }
+  /** Reuse corridor routes, shortcutting both ends from the actual standing spots. */
+  journey(a: Vec2, b: Vec2, route: (a: Vec2, b: Vec2) => Vec2[] | null, navigation = this.navigation): Vec2[] | null {
+    let cache = this.journeys.get(route);
+    if (!cache) { cache = new Map(); this.journeys.set(route, cache); }
+    const key = `${levelOf(a, navigation.first)}:${a.x},${a.y}>${levelOf(b, navigation.first)}:${b.x},${b.y}`;
+    if (cache.has(key)) return cache.get(key)!;
+    const path = this.buildJourney(a, b, route, navigation); cache.set(key, path); return path;
+  }
+  private buildJourney(a: Vec2, b: Vec2, route: (a: Vec2, b: Vec2) => Vec2[] | null, navigation: Navigation): Vec2[] | null {
+    const from = levelOf(a, this.navigation.first); const to = levelOf(b, this.navigation.first);
+    const grid = navigation.grids.get(from)!;
+    if (from === to && grid.canWalk(a, b)) return a.x === b.x && a.y === b.y ? [a] : [a, b];
+    const anchor = (p: Vec2, level: string) => {
+      const venue = this.venues.find((v) => v.space.levelId === level && interiorIntervals(p, p, v.space.polygon).length);
+      if (!venue) return p;
+      if (venue.space.type !== "food_court") return navigation.grids.get(level)!.canWalk(p, venue.point) ? venue.point : p;
+      if (p.x === venue.point.x && p.y === venue.point.y) return p;
+      const x = Math.floor(p.x / 8) * 8 + 4; const y = venue.point.y;
+      const key = `${venue.space.id}:${x},${y}`;
+      let point = this.anchors.get(key);
+      if (!point) { point = venue.spots.reduce((best, q) => Math.hypot(q.x - x, q.y - y) < Math.hypot(best.x - x, best.y - y) ? q : best); this.anchors.set(key, point); }
+      return navigation.grids.get(level)!.canWalk(p, point) ? point : p;
+    };
+    const path = route(anchor(a, from), anchor(b, to));
+    if (!path) return null;
+    let first = 0; let last = path.length - 1;
+    for (let i = 0; i < path.length && levelOf(path[i], from) === from; i++) if (grid.canWalk(a, path[i])) first = i;
+    const targetGrid = navigation.grids.get(to)!;
+    for (let i = path.length - 1; i >= first && levelOf(path[i], to) === to; i--) if (targetGrid.canWalk(path[i], b)) last = i;
+    if (!grid.canWalk(a, path[first]) || !targetGrid.canWalk(path[last], b)) return route(a, b);
+    return [a, ...path.slice(first, last + 1), b];
   }
   /** An exit must be reachable in the direction of travel. */
   exit(from: Vec2, preferred: Entrance): { entrance: Entrance; path: Vec2[]; seconds: number } | null {

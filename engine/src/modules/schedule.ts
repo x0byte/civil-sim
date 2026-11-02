@@ -1,4 +1,5 @@
 import { crowdReserve } from "./profiles.ts";
+import { doorGates } from "./flow.ts";
 import type { Traveller } from "./profiles.ts";
 import { travelTime } from "./pathfinding.ts";
 import { onLevel } from "./levels.ts";
@@ -14,7 +15,7 @@ import { personSeed, seededRandom } from "./random.ts";
 import type { Admission, PersonSchedule, RoomRequest } from "./queues.ts";
 import { roomTrip } from "./room-trip.ts";
 import type { RoomTrip } from "./room-trip.ts";
-import { RoomMovement } from "./movement.ts";
+import { RoomMovement, RoomMovementDenied } from "./movement.ts";
 import type { RoomSpots } from "./spots.ts";
 import { absentTrack, TrackBuilder, WALK_SPEED_M_S } from "./track.ts";
 
@@ -72,7 +73,13 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
   const commuteInS = travelTime(arrivalPath, speed);
   const departurePath = back(arrivalPath);
   const commuteOutS = travelTime(departurePath, speed);
-  const travelBudget = (path: Vec2[]) => personTraits ? Math.max(travelTime(path, speed), travelTime(back(path), speed)) : (plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)))) / WALK_SPEED_M_S;
+  const travelBudget = (path: Vec2[]) => {
+    const free = personTraits ? Math.max(travelTime(path, speed), travelTime(back(path), speed)) : (plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)))) / WALK_SPEED_M_S;
+    if (!scenario.crowding) return free;
+    // Leave time for a group to pass the same doors, in addition to slower walking.
+    const size = personTraits!.people.activeSize(0);
+    return free * 2.5 + 4 + doorGates(plan, path).reduce((wait, door) => wait + size / door.rate, 0);
+  };
   const start = clockSeconds(scenario.workday.start);
   const meetings = scenario.meetings.filter((m) => m.attendeeIds.includes(person.id)).map((meeting) => {
     const point = spots.point(meeting.spaceId, component, person.id);
@@ -226,7 +233,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       return;
     }
     yield* walk(appointment.path, appointment.kind === "pantry" ? "lunch" : appointment.kind === "out" ? "absent" : "at_desk");
-    if (plan.levels.length === 1) {
+    if (plan.levels.length === 1 && !scenario.crowding) {
       track.t = appointment.start;
       track.points.at(-1)!.t = track.t;
     } else if (track.t < appointment.start) {
@@ -237,7 +244,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
     }
     const location = appointment.spaceId ? { spaceId: appointment.spaceId } : {};
     events.push({ t: track.t, personId: person.id, type: "lunch_start", ...location });
-    track.t += appointment.duration;
+    track.t = scenario.crowding ? Math.max(track.t, appointment.start + appointment.duration) : track.t + appointment.duration;
     events.push({ t: track.t, personId: person.id, type: "lunch_end", ...location });
     walkDeadline = track.t + appointment.travelS;
     yield* walk(back(appointment.path), "at_desk");
@@ -256,9 +263,23 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       continue;
     }
     yield* fillDeskTime(leaveDesk);
-    walkDeadline = Math.max(appointment.start, track.t + travelS);
-    yield* walk(path, "in_meeting");
-    if (track.t > appointment.start + EPSILON || end < appointment.end - EPSILON) warn({ code: "other", message: `${person.id} attends only part of meeting ${meeting.id} because of travel or another appointment.`, refIds: [person.id, meeting.id] });
+    // Meeting start is a desired arrival, not an attendance cancellation deadline.
+    walkDeadline = scenario.crowding ? end - 1 : Math.max(appointment.start, track.t + travelS);
+    try { yield* walk(path, scenario.crowding ? "waiting" : "in_meeting"); }
+    catch (error) {
+      if (!(error instanceof RoomMovementDenied) || !scenario.crowding) throw error;
+      const room = plan.spaces.find((s) => s.id === meeting.spaceId)!;
+      warn({ code: "unreachable_space", message: `${person.id} could not reach ${room.name} (${room.id}) before the meeting ended; this meeting is skipped.`, refIds: [person.id, room.id] });
+      const home = paths.route(track.position, deskPosition);
+      if (!home) throw error;
+      yield* movement.walk(home, "at_desk", deskDeparture);
+      continue;
+    }
+    if (track.t > appointment.start + EPSILON || end < appointment.end - EPSILON) {
+      const room = plan.spaces.find((s) => s.id === meeting.spaceId)!;
+      warn({ code: "other", message: `${person.id} attends only part of meeting ${meeting.id} in ${room.name} (${room.id}) because of travel or another appointment.`, refIds: [person.id, meeting.id, room.id] });
+    }
+    if (scenario.crowding) { track.t = Math.max(track.t, appointment.start); track.mark("in_meeting"); }
     events.push({ t: track.t, personId: person.id, type: "meeting_start", spaceId: meeting.spaceId });
     track.t = end;
     events.push({ t: end, personId: person.id, type: "meeting_end", spaceId: meeting.spaceId });

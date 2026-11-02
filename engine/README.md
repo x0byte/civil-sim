@@ -1,4 +1,4 @@
-# Simulation engine v0.6
+# Simulation engine v0.6.1
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -48,10 +48,20 @@ closing. Discomfort includes the person's own weight, so a large profile with a 
 comfort limit can exceed it alone. Time riding between floors is excluded; lift waits
 on a floor are included. These are modelling assumptions until calibrated.
 
-Omitting both fields preserves the complete captured v0.5 output except the version
-and new density/profile fields. Six captured sample hashes enforce that guarantee.
-`metrics.profiles` is then empty; density metrics still run. Public `walkingDistances`
+The v0.6.1 review fixes intentionally change earlier shopper outputs: closing limits
+are individual, and physical journeys no longer visit a room centre before entering
+or leaving. Historical v0.5 captures remain archived; `test/data/v061-sha256.json`
+records the corrected six-pair baseline (`node engine/scripts/capture-v061.ts`).
+With no profiles, `metrics.profiles` is empty; density metrics still run. Public `walkingDistances`
 keeps its geometry-only meaning and does not assign profiles or apply crowd speeds.
+
+Crowded staff travel budgets include slower walking and shared door flow. Meetings
+can begin after their scheduled start without cancelling attendance for the day;
+an unfinishable meeting is skipped and the person physically returns to their desk.
+Shoppers draw a separate latest departure in the final 45 minutes, shortened for late
+arrivals and short days, and reserve egress time against it. Corridor routes use nearby
+standing anchors for reuse, with wall-safe endpoint shortcuts from actual positions.
+See `docs/engine-v0.6.1-report.md` for the review regression checks and changed outputs.
 
 Run `npm run benchmark:people` in `engine/` for three-run medians and the per-profile
 report, including arrivals × 3.5. It writes the results and `people-benchmark.json` to

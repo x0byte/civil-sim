@@ -156,7 +156,7 @@ function* protectSchedule(schedule: PersonSchedule, kind: Track["kind"], duratio
     const { track, personId, spaceId } = error;
     if (!track.person) error.releaseHeld();
     for (let i = events.length - 1; i >= 0; i--) if (events[i].personId === personId && events[i].t > track.t) events.splice(i, 1);
-    warn({ code: "unreachable_space", message: `${personId} cannot enter ${spaceId} before their next required activity or waiting limit; remaining attendance is cancelled.`, refIds: [personId, spaceId] });
+    warn({ code: "unreachable_space", message: `${personId} cannot complete the trip to ${error.spaceName} (${spaceId}) before their next required activity or waiting limit; remaining attendance is cancelled.`, refIds: [personId, spaceId] });
     if (track.person) yield* error.movement.leave(duration);
     else track.mark("absent");
     events.push({ t: track.t, personId, type: kind === "staff" ? "leave" : "visitor_leave" });
@@ -202,13 +202,13 @@ function assumptions(scenario: Scenario): string[] {
   );
   if (scenario.shoppers) entries.push(
     "Shopper arrivals vary randomly around the hourly rates. Shopper types and entrance shares determine who arrives and where. Later arrival periods do not reshuffle earlier arrivals.",
-    "Shoppers choose unvisited shops by their pull against the walking distance. A shop with no stated pull is treated as typical. They choose each next stop from a common point inside the room, then browse at a randomly chosen usable position.",
+    "Shoppers choose unvisited shops by their pull against the walking distance. A shop with no stated pull is treated as typical. Shared route estimates help choose a stop; actual journeys start at the current position and go to the chosen usable browsing position without a compulsory room-centre visit.",
     "Shoppers may enter an unvisited shop whose door they pass within two metres. Each planned journey can have at most one such extra visit, lasting half the usual average time.",
     "Time in each shop varies around the shopper type's average, from one minute to three times that average. Shoppers walk at 1.1 metres per second, including moving in a toilet queue.",
     "Food-court visits are more likely for arrivals between 11:00 and 14:00 or 18:00 and 21:00. They happen about halfway through the planned shops, last 10 to 60 minutes, and favour a strong pull with a shorter walk.",
     "Toilet requests continue during the stay. A request during a journey is taken at the next destination. Toilet visits use the same queues and waiting limit as staff and last three to five minutes.",
     "Where a floor has no stair or escalator escape, visits reserve enough lift time to clear the possible crowd before closing. This cautious allowance can shorten or prevent visits when the lift is the only way out.",
-    "Shoppers leave after their planned visits or when their time runs out. Visits are shortened to leave time to exit before closing. Eight in ten try their arrival entrance; the rest choose by entrance shares. Real queues can shorten visits.",
+    "Shoppers leave after their planned visits or when their time runs out. Each has a separately seeded latest departure in the final 45 minutes, shortened for short days or late arrivals. Visits reserve time for a physical exit before that personal limit. Eight in ten try their arrival entrance; the rest choose by entrance shares. Real queues can shorten visits.",
     "Shop visits and time inside a shop during each visit belong to shoppers; shop peaks include everyone. Shopper walking totals and stays include actual trips and waits. Headcount is everyone present at each quarter hour.",
     "These shopper numbers and behaviours are assumptions until calibrated with real entrance and shop-door counts.",
   );

@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Engine v0.6.1 review corrections
+- Meeting start is a desired arrival, not a deadline that cancels the rest of a staff member's day. Crowded travel budgets include slower walking and shared door flow; an unfinishable meeting is skipped with a room-named warning and a physical return to the desk. *(Codex, fixing the review repro.)*
+- Shoppers have an independently seeded latest departure during the final 45 minutes, bounded by their arrival, stay limit and day length. The departure-bunching acceptance limit is **per room**, as confirmed by the product owner. Actual room journeys start/end at standing positions; reusable nearby corridor routes are shortened by visible endpoint shortcuts, without compulsory centre visits. *(Codex; behavioural numbers remain assumptions.)*
+- These corrections intentionally change older shopper results. Preserve historical captures and use the corrected v0.6.1 six-pair captures for future regressions. *(Product owner requested the baseline reset.)*
+
 ## 2026-11-02: App side of kinds of people and crowding
 - **Kinds of people are a People setting, on by default for new plans, with three presets** (typical Sri Lankan crowd, step-free stress test, opening week). One list of kinds serves staff, visitors and shoppers, each group with its own mix; shares are percentages scaled to 100. Each kind shows a one-line reason marked as an assumption. Older saved profiles without kinds run as before. *(Claude, per the v0.6 approval: preset numbers are shown as assumptions)*
 - **Crowding is on by default for buildings with shops only, for now.** With crowding on, engine v0.6 cancels office staff's day when a meeting starts (`docs/repro/office-a-crowding.scenario.json`); offices get it once that's fixed (`docs/codex-brief-v0.6.1.md`). The People panel warns if a user turns it on for an office. *(Claude; temporary departure from "on by default", owner to confirm)*

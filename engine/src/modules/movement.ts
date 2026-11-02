@@ -16,6 +16,7 @@ import type { TrackBuilder } from "./track.ts";
 interface Lease { release: (t: number) => void; entered: boolean }
 
 export class RoomMovementDenied extends Error {
+  readonly spaceName: string;
   readonly movement: RoomMovement;
   readonly track: TrackBuilder;
   readonly personId: string;
@@ -29,6 +30,7 @@ export class RoomMovementDenied extends Error {
     this.track = movement.track;
     this.personId = movement.personId;
     this.spaceId = spaceId;
+    this.spaceName = movement.destinationName(spaceId);
     this.releaseHeld = () => movement.releaseAll(movement.track.t);
   }
 }
@@ -52,6 +54,7 @@ export class RoomMovement {
   }
 
   hasLease(spaceId: string): boolean { return this.leases.has(spaceId); }
+  destinationName(id: string): string { return this.plan.spaces.find((s) => s.id === id)?.name ?? this.plan.connectors.find((c) => c.id === id)?.name ?? id; }
 
   /** Adopt destination admissions so cancellation also releases those reservations. */
   adoptLease(spaceId: string, release: (t: number) => void): void {
@@ -124,7 +127,13 @@ export class RoomMovement {
 
   *walk(path: Vec2[], activity: Activity, deadline: number, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
     const trip = { baseline: 0, actual: 0, wayfind: !!this.track.person?.profile && !skipSpaceId && activity !== "absent" };
-    yield* this.walkDirect(path, activity, deadline, skipSpaceId, trip);
+    try { yield* this.walkDirect(path, activity, deadline, skipSpaceId, trip); }
+    catch (error) {
+      if (!(error instanceof RoomMovementDenied) || error.spaceId) throw error;
+      const end = path.at(-1)!;
+      const room = this.plan.spaces.find((s) => this.inside(s, end));
+      throw new RoomMovementDenied(this, room?.id ?? skipSpaceId ?? "route", error.message);
+    }
     if (this.track.person && trip.baseline > 1e-9 && !skipSpaceId) {
       this.track.person.trips++;
       this.track.person.detourSum += Math.max(0, (trip.actual / trip.baseline - 1) * 100);

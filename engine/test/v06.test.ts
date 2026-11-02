@@ -26,8 +26,8 @@ function legacy(result: SimulationResult): string {
 }
 
 describe("v0.6 compatibility and independent profiles", () => {
-  const hashes = JSON.parse(readFileSync(new URL("data/v05-sha256.json", import.meta.url), "utf8")).sha256;
-  it.each(Object.keys(hashes))("matches the complete captured v0.5 output: %s", (key) => {
+  const hashes = JSON.parse(readFileSync(new URL("data/v061-sha256.json", import.meta.url), "utf8")).sha256;
+  it.each(Object.keys(hashes))("matches the corrected v0.6.1 baseline: %s", (key) => {
     const [p, id] = key.split("/"); const s = scenario(id.replace("-no-new-fields", ""));
     delete s.profiles; delete s.crowding; s.people.forEach((p) => { delete p.profileId; }); s.visitors?.forEach((v) => { delete v.profileId; });
     const r = simulate(plan(p), s); expect(r.metrics.profiles).toEqual([]); expect(legacy(r)).toBe(hashes[key]);
