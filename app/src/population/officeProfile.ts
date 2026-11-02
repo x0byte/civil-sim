@@ -6,6 +6,7 @@
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
 import type { Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
+import { DEFAULT_SHOPPERS, MALL_HOURS, type ShopperSettings, expandShoppers, hasShops } from "./shoppers.ts";
 
 export interface Department {
   id: string;
@@ -41,6 +42,8 @@ export interface OfficeProfile {
   visitors?: VisitorSettings;
   /** Minutes someone waits at a full toilet or pantry before giving up. Missing means 10. */
   maxQueueWaitMin?: number;
+  /** A shopping crowd through the day (malls). Missing means none. */
+  shoppers?: ShopperSettings;
   seed: number;
 }
 
@@ -151,15 +154,17 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
       teamMeetingsPerDay: 0,
     });
   }
+  const shops = hasShops(plan);
   return {
     version: 1,
-    workday: { start: "08:30", end: "17:30" },
+    workday: shops ? MALL_HOURS : { start: "08:30", end: "17:30" },
     attendance: 1,
     departments,
     collaborations: [],
     rates: { toiletVisitsPerDay: 4, pantryVisitsPerDay: plan.spaces.some((s) => s.type === "pantry") ? 3 : 0 },
     lunch: DEFAULT_LUNCH,
     visitors: { ...DEFAULT_VISITORS, perDay: 0 },
+    ...(shops ? { shoppers: DEFAULT_SHOPPERS } : {}),
     seed: 42,
   };
 }
@@ -229,9 +234,15 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     notes.push("There's no pantry, so everyone who would eat there eats at their desk instead.");
   }
 
+  let shoppers = expandShoppers(profile.shoppers, profile.workday);
+  if (shoppers && !hasShops(plan)) {
+    notes.push("Shoppers are switched on but the plan has no shops or food court, so nobody comes in to shop.");
+    shoppers = undefined;
+  }
+
   return {
     scenario: {
-      version: "0.4",
+      version: "0.5",
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,
@@ -243,6 +254,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       ...(lunch ? { lunch } : {}),
       ...(visitors.length ? { visitors } : {}),
       queueing: { maxWaitMin: Math.max(0, profile.maxQueueWaitMin ?? DEFAULT_MAX_QUEUE_WAIT_MIN) },
+      ...(shoppers ? { shoppers } : {}),
     },
     notes,
     seating,

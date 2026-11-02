@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: App side of shoppers (first pass)
+- **Shoppers are a People setting picked by kind of day** (weekday, weekend, Poya or holiday, festive season) with a crowd-size slider; plans with a shop or food court get them by default along with 10:00–21:00 opening hours. Preset numbers are assumptions until calibrated. *(Claude, for testing; owner to confirm)*
+- **No new colours for shoppers.** The 8 activity colours are taken, so "Eating" (food court) shares the lunch green and staff lunch is relabelled "Eating"; "In a shop" reuses the visitor-waiting purple, and shoppers are triangles so they're told apart by shape. The legend shows only activities that happen in the run. *(Claude; owner to confirm)*
+
 ## 2026-11-01: Engine v0.5 shopper behaviour and accounting
 - **Keep shopper arrivals and per-person behaviour on separate seeded streams, and reuse exact routes between shared room decision points.** This preserves earlier requests when steps are appended and keeps thousands of shoppers practical; actual later queues remain shared and causal. Planned choices use the approved attraction/distance rule; independent standing spots and 1.1 m/s apply to shoppers only. *(Codex, implementing the approved v0.5 brief)*
 - **Reserve physical egress, with a conservative car-clearance buffer where lifts are the only escape.** Impulse visits are limited to one per planned shop leg; food/exit legs have no impulses. Dwell includes entry/exit walking around positive browsing/eating intervals. Explicit entrance shares are normalised if no unspecified doors remain; all-zero usable shares split equally. Full v0.4 hashes protect scenarios without shoppers, and test files run sequentially so CPU contention does not distort performance gates. Details and model limits are in `engine/README.md`. *(Codex modelling/implementation choices; no contract changes)*

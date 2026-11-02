@@ -76,11 +76,11 @@ export function parseProjectOrPlan(text: string): Opened {
   throw new Error("it isn't a civil-sim project or floor plan");
 }
 
-/** Single-floor plans from before floors existed (v0.1) are accepted and upgraded. */
+/** Older plans (v0.1 single floor, v0.2 before shops) are accepted and upgraded. */
 function isPlan(x: unknown): x is FloorPlan {
   const p = x as FloorPlan;
   const version = (p as { version?: string } | undefined)?.version;
-  const known = version === "0.1" || (version === "0.2" && Array.isArray(p.levels) && p.levels.length > 0);
+  const known = version === "0.1" || ((version === "0.2" || version === "0.3") && Array.isArray(p.levels) && p.levels.length > 0);
   return !!p && known && typeof p.id === "string" && Array.isArray(p.walls) && Array.isArray(p.spaces);
 }
 

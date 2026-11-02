@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
-import type { Activity, SimulationResult } from "../../../contracts/results.ts";
+import type { Activity, SimulationResult, Track } from "../../../contracts/results.ts";
 import { PlanDrawing } from "../editor/PlanDrawing.tsx";
 import { type Camera, type Insets, useCamera } from "../editor/useCamera.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -210,11 +210,22 @@ export function PlanPlayer({
   const people = useMemo(() => new Map(scenario.people.map((p) => [p.id, p])), [scenario]);
   const teams = useMemo(() => new Map(scenario.teams.map((x) => [x.id, x.name])), [scenario]);
   const everyone = result.tracks
-    .map((tr) => ({ id: tr.personId, visitor: tr.kind === "visitor", pose: poseAt(tr, t) }))
-    .filter((p): p is { id: string; visitor: boolean; pose: Pose } => p.pose !== null);
+    .map((tr) => ({ id: tr.personId, kind: tr.kind, pose: poseAt(tr, t) }))
+    .filter((p): p is { id: string; kind: Track["kind"]; pose: Pose } => p.pose !== null);
   const poses = floors ? everyone.filter((p) => p.pose.levelId === level) : everyone;
   const perFloor = new Map<string, number>();
   for (const p of everyone) perFloor.set(p.pose.levelId, (perFloor.get(p.pose.levelId) ?? 0) + 1);
+
+  // Only what happens in this run goes in the legend (no "In a meeting" for a mall).
+  const seen = useMemo(() => {
+    const activities = new Set<Activity>();
+    const kinds = new Set<Track["kind"]>();
+    for (const tr of result.tracks) {
+      kinds.add(tr.kind);
+      for (const p of tr.points) activities.add(p.activity);
+    }
+    return { activities, kinds };
+  }, [result]);
 
   const counts = new Map<Activity, number>();
   for (const p of poses) counts.set(p.pose.activity, (counts.get(p.pose.activity) ?? 0) + 1);
@@ -237,7 +248,7 @@ export function PlanPlayer({
         x: e.clientX - r.left,
         y: e.clientY - r.top,
         text: [
-          near.visitor ? "Visitor" : `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`,
+          near.kind === "visitor" ? "Visitor" : near.kind === "shopper" ? "Shopper" : `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`,
           ACTIVITY_STYLE[near.pose.activity as keyof typeof ACTIVITY_STYLE]?.label ?? near.pose.activity,
         ],
       });
@@ -313,10 +324,22 @@ export function PlanPlayer({
               />
             ) : null;
           })}
-          {poses.map(({ id, visitor, pose }) => {
+          {poses.map(({ id, kind, pose }) => {
             const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
-            // Visitors are diamonds, so they're told apart by shape as well as colour.
-            return visitor ? (
+            // Visitors are diamonds and shoppers triangles, so they're told apart by shape as well as colour.
+            if (kind === "shopper") {
+              const r = 0.3;
+              return (
+                <polygon
+                  key={id}
+                  points={`${pose.x},${pose.y - r} ${pose.x + r * 0.87},${pose.y + r * 0.5} ${pose.x - r * 0.87},${pose.y + r * 0.5}`}
+                  fill={fill}
+                  stroke="var(--paper)"
+                  strokeWidth={1.5 / cam.s}
+                />
+              );
+            }
+            return kind === "visitor" ? (
               <rect
                 key={id}
                 x={pose.x - 0.24}
@@ -378,6 +401,7 @@ export function PlanPlayer({
           present={everyone.length}
           total={result.tracks.length}
           heat={heat}
+          seen={seen}
           floor={floors ? { name: plan.levels.find((l) => l.id === level)?.name ?? level, people: poses.length } : undefined}
         />
       )}
@@ -391,17 +415,21 @@ export function Legend({
   total,
   heat,
   floor,
+  seen,
 }: {
   counts: Map<Activity, number> | null;
   present: number | null;
   total: number | null;
   heat: HeatMode;
+  /** Activities and kinds of person in the run; without it every row shows. */
+  seen?: { activities: Set<Activity>; kinds: Set<Track["kind"]> };
   /** For a building with several floors: the floor showing, and how many people are on it. Counts are for that floor. */
   floor?: { name: string; people: number };
 }) {
   // Activities that share a label (both ways of changing floor) get one row.
   const rows: { label: string; color: string; keys: Activity[] }[] = [];
   for (const [key, s] of Object.entries(ACTIVITY_STYLE)) {
+    if (seen && !seen.activities.has(key as Activity)) continue;
     const row = rows.find((r) => r.label === s.label);
     if (row) row.keys.push(key as Activity);
     else rows.push({ ...s, keys: [key as Activity] });
@@ -410,7 +438,7 @@ export function Legend({
     <div className="legend">
       {present !== null && (
         <div className="legend-title">
-          {present} of {total} people and visitors in the building
+          {present} of {total} people in the building
           {floor && (
             <div className="muted">
               {floor.people} on {floor.name}
@@ -425,10 +453,18 @@ export function Legend({
           {counts && <span className="legend-count">{s.keys.reduce((n, k) => n + (counts.get(k) ?? 0), 0)}</span>}
         </div>
       ))}
-      <div className="legend-row">
-        <span className="swatch diamond" />
-        <span>Visitor (any colour)</span>
-      </div>
+      {(!seen || seen.kinds.has("visitor")) && (
+        <div className="legend-row">
+          <span className="swatch diamond" />
+          <span>Visitor (any colour)</span>
+        </div>
+      )}
+      {seen?.kinds.has("shopper") && (
+        <div className="legend-row">
+          <span className="swatch triangle" />
+          <span>Shopper (any colour)</span>
+        </div>
+      )}
       {heat !== "off" && (
         <div className="legend-heat">
           <div className="legend-title">{HEAT_LABEL[heat].title} over the day</div>

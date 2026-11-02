@@ -95,7 +95,7 @@ export function Inspector() {
               onChange={(e) =>
                 commit((p) =>
                   updateItem(p, "opening", o.id, (x) => {
-                    const { exterior: _, ...rest } = x;
+                    const { exterior: _, arrivalShare: __, ...rest } = x;
                     return e.target.checked ? { ...rest, exterior: true } : rest;
                   }),
                 )
@@ -103,6 +103,40 @@ export function Inspector() {
             />
             Entrance (leads outside)
           </label>
+        )}
+        {o.kind === "door" && o.exterior && (
+          <>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={o.arrivalShare !== undefined}
+                onChange={(e) =>
+                  commit((p) =>
+                    updateItem(p, "opening", o.id, (x) => {
+                      const { arrivalShare: _, ...rest } = x;
+                      return e.target.checked ? { ...rest, arrivalShare: 0.5 } : rest;
+                    }),
+                  )
+                }
+              />
+              Set its share of shoppers
+            </label>
+            {o.arrivalShare !== undefined && (
+              <NumField
+                label="Shoppers in here"
+                unit="%"
+                step={5}
+                min={0}
+                value={Math.round(o.arrivalShare * 100)}
+                onCommit={(v) => commit((p) => updateItem(p, "opening", o.id, (x) => ({ ...x, arrivalShare: Math.min(100, v) / 100 })))}
+              />
+            )}
+            <p className="muted">
+              {o.arrivalShare !== undefined
+                ? "Entrances without a share split what's left equally."
+                : "Shoppers are split equally between entrances without a share."}
+            </p>
+          </>
         )}
         <p className="muted">Drag it along the wall to move it.</p>
       </Panel>
@@ -167,6 +201,19 @@ export function Inspector() {
                   ? "When it's full, people queue at the door."
                   : "No limit: nobody ever queues here."}
             </p>
+          </>
+        )}
+        {(s.type === "shop" || s.type === "food_court") && (
+          <>
+            <NumField
+              label="Shop pull"
+              unit="×"
+              step={0.1}
+              min={0}
+              value={s.attraction ?? 1}
+              onCommit={(v) => upd((x) => ({ ...x, attraction: v }))}
+            />
+            <p className="muted">How strongly it draws shoppers: 1 is a typical shop, 3 an anchor store. Farther shops pull less.</p>
           </>
         )}
         <dl className="stats">

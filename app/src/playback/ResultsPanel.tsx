@@ -3,6 +3,7 @@ import type { SimRun } from "../sim/runSimulation.ts";
 import { useEditor } from "../state/store.ts";
 import { DESK_PASS_RADIUS_M, deskDisturbance, meetingRoomUse, teamDistances } from "../sim/officeMeasures.ts";
 import { clockAt } from "./tracks.ts";
+import { HeadcountChart } from "./HeadcountChart.tsx";
 
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
 const waitText = (s: number) => (s <= 0 ? "–" : s < 60 ? `${Math.round(s)} s` : `${(s / 60).toFixed(1)} min`);
@@ -45,6 +46,14 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
     .sort((a, b) => b.footfall - a.footfall);
 
   const queues = result.metrics.queues ?? [];
+
+  const shopper = result.metrics.shoppers;
+  const shops = (result.metrics.shops ?? []).map((m) => ({ ...m, name: roomName(m.spaceId), food: spaces.get(m.spaceId)?.type === "food_court" }));
+  const byVisits = [...shops].sort((a, b) => b.visits - a.visits);
+  const headcount = result.metrics.headcount ?? [];
+  const peakCount = headcount.reduce((best, p) => (p.count > best.count ? p : best), { t: 0, count: 0 });
+  // Conversion only means something for a space with a door people walk past.
+  const doorless = shops.filter((m) => m.passBys === 0 && m.visits > 0).map((m) => m.name);
 
   const connectorById = new Map(plan.connectors.map((c) => [c.id, c]));
   const connectors = (result.metrics.connectors ?? []).map((m) => ({
@@ -104,6 +113,64 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           </div>
         </div>
       </section>
+
+      {shopper && shopper.count > 0 && (
+        <section className="panel">
+          <header>
+            <div>
+              <h2>Shops and shoppers</h2>
+              <span className="muted">Who came, and where they went</span>
+            </div>
+          </header>
+          <div className="panel-body">
+            <div className="tiles">
+              <div className="tile">
+                <div className="tile-value">{shopper.count}</div>
+                <div className="tile-label">shoppers came in</div>
+              </div>
+              <div className="tile">
+                <div className="tile-value">{Math.round(shopper.meanStayMin)} min</div>
+                <div className="tile-label">stayed each, on average</div>
+              </div>
+              <div className="tile">
+                <div className="tile-value">{shopper.meanShopsVisited.toFixed(1)}</div>
+                <div className="tile-label">shops or meals each</div>
+              </div>
+              <div className="tile">
+                <div className="tile-value">{peakCount.count}</div>
+                <div className="tile-label">inside at the peak, {clockAt(scenario.workday.start, peakCount.t)}</div>
+              </div>
+            </div>
+            <HeadcountChart points={headcount} start={scenario.workday.start} />
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Shop</th>
+                  <th>Went in</th>
+                  <th title="Times a shopper came within 2 m of its door">Passed</th>
+                  <th title="Went in ÷ passed">Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byVisits.map((m) => (
+                  <tr key={m.spaceId}>
+                    <td title={m.visits ? `About ${minutes(m.meanDwellS)} inside per visit` : undefined}>{m.name}</td>
+                    <td>{m.visits}</td>
+                    <td>{m.passBys || "–"}</td>
+                    <td>{m.passBys ? `${Math.round(m.conversion * 100)}%` : "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              {byVisits.length > 1 &&
+                `${byVisits[0].name} drew the most visits and ${byVisits[byVisits.length - 1].name} the fewest. `}
+              "Passed" counts shoppers coming within 2 m of a shop's door, whether or not they went in; "Rate" is the share who went in.
+              {doorless.length > 0 && ` ${doorless.join(", ")} ${doorless.length === 1 ? "has" : "have"} no door drawn, so passers-by can't be counted there.`}
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <header>

@@ -10,6 +10,7 @@ import {
   defaultProfile,
   expandProfile,
 } from "./officeProfile.ts";
+import { DEFAULT_SHOPPERS, MALL_HOURS, SHOPPER_DAYS, type ShopperDay, expectedShoppers, hasShops, shopperTypes } from "./shoppers.ts";
 
 /** Categorical palette, fixed order. Departments past the eighth share a neutral grey. */
 const DEPT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
@@ -123,6 +124,9 @@ export function PeoplePanel() {
         </div>
       </section>
 
+      {(hasShops(plan) || profile.shoppers?.enabled) && (
+        <ShoppersSection profile={profile} setProfile={setProfile} expected={expectedShoppers(x.scenario.shoppers)} />
+      )}
       <section className="panel">
         <header>
           <div>
@@ -322,6 +326,100 @@ function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProf
           <Share label="In the pantry" value={lunch.pantryShare} onChange={(v) => upd({ pantryShare: Math.min(v, 1 - lunch.outShare) })} />
           <Share label="Go out" value={lunch.outShare} onChange={(v) => upd({ outShare: Math.min(v, 1 - lunch.pantryShare) })} />
           <p className="muted">The other {Math.round(atDesk * 100)}% eat at their desk.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ShoppersSection({
+  profile,
+  setProfile,
+  expected,
+}: {
+  profile: OfficeProfile;
+  setProfile: (p: OfficeProfile) => void;
+  expected: number;
+}) {
+  const sh = profile.shoppers ?? { ...DEFAULT_SHOPPERS, enabled: false };
+  const upd = (patch: Partial<typeof sh>) => setProfile({ ...profile, shoppers: { ...sh, ...patch } });
+  const days = Object.entries(SHOPPER_DAYS).map(([value, d]) => ({ value, label: d.label }));
+  const officeHours = profile.workday.start === "08:30" && profile.workday.end === "17:30";
+  return (
+    <section className="panel">
+      <header>
+        <div>
+          <h2>Shoppers</h2>
+          <span className="muted">A crowd that comes and goes all day</span>
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={sh.enabled}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                shoppers: { ...sh, enabled: e.target.checked },
+                // Office hours make no sense for a mall: switch to opening hours.
+                ...(e.target.checked && officeHours ? { workday: MALL_HOURS } : {}),
+              })
+            }
+          />
+          On
+        </label>
+      </header>
+      {sh.enabled && (
+        <div className="panel-body">
+          <SelectField label="Kind of day" value={sh.day} options={days} onChange={(day) => upd({ day: day as ShopperDay })} />
+          <p className="muted">{SHOPPER_DAYS[sh.day].note}.</p>
+          <label className="field">
+            <span>Crowd size</span>
+            <span className="input-unit">
+              <input type="range" min={0.25} max={3.5} step={0.25} value={sh.crowd} onChange={(e) => upd({ crowd: Number(e.target.value) })} />
+              <strong className="pct">{Math.round(sh.crowd * 100)}%</strong>
+            </span>
+          </label>
+          <div className="tiles">
+            <div className="tile">
+              <div className="tile-value">{expected}</div>
+              <div className="tile-label">shoppers expected</div>
+            </div>
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Kind of visit</th>
+                <th>Share</th>
+                <th>Shops</th>
+                <th>Food court</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shopperTypes(sh.day).map((t) => (
+                <tr key={t.id}>
+                  <td>{t.name}</td>
+                  <td>{Math.round(t.share * 100)}%</td>
+                  <td>
+                    {t.shops.min}–{t.shops.max}
+                  </td>
+                  <td>{Math.round(t.foodCourtChance * 100)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Share label="Pop into shops passed" value={sh.impulse} onChange={(impulse) => upd({ impulse })} />
+          <NumField
+            label="Toilet visits"
+            unit="/ hour"
+            step={0.05}
+            min={0}
+            value={sh.toiletVisitsPerHour}
+            onCommit={(toiletVisitsPerHour) => upd({ toiletVisitsPerHour })}
+          />
+          <p className="muted">
+            Shops pull shoppers by their "Shop pull" (set on each shop) against how far they have to walk. These are assumptions until checked against
+            real door counts.
+          </p>
         </div>
       )}
     </section>
