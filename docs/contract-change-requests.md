@@ -173,3 +173,108 @@ Template:
 - Change: when `scenario.shoppers` is present, ids matching `^shopper-[1-9][0-9]*$` are reserved for generated shoppers. `checkScenario` rejects staff and visitor ids of that form with the new issue code `"reserved_id"`; documented on `Shoppers` in `scenario.ts`. Scenarios without shoppers are unchanged (e.g. `mall-day`'s visitors `shopper-1`…`shopper-6` stay valid).
 - Rejected alternative: the engine skipping taken ids, which would leave gaps in the numbering.
 - Breaks: nothing existing; no sample combines shoppers with such ids.
+
+## v0.6: People who differ, and crowding
+- Requested by: Claude, 2026-11-02
+- Status: **open**, waiting for the product owner
+
+**In plain words.** Today everyone of a kind is the same person: same speed, same route, happy to take any stairs, never bothered by a crowd. Real buildings are used by children and grandparents, wheelchair users, parents with pushchairs, people on crutches, first-time visitors who don't know the way, and people who will queue for a lift rather than step on an escalator. This change gives every simulated person their own traits, drawn from bell curves, so the results can answer **"who struggled, where, and why?"**:
+- "The 9 wheelchair users waited a total of 41 minutes for the lift; at 18:30 one waited 6 minutes."
+- "Nobody in a wheelchair can reach the Toys shop: its door is 0.75 m wide."
+- "First-time visitors took 35% longer than regulars to find the toilets."
+- "The bottom of the up escalator was packed (over 2 people per m²) for 25 minutes after 18:00, and 140 people felt uncomfortable there."
+
+It also adds **crowding**: people slow down when it's packed, and only so many can get through a door or onto an escalator per second. That is what turns a pleasant-looking concourse into a bottleneck at peak hour, and it is the ground work for evacuation (next version).
+
+**Key choice 1: kinds of person are separate from what they came to do.** A "family outing" shopper can be a grandmother with a walking stick or a parent with a pushchair. So a scenario lists **kinds of person** (profiles) with shares, separately from shopper types and staff teams, and the engine draws one for every person.
+
+**Key choice 2: traits are bell curves, not single numbers.** Each numeric trait is a spread (average, how much it varies, lowest, highest). The engine draws each person's own value, seeded, so runs are still repeatable. Ten wheelchair users won't all move at exactly 0.9 m/s.
+
+**Key choice 3: "smart / not so smart" becomes how well someone knows the building.** What changes behaviour is wayfinding: a regular takes the shortest way; a first-time visitor takes longer routes, hesitates at junctions and sometimes turns back. It's measurable (route length against the shortest route) and respectful.
+
+**Key choice 4: without these new fields, results are exactly as v0.5.** Profiles and crowding are both optional, so every existing scenario and its results stay the same. The app will turn them on by default for new projects.
+
+**Change: `scenario.ts` (version "0.5" → "0.6")**
+```ts
+/** A spread of values, drawn per person from a bell curve and clipped to [min, max]. sd 0 = everyone the same. */
+interface Spread { mean: number; sd: number; min: number; max: number }
+
+/** A kind of person. Drawn for each person by share. */
+interface PersonProfile {
+  id: string;
+  name: string;                       // "Wheelchair user", "Older adult", "Child (with adult)", "Regular"
+  /** Walking speed on the flat, m/s. Average adult ≈ 1.3; with a walking aid ≈ 0.8. */
+  speed: Spread;
+  /**
+   * What they can use. "step_free": no stairs or escalators (wheelchairs, pushchairs, some
+   * walking aids); lifts and level routes only, and doors at least 0.8 m wide.
+   * "no_escalator": stairs and lifts but not escalators. "any": everything.
+   */
+  access: "any" | "no_escalator" | "step_free";
+  /** Space taken in a crowd, as a multiple of an average adult (wheelchair ≈ 2.5, pushchair ≈ 2, child ≈ 0.7). */
+  size: number;
+  /** When there's a choice between ways up, relative liking for each (e.g. lift 3, escalator 1, stairs 0.3). */
+  prefers: { stairs: number; escalator: number; lift: number };
+  /** How well they know the building, 0–1: 1 always takes the shortest way; lower takes detours and hesitates. */
+  familiarity: Spread;
+  /** People per m² at which they start to feel uncomfortable (a typical adult ≈ 1.5; anxious in crowds ≈ 0.8). */
+  crowdComfort: Spread;
+}
+
+interface Scenario {
+  // … everything in v0.5, plus:
+  /** Kinds of person and their shares, for each kind of track. Omitted means everyone is the v0.5 average person. */
+  profiles?: {
+    list: PersonProfile[];
+    /** Shares of each profile id for staff, visitors and shoppers; each list adds up to 1. */
+    staff?: { profileId: string; share: number }[];
+    visitors?: { profileId: string; share: number }[];
+    shoppers?: { profileId: string; share: number }[];
+  };
+  /** People slow down in crowds and doors/escalators have a flow limit. Omitted means off (v0.5 behaviour). */
+  crowding?: { enabled: true };
+}
+
+interface Person {     // and Visitor
+  // … plus: a known person's own profile (e.g. a staff member who uses a wheelchair), instead of a drawn one.
+  profileId?: string;
+}
+```
+
+**How crowding works (engine, explained in the assumptions).** Walking speed falls as the people per m² around someone rises, using the standard pedestrian speed–density curve: free walking below about 0.5 people/m², roughly half speed at 2, nearly stopped at 5. A person's `size` counts towards density. Doors pass at most about 1.3 people per metre of width per second; escalators about 1 person per second each; people wait their turn. Numbers are published defaults, assumptions until calibrated.
+
+**Change: `results.ts` (version "0.5" → "0.6")**
+- `Track` adds `profileId?: string` (present when profiles are used), so the app can colour and filter by kind of person.
+- `SimEventType` adds `"blocked"` (with `spaceId`): someone couldn't reach where they wanted to go by a route they can use, and went elsewhere or gave up.
+- `Metrics` adds:
+  - `profiles: ProfileMetrics[]`, one per profile:
+    `{ profileId; count; meanWalkM; meanWalkS; meanDetourPct; liftWaitS; longestLiftWaitS; blocked; uncomfortableS; uncomfortablePeople }`
+    - `meanDetourPct`: how much longer their routes were than the shortest route they could use;
+    - `blocked`: trips that couldn't be made;
+    - `uncomfortableS` / `uncomfortablePeople`: total time spent above their own `crowdComfort`, and how many people that happened to.
+  - `crowding: CrowdingMetrics[]`, one per space with anyone in it:
+    `{ spaceId; peakDensity; peakT; minutesOver2 }`: most people per m² at once (by `size`), when, and minutes above 2 people/m².
+- `Heatmaps.levels[]` adds `peakDensity: number[]`: the most people per m² ever seen in each cell, so crowd hot spots show on the plan.
+- `WarningCode` adds `"not_step_free"`: a room or floor that people with `access: "step_free"` can't reach (e.g. "Nobody using a wheelchair can reach First floor: there's no lift"), naming the room or floor.
+- Staff `perPerson` and `summary` keep their v0.5 meaning.
+
+**Change: `validate.ts`**
+- Profile ids unique; every `profileId` used exists; each share list adds up to 1; spreads have `min ≤ mean ≤ max`, `sd ≥ 0`, speeds positive; `size > 0`; preferences ≥ 0 and not all zero; familiarity within 0–1.
+
+**Breaks**
+- Engine (Codex): per-person traits drawn from spreads (seeded, on their own random stream so turning profiles on doesn't reshuffle anything else); route choice that respects access and preferences; familiarity detours and hesitation; door width checks for step-free people; crowding (speed–density, door and escalator flow limits); the new metrics, heatmap and warning. Must stay exactly v0.5 when the new fields are omitted, deterministic, and fast with crowding on (target: the 3,000-shopper mall in under 6 s).
+- App (Claude):
+  - **Kinds of people** in the People tab with presets the assistant can fill: "Sri Lankan mall weekend", "Sri Lankan school day", "Office". Each lists who is included and why, marked as assumptions to check.
+  - Playback can colour people by kind and filter to one kind ("show only wheelchair users").
+  - A **"Who struggled"** results section (per kind: detours, lift waits, blocked trips, discomfort); crowd hot spots on the plan; step-free warnings.
+  - The assistant gets a tool to set kinds of people.
+- Samples: `mall-weekend` gains profiles and crowding; one plan gets a door too narrow for wheelchairs, to prove the warning.
+
+**Left for v0.7 (evacuation).** An alarm at a set time; everyone heads for the nearest usable exit; lifts out of use; step-free people go to a refuge point and wait for help; time for the building to empty, per floor and per kind of person; where queues form at stairs and exits. It builds directly on this version's traits and crowding.
+
+**Left for later.** Light, noise and heat comfort (needs a daylight and noise model: the "comfort" version); families and groups walking together; signage; children's routines in schools (timetables and bells come with the school phase). Profiles already leave room for light and noise sensitivity when comfort arrives.
+
+**Decisions for the product owner**
+1. **Split evacuation into v0.7** (recommended), rather than one large v0.6. Evacuation needs its own alarm, exit and refuge rules, and is easier to check once crowding is proven.
+2. **Crowding on by default in the app** (recommended), while the contract keeps it optional so older results stay comparable.
+3. **Who sets the numbers.** The presets and the assistant will propose shares and spreads with a one-line reason each (e.g. a census figure for disability prevalence), always marked as assumptions until checked. Recommended: yes, and the results show "assumptions" next to every number that came from a preset.
