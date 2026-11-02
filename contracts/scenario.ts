@@ -68,7 +68,10 @@ export interface PersonProfile {
   size: number;
   /** Relative liking for each way between floors when more than one would do, e.g. lift 3, escalator 1, stairs 0.3. At least one above 0. */
   prefers: { stairs: number; escalator: number; lift: number };
-  /** How well they know the building, 0–1. 1 always takes the shortest way; lower takes longer routes and hesitates at junctions. */
+  /**
+   * How well they know the building, 0–1. 1 always takes the shortest way through the stairs,
+   * escalators and lifts they chose (by access and `prefers`); lower takes longer routes and hesitates at junctions.
+   */
   familiarity: Spread;
   /** People per m² around them at which they start to feel uncomfortable (a typical adult about 1.5; someone anxious in crowds about 0.8). */
   crowdComfort: Spread;

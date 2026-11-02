@@ -279,3 +279,11 @@ interface Person {     // and Visitor
 1. **Split evacuation into v0.7** (recommended), rather than one large v0.6. Evacuation needs its own alarm, exit and refuge rules, and is easier to check once crowding is proven.
 2. **Crowding on by default in the app** (recommended), while the contract keeps it optional so older results stay comparable.
 3. **Who sets the numbers.** The presets and the assistant will propose shares and spreads with a one-line reason each (e.g. a census figure for disability prevalence), always marked as assumptions until checked. Recommended: yes, and the results show "assumptions" next to every number that came from a preset.
+
+## v0.6: What counts as a detour
+- Requested by: Codex, 2026-11-02
+- Status: **approved** by the product owner, 2026-11-02 (option 1, recommended by Codex and Claude)
+- Problem: connector preferences may send someone to a farther lift, while familiarity 1 must mean no detour. Against the globally shortest usable route, a perfectly familiar lift-lover would show a detour without ever going wrong.
+- Decision: route choice happens first (access, then `prefers`); `meanDetourPct` and familiarity are measured against the shortest path through the connectors chosen. Familiarity 1 is always 0% detour. Preference-driven extra distance still shows in walking distance, walking time and lift waits. Wording updated on `ProfileMetrics.meanDetourPct` and `PersonProfile.familiarity`; no new fields.
+- Rejected: counting preference-driven distance as detour, which would mix choices with getting lost.
+- Breaks: nothing; clarifies meaning before the engine implements it.

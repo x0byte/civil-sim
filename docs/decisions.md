@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Detour means getting lost, not preferring the lift
+- **`meanDetourPct` is measured against the shortest path through the stairs, escalators and lifts a person chose**, so familiarity 1 is always 0% and preference-driven extra distance shows in walking and lift-wait metrics instead. *(Product owner, option 1 as recommended by Codex)*
+
 ## 2026-11-02: Contract v0.6 (people who differ, and crowding)
 - **Approved: kinds of person drawn by share, with bell-curve traits** (speed, how well they know the building, crowd comfort), access limits (step-free, no escalator), size in a crowd and lift/escalator/stairs preference; plus **crowding** (density slows walking; doors and escalators have flow limits). Results add "who struggled" per kind, crowding per space, a peak-density grid and a step-free warning. Scenario and results v0.6; floor plan stays v0.3. *(Product owner)*
 - **Evacuation is v0.7, after crowding is proven. Crowding is on by default in the app but optional in the contract, so older results stay comparable. Preset and assistant numbers are shown as assumptions.** *(Product owner, as recommended)*

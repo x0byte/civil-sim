@@ -157,7 +157,12 @@ export interface ProfileMetrics {
   count: number;
   meanWalkM: number;
   meanWalkS: number;
-  /** Average over their trips of how much longer the route walked was than the shortest route they could use, in %. */
+  /**
+   * Wayfinding detour: average over their trips of how much longer the route walked was than the
+   * shortest path through the stairs, escalators and lifts they chose, in %. Choosing a farther lift
+   * they prefer is not a detour (it shows in walking time and lift waits); getting lost is.
+   * Someone with familiarity 1 always has 0.
+   */
   meanDetourPct: number;
   /** Seconds spent waiting for lifts, everyone with this profile together, and the single longest wait. */
   liftWaitS: number;
