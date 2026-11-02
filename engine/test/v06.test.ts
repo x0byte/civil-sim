@@ -20,8 +20,8 @@ export const profile = (id = "typical"): PersonProfile => ({ id, name: id, speed
 function only(s: Scenario, p = profile()): void { s.profiles = { list: [p], shoppers: [{ profileId: p.id, share: 1 }] }; }
 function legacy(result: SimulationResult): string {
   const copy = JSON.parse(JSON.stringify(result)); copy.version = "0.5";
-  delete copy.metrics.profiles; delete copy.metrics.crowding;
-  copy.heatmaps.levels.forEach((l: { peakDensity?: number[] }) => { delete l.peakDensity; });
+  delete copy.metrics.comfort; delete copy.metrics.profiles; delete copy.metrics.crowding;
+  copy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; });
   return createHash("sha256").update(JSON.stringify(copy)).digest("hex");
 }
 

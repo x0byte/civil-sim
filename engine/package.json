@@ -1,6 +1,6 @@
 {
   "name": "@civil-sim/engine",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "samples": "node scripts/run-sample.ts",
     "benchmark:shoppers": "node scripts/benchmark-shoppers.ts",
-    "benchmark:people": "node scripts/benchmark-people.ts"
+    "benchmark:people": "node scripts/benchmark-people.ts",
+    "benchmark:comfort": "node --expose-gc scripts/benchmark-comfort.ts"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
