@@ -6,6 +6,7 @@
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
 import type { Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
+import { type KindsSettings, kindsFromPreset, expandKinds } from "./kinds.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, type ShopperSettings, expandShoppers, hasShops } from "./shoppers.ts";
 
 export interface Department {
@@ -44,6 +45,10 @@ export interface OfficeProfile {
   maxQueueWaitMin?: number;
   /** A shopping crowd through the day (malls). Missing means none. */
   shoppers?: ShopperSettings;
+  /** Kinds of person and how many of each. Missing means everyone is the average person (older saved profiles). */
+  kinds?: KindsSettings;
+  /** People slow down in crowds, and doors and escalators let only so many through. Missing means off (older saved profiles). */
+  crowding?: boolean;
   seed: number;
 }
 
@@ -165,6 +170,9 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
     lunch: DEFAULT_LUNCH,
     visitors: { ...DEFAULT_VISITORS, perDay: 0 },
     ...(shops ? { shoppers: DEFAULT_SHOPPERS } : {}),
+    kinds: kindsFromPreset("typical"),
+    // On for malls only until the engine stops cancelling office meetings under crowding (docs/codex-brief-v0.6.1.md).
+    crowding: shops,
     seed: 42,
   };
 }
@@ -240,6 +248,8 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     shoppers = undefined;
   }
 
+  const profiles = expandKinds(profile.kinds, { staff: people.length > 0, visitors: visitors.length > 0, shoppers: !!shoppers });
+
   return {
     scenario: {
       version: "0.6",
@@ -255,6 +265,8 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       ...(visitors.length ? { visitors } : {}),
       queueing: { maxWaitMin: Math.max(0, profile.maxQueueWaitMin ?? DEFAULT_MAX_QUEUE_WAIT_MIN) },
       ...(shoppers ? { shoppers } : {}),
+      ...(profiles ? { profiles } : {}),
+      ...(profile.crowding ? { crowding: { enabled: true as const } } : {}),
     },
     notes,
     seating,

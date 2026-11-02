@@ -27,6 +27,7 @@ import {
   updateItem,
   updateLevel,
 } from "../model/planOps.ts";
+import { type Group, KINDS_PRESETS, type KindOfPerson, type KindsPreset, kindsFromPreset, withMean } from "../population/kinds.ts";
 import type { OfficeProfile } from "../population/officeProfile.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
 
@@ -250,6 +251,76 @@ export const TOOLS: Anthropic.Tool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "set_kinds_of_people",
+    description:
+      "Set the kinds of person (wheelchair users, first-time visitors, older adults…) and how many of each among staff, visitors and shoppers. " +
+      "Each person's speed, familiarity and crowd comfort are drawn around the averages given (a bell curve), so no two are alike. " +
+      `Presets: ${Object.entries(KINDS_PRESETS)
+        .map(([k, p]) => `${k} (${p.note})`)
+        .join("; ")}. Apply a preset first, then add, change or remove kinds and set shares. Steps run in that order.`,
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        enabled: nullable("boolean", "Kinds on or off; null to keep."),
+        preset: nullable("string", "Start again from this preset (replaces every kind and share); null to keep.", { enum: [...Object.keys(KINDS_PRESETS), null] }),
+        kinds: {
+          type: ["array", "null"],
+          description: "Kinds to add, or to change if the id exists. null for none.",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Short id, e.g. low-vision." },
+              name: { type: "string", description: "Plain name, e.g. Low vision." },
+              why: { type: "string", description: "One line on where the numbers come from; shown to the user as an assumption." },
+              access: { type: "string", enum: ["any", "no_escalator", "step_free"], description: "step_free: lifts and doors ≥ 0.8 m only." },
+              walking_speed: { type: "number", description: "Average m/s on the flat; adult about 1.25, walking aid about 0.7." },
+              knows_building: { type: "number", description: "0–1. 1 always takes the shortest way; low gets lost and hesitates." },
+              crowd_comfort: { type: "number", description: "People per m² at which they feel uncomfortable; adult about 1.5, crowd-anxious about 0.8." },
+              size: { type: "number", description: "Room taken in a crowd against an adult: child 0.7, pushchair 2, wheelchair 2.5." },
+              prefers_stairs: { type: "number" },
+              prefers_escalator: { type: "number" },
+              prefers_lift: { type: "number", description: "Relative liking for each way between floors, e.g. lift 3, escalator 1, stairs 0.3." },
+            },
+            required: ["id", "name", "why", "access", "walking_speed", "knows_building", "crowd_comfort", "size", "prefers_stairs", "prefers_escalator", "prefers_lift"],
+            additionalProperties: false,
+          },
+        },
+        remove_ids: { type: ["array", "null"], items: { type: "string" }, description: "Kind ids to remove; null for none." },
+        shares: {
+          type: ["array", "null"],
+          description: "Replace a group's mix. null to keep every group's.",
+          items: {
+            type: "object",
+            properties: {
+              group: { type: "string", enum: ["staff", "visitors", "shoppers"] },
+              percent_by_kind: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { kind_id: { type: "string" }, percent: { type: "number" } },
+                  required: ["kind_id", "percent"],
+                  additionalProperties: false,
+                },
+                description: "Kinds not listed get none. Percentages are scaled to add up to 100.",
+              },
+            },
+            required: ["group", "percent_by_kind"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["enabled", "preset", "kinds", "remove_ids", "shares"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "set_crowding",
+    description: "Switch crowding on or off: walking slows as the crowd thickens, and doors, stairs and escalators let only so many through at once.",
+    strict: true,
+    input_schema: { type: "object", properties: { on: { type: "boolean" } }, required: ["on"], additionalProperties: false },
+  },
 ];
 
 type Input = Record<string, unknown>;
@@ -464,8 +535,109 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
       };
       return ok({ ...draft, profile }, "Staff settings updated.", { text: "Staff settings" });
     }
+    case "set_kinds_of_people": {
+      const out = setKinds(draft.profile, input);
+      if (typeof out === "string") return fail(draft, out);
+      return ok({ ...draft, profile: out.profile }, `${out.text}.`, { text: out.text });
+    }
+    case "set_crowding": {
+      const on = input.on === true;
+      return ok({ ...draft, profile: { ...draft.profile, crowding: on } }, on ? "Crowding on." : "Crowding off.", { text: on ? "Crowding on" : "Crowding off" });
+    }
   }
   return fail(draft, `Unknown tool "${name}".`);
+}
+
+interface KindInput {
+  id: string;
+  name: string;
+  why: string;
+  access: KindOfPerson["access"];
+  walking_speed: number;
+  knows_building: number;
+  crowd_comfort: number;
+  size: number;
+  prefers_stairs: number;
+  prefers_escalator: number;
+  prefers_lift: number;
+}
+
+/** Applies set_kinds_of_people: preset, then added or changed kinds, removals, and shares. A string is an error for the model. */
+function setKinds(profile: OfficeProfile, input: Input): { profile: OfficeProfile; text: string } | string {
+  let kinds = profile.kinds ?? kindsFromPreset("typical");
+  const did: string[] = [];
+  if (typeof input.preset === "string") {
+    kinds = kindsFromPreset(input.preset as KindsPreset);
+    did.push(KINDS_PRESETS[input.preset as KindsPreset].label);
+  } else if (input.kinds || input.remove_ids || input.shares) {
+    kinds = { ...kinds, preset: "custom" };
+  }
+  for (const k of (input.kinds as KindInput[] | null) ?? []) {
+    if (!/^[a-z0-9-]+$/.test(k.id)) return `Kind id "${k.id}" must be lower-case letters, digits and dashes.`;
+    if (!(k.walking_speed > 0.1 && k.walking_speed < 3)) return `${k.name}: walking speed must be between 0.1 and 3 m/s.`;
+    if (!(k.crowd_comfort > 0) || !(k.size > 0)) return `${k.name}: crowd comfort and size must be above 0.`;
+    const prefers = { stairs: Math.max(0, k.prefers_stairs), escalator: Math.max(0, k.prefers_escalator), lift: Math.max(0, k.prefers_lift) };
+    const usable = k.access === "step_free" ? prefers.lift : k.access === "no_escalator" ? prefers.lift + prefers.stairs : prefers.lift + prefers.stairs + prefers.escalator;
+    if (!(usable > 0)) return `${k.name}: they must like at least one way between floors they can use.`;
+    const old = kinds.list.find((x) => x.id === k.id);
+    const knows = Math.min(1, Math.max(0, k.knows_building));
+    const next: KindOfPerson = {
+      id: k.id,
+      name: k.name,
+      why: k.why,
+      access: k.access,
+      size: k.size,
+      prefers,
+      // New kinds get a spread around the averages; changed kinds keep theirs.
+      speed: old ? withMean(old.speed, k.walking_speed) : { mean: k.walking_speed, sd: 0.15, min: Math.max(0.2, k.walking_speed - 0.45), max: k.walking_speed + 0.45 },
+      familiarity: old ? withMean(old.familiarity, knows, 0, 1) : { mean: knows, sd: knows >= 1 ? 0 : 0.15, min: Math.max(0, knows - 0.4), max: Math.min(1, knows + 0.3) },
+      crowdComfort: old ? withMean(old.crowdComfort, k.crowd_comfort) : { mean: k.crowd_comfort, sd: 0.3, min: Math.max(0.2, k.crowd_comfort - 0.7), max: k.crowd_comfort + 1.5 },
+    };
+    kinds = { ...kinds, list: old ? kinds.list.map((x) => (x.id === k.id ? next : x)) : [...kinds.list, next] };
+    did.push(`${old ? "changed" : "added"} ${k.name}`);
+  }
+  for (const id of (input.remove_ids as string[] | null) ?? []) {
+    const k = kinds.list.find((x) => x.id === id);
+    if (!k) return `No kind "${id}". Kinds: ${kinds.list.map((x) => x.id).join(", ")}`;
+    const shares = Object.fromEntries(Object.entries(kinds.shares).map(([g, m]) => [g, Object.fromEntries(Object.entries(m).filter(([kid]) => kid !== id))]));
+    kinds = { ...kinds, list: kinds.list.filter((x) => x.id !== id), shares: shares as typeof kinds.shares };
+    did.push(`removed ${k.name}`);
+  }
+  for (const g of (input.shares as { group: Group; percent_by_kind: { kind_id: string; percent: number }[] }[] | null) ?? []) {
+    const unknown = g.percent_by_kind.find((x) => !kinds.list.some((k) => k.id === x.kind_id));
+    if (unknown) return `No kind "${unknown.kind_id}". Kinds: ${kinds.list.map((x) => x.id).join(", ")}`;
+    const total = g.percent_by_kind.reduce((n, x) => n + Math.max(0, x.percent), 0);
+    if (!(total > 0)) return `Give ${g.group} at least one kind with a share above 0.`;
+    kinds = { ...kinds, shares: { ...kinds.shares, [g.group]: Object.fromEntries(g.percent_by_kind.map((x) => [x.kind_id, (Math.max(0, x.percent) / total) * 100])) } };
+    did.push(`new ${g.group} mix`);
+  }
+  if (typeof input.enabled === "boolean") {
+    kinds = { ...kinds, enabled: input.enabled };
+    if (!input.enabled) did.push("off");
+  } else if (did.length) kinds = { ...kinds, enabled: true };
+  const text = `Kinds of people: ${did.join(", ") || "unchanged"}`;
+  return { profile: { ...profile, kinds }, text };
+}
+
+/** The kinds of person and each group's mix, for the model. */
+function describeKinds(profile: OfficeProfile): string {
+  const k = profile.kinds;
+  const crowd = `crowding ${profile.crowding ? "on" : "off"}`;
+  if (!k?.enabled) return `
+KINDS OF PEOPLE: off (everyone an average adult); ${crowd}`;
+  const lines = [`
+KINDS OF PEOPLE (${k.preset}); ${crowd}:`];
+  for (const p of k.list) {
+    lines.push(
+      `  kind ${p.id} "${p.name}": ${p.access}, speed ${r1(p.speed.mean)} m/s, knows building ${r1(p.familiarity.mean)}, crowd comfort ${r1(p.crowdComfort.mean)}/m², size ${p.size}, prefers stairs ${p.prefers.stairs} escalator ${p.prefers.escalator} lift ${p.prefers.lift}`,
+    );
+  }
+  for (const g of ["staff", "visitors", "shoppers"] as Group[]) {
+    const m = Object.entries(k.shares[g] ?? {}).filter(([, n]) => n > 0);
+    const total = m.reduce((n, [, v]) => n + v, 0);
+    lines.push(`  ${g} mix: ${m.length ? m.map(([id, n]) => `${id} ${r1((n / total) * 100)}%`).join(", ") : "none (average adults)"}`);
+  }
+  return lines.join("\n");
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -502,7 +674,8 @@ export function describe(draft: Draft): string {
   const sh = profile.shoppers;
   lines.push(
     `\nPEOPLE: day ${profile.workday.start}–${profile.workday.end}; ${profile.departments.length} staff groups (${profile.departments.reduce((n, d) => n + d.headcount, 0)} people), attendance ${Math.round(profile.attendance * 100)}%; ` +
-      (sh?.enabled ? `shoppers on: ${sh.day}, crowd ${sh.crowd}, impulse ${sh.impulse}` : "shoppers off"),
+      (sh?.enabled ? `shoppers on: ${sh.day}, crowd ${sh.crowd}, impulse ${sh.impulse}` : "shoppers off") +
+      describeKinds(profile),
   );
   const list = problems(plan);
   if (list.length) lines.push(`PROBLEMS: ${list.join("; ")}`);

@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: App side of kinds of people and crowding
+- **Kinds of people are a People setting, on by default for new plans, with three presets** (typical Sri Lankan crowd, step-free stress test, opening week). One list of kinds serves staff, visitors and shoppers, each group with its own mix; shares are percentages scaled to 100. Each kind shows a one-line reason marked as an assumption. Older saved profiles without kinds run as before. *(Claude, per the v0.6 approval: preset numbers are shown as assumptions)*
+- **Crowding is on by default for buildings with shops only, for now.** With crowding on, engine v0.6 cancels office staff's day when a meeting starts (`docs/repro/office-a-crowding.scenario.json`); offices get it once that's fixed (`docs/codex-brief-v0.6.1.md`). The People panel warns if a user turns it on for an office. *(Claude; temporary departure from "on by default", owner to confirm)*
+- **Results show "Who struggled" (got lost, lift wait, felt crowded, trips they couldn't make) and "Most crowded places"**, with a caution when most peaks fall just before closing (an engine artefact being fixed). The crowding heatmap colours only spots at 1 person/m² or more, on a fixed scale to 4, since one person alone already counts about 0.3. *(Claude)*
+- **The assistant can set kinds of people and crowding**, giving a reason for each number. It still says plainly that light, noise and colour sensitivity, evacuation and schools aren't modelled. *(Claude)*
+
 ## 2026-11-02: Engine v0.6 profiles, route choices and density
 - **Connector choice precedes familiarity.** Measure detours against the shortest path through the chosen connector sequence, so familiarity 1 remains 0% even when someone prefers a longer lift route. *(Product owner, approved option 1; see contract change request.)*
 - **Profile and trait draws are independent of existing behaviour draws.** Weighted draws by profile id preserve earlier relative assignments when a new profile is appended and existing shares are rescaled equally. Access geometry and connector alternatives share cached floor searches. *(Codex, implementing the approved brief.)*

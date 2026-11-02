@@ -86,6 +86,29 @@ group("assistant tools", () => {
     expect(lifted.plan.connectors.find((c) => c.name === "Lift 2")?.levelIds).toEqual(["ground", "first", top.id]);
   });
 
+  it("sets kinds of people from a preset, adds a kind and gives shoppers a new mix", () => {
+    const lowVision = { id: "low-vision", name: "Low vision", why: "Assumed", access: "any", walking_speed: 0.9, knows_building: 0.3, crowd_comfort: 1, size: 1, prefers_stairs: 0.5, prefers_escalator: 0.5, prefers_lift: 2 };
+    const d = run(start(), [
+      ["set_kinds_of_people", { enabled: null, preset: "access", kinds: [lowVision], remove_ids: ["child"], shares: [{ group: "shoppers", percent_by_kind: [{ kind_id: "regular", percent: 60 }, { kind_id: "low-vision", percent: 20 }, { kind_id: "wheelchair", percent: 20 }] }] }],
+      ["set_crowding", { on: false }],
+    ]);
+    const k = d.profile.kinds!;
+    expect(k).toMatchObject({ enabled: true, preset: "access" });
+    expect(k.list.map((x) => x.id)).toContain("low-vision");
+    expect(k.list.map((x) => x.id)).not.toContain("child");
+    expect(k.list.find((x) => x.id === "low-vision")!.familiarity).toMatchObject({ mean: 0.3, min: 0 });
+    expect(k.shares.shoppers).toEqual({ regular: 60, "low-vision": 20, wheelchair: 20 });
+    expect(d.profile.crowding).toBe(false);
+    expect(describe(d)).toMatch(/kind low-vision "Low vision"/);
+    expect(describe(d)).toMatch(/shoppers mix: regular 60%, low-vision 20%, wheelchair 20%/);
+  });
+
+  it("refuses kinds that can't use any way between floors, or unknown kinds", () => {
+    const stuck = { id: "stuck", name: "Stuck", why: "", access: "step_free", walking_speed: 1, knows_building: 1, crowd_comfort: 1, size: 1, prefers_stairs: 1, prefers_escalator: 1, prefers_lift: 0 };
+    expect(runTool("set_kinds_of_people", { enabled: null, preset: null, kinds: [stuck], remove_ids: null, shares: null }, start())).toMatchObject({ error: true });
+    expect(runTool("set_kinds_of_people", { enabled: null, preset: null, kinds: null, remove_ids: ["nobody"], shares: null }, start()).result).toMatch(/Kinds: staff, regular/);
+  });
+
   it("describes the plan with the ids the tools take", () => {
     const text = describe(start());
     expect(text).toContain("FLOOR first");

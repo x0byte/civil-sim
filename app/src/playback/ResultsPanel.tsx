@@ -4,6 +4,7 @@ import { useEditor } from "../state/store.ts";
 import { DESK_PASS_RADIUS_M, deskDisturbance, meetingRoomUse, teamDistances } from "../sim/officeMeasures.ts";
 import { clockAt } from "./tracks.ts";
 import { HeadcountChart } from "./HeadcountChart.tsx";
+import { CrowdedPlaces, WhoStruggled } from "./PeopleResults.tsx";
 
 const minutes = (s: number) => `${Math.round(s / 60)} min`;
 const waitText = (s: number) => (s <= 0 ? "–" : s < 60 ? `${Math.round(s)} s` : `${(s / 60).toFixed(1)} min`);
@@ -171,6 +172,9 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           </div>
         </section>
       )}
+
+      <WhoStruggled run={run} />
+      <CrowdedPlaces run={run} roomName={roomName} />
 
       <section className="panel">
         <header>

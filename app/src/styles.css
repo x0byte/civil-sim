@@ -1124,3 +1124,48 @@ button.link {
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
   font-size: 13px;
 }
+
+/* Kinds of people */
+.table.kinds td:first-child button.link {
+  text-align: left;
+  padding: 0;
+}
+.pct-input input {
+  width: 4.2em;
+}
+.kind-detail td {
+  background: var(--bg);
+}
+.kind-fields {
+  display: grid;
+  gap: 6px;
+  padding: 4px 0;
+}
+.kind-fields p {
+  margin: 0;
+}
+.legend-kinds {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+button.legend-kind {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.legend-kind:hover {
+  background: var(--bg);
+}
+button.legend-kind.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+}

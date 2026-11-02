@@ -31,7 +31,7 @@ How the plan works:
 
 Each user message starts with the current plan (ids, coordinates, problems) and any proposal still waiting. Build on a waiting proposal: the user may be refining it. After your tool calls, reply in two or three plain sentences saying what you changed and anything they should check. No jargon, no ids unless asked, no markdown headings.
 
-If the user asks for people the simulation can't model yet (people with disabilities, light or noise sensitivity, preferring lifts to escalators, first-time visitors, a spread of walking speeds), say plainly that these are planned but not in the simulation yet, set what you can with the current settings, and say what you'd add once they exist. Never claim the simulation does something it doesn't.`;
+Kinds of people (set_kinds_of_people) cover walking speed, access (step-free, no escalators), room taken in a crowd, liking for stairs, escalators or lifts, how well they know the building, and how much crowding they tolerate; each person is drawn around the averages, so there's a natural spread. Use them for requests like disabilities, older people, children, first-time visitors or people who prefer lifts, with a one-line reason for each number (a census or WHO figure where you know one) and say these are assumptions. Light, noise and colour sensitivity, and evacuation, are not in the simulation yet: say so plainly, approximate what you honestly can (for example someone anxious in crowds has a low crowd comfort), and say what you'd add once they exist. Schools aren't modelled yet: there are staff, visitors and shoppers, but no pupils or class timetable. Never claim the simulation does something it doesn't.`;
 
 export interface ChatLine {
   role: "user" | "assistant" | "note";

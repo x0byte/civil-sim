@@ -10,6 +10,7 @@ import {
   defaultProfile,
   expandProfile,
 } from "./officeProfile.ts";
+import { CrowdingSection, KindsSection } from "./KindsSection.tsx";
 import { DEFAULT_SHOPPERS, MALL_HOURS, SHOPPER_DAYS, type ShopperDay, expectedShoppers, hasShops, shopperTypes } from "./shoppers.ts";
 
 /** Categorical palette, fixed order. Departments past the eighth share a neutral grey. */
@@ -127,6 +128,16 @@ export function PeoplePanel() {
       {(hasShops(plan) || profile.shoppers?.enabled) && (
         <ShoppersSection profile={profile} setProfile={setProfile} expected={expectedShoppers(x.scenario.shoppers)} />
       )}
+      <KindsSection
+        profile={profile}
+        setProfile={setProfile}
+        groups={[
+          ...(x.scenario.shoppers ? (["shoppers"] as const) : []),
+          ...(x.scenario.people.length ? (["staff"] as const) : []),
+          ...(x.scenario.visitors?.length ? (["visitors"] as const) : []),
+        ]}
+      />
+      <CrowdingSection profile={profile} setProfile={setProfile} mall={hasShops(plan)} />
       <section className="panel">
         <header>
           <div>
