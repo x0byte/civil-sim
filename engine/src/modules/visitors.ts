@@ -1,3 +1,5 @@
+import type { Traveller } from "./profiles.ts";
+import { travelTime } from "./pathfinding.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, SimEvent, Track, Warning } from "../../../contracts/results.ts";
 import type { Scenario, Visitor } from "../../../contracts/scenario.ts";
@@ -11,7 +13,8 @@ import type { RoomSpots } from "./spots.ts";
 import { absentTrack, TrackBuilder, WALK_SPEED_M_S } from "./track.ts";
 
 export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: Visitor, duration: number,
-  navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void): PersonSchedule {
+  navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void, personTraits?: Traveller): PersonSchedule {
+  const speed = personTraits?.speed ?? WALK_SPEED_M_S;
   const { grid, entrances, targets, paths } = navigation;
   const absent = (): Track => absentTrack(visitor.id, "visitor", duration, grid, entrances[0] ?? { x: 0, y: 0 });
   const candidates = entrances.flatMap((entrance) => {
@@ -23,6 +26,7 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
   const selected = candidates[0];
   if (!selected) {
     warn({ code: "unreachable_space", message: `Visitor ${visitor.id} cannot reach ${visitor.spaceId} from an exterior door; this visitor stays absent.`, refIds: [visitor.id, visitor.spaceId] });
+    if (personTraits) events.push({ t: clockSeconds(visitor.arrive) - clockSeconds(scenario.workday.start), personId: visitor.id, type: "blocked", spaceId: visitor.spaceId });
     return absent();
   }
   const destination = spots.point(visitor.spaceId, selected.component, visitor.id);
@@ -51,13 +55,13 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
     return absent();
   }
   const arrival = clockSeconds(visitor.arrive) - clockSeconds(scenario.workday.start);
-  const travelS = (pathLength(receptionPath ?? []) + pathLength(destinationPath) + pathLength(exitPath)) / WALK_SPEED_M_S;
+  const travelS = personTraits ? travelTime(receptionPath ?? [], speed) + travelTime(destinationPath, speed) + travelTime(exitPath, speed) : (pathLength(receptionPath ?? []) + pathLength(destinationPath) + pathLength(exitPath)) / speed;
   const stayS = ((receptionPath ? visitor.waitMin : 0) + visitor.durationMin) * 60;
   if (arrival + travelS + stayS > duration) {
     warn({ code: "other", message: `Visitor ${visitor.id}'s full visit and travel cannot fit before the workday ends; this visitor stays absent.`, refIds: [visitor.id] });
     return absent();
   }
-  const track = new TrackBuilder(selected.entrance);
+  const track = new TrackBuilder(selected.entrance, navigation.first, speed, personTraits);
   const movement = new RoomMovement(plan, navigation, track, visitor.id);
   function* walk(path: Vec2[], activity: Activity, deadline: number, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
     yield* movement.walk(path, activity, deadline, skipSpaceId);
@@ -65,7 +69,7 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
   track.t = arrival;
   events.push({ t: arrival, personId: visitor.id, type: "visitor_arrive" });
   if (receptionPath) {
-    yield* walk(receptionPath, "waiting", duration - stayS - (pathLength(destinationPath) + pathLength(exitPath)) / WALK_SPEED_M_S);
+    yield* walk(receptionPath, "waiting", duration - stayS - (pathLength(destinationPath) + pathLength(exitPath)) / speed);
     track.t += visitor.waitMin * 60;
   }
   const space = plan.spaces.find((s) => s.id === visitor.spaceId)!;
@@ -78,15 +82,15 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
       return absent();
     }
     const back = paths.route(trip.gate, selected.entrance)!;
-    yield* walk(trip.outside, "walking", duration - (pathLength(back) + pathLength(trip.inside) * 2) / WALK_SPEED_M_S - visitor.durationMin * 60);
+    yield* walk(trip.outside, "walking", duration - (pathLength(back) + pathLength(trip.inside) * 2) / speed - visitor.durationMin * 60);
     const admission = yield { personId: visitor.id, spaceId: space.id, track, gate: trip.gate, approach: trip.approach,
-      deadline: duration - (pathLength(back) + pathLength(trip.inside) * 2) / WALK_SPEED_M_S - visitor.durationMin * 60 };
+      deadline: duration - (pathLength(back) + pathLength(trip.inside) * 2) / speed - visitor.durationMin * 60 };
     if (admission.admitted) movement.adoptLease(space.id, admission.release);
-    yield* walk(admission.toGate, "walking", duration - (pathLength(back) + pathLength(trip.inside)) / WALK_SPEED_M_S - visitor.durationMin * 60, space.id);
+    yield* walk(admission.toGate, "walking", duration - (pathLength(back) + pathLength(trip.inside)) / speed - visitor.durationMin * 60, space.id);
     if (admission.admitted) {
-      yield* walk(trip.inside, "waiting", duration - (pathLength(back) + pathLength(trip.inside)) / WALK_SPEED_M_S - visitor.durationMin * 60, space.id);
+      yield* walk(trip.inside, "waiting", duration - (pathLength(back) + pathLength(trip.inside)) / speed - visitor.durationMin * 60, space.id);
       track.t += visitor.durationMin * 60;
-      yield* walk(paths.route(trip.inside.at(-1)!, trip.inside[0])!, "walking", duration - pathLength(back) / WALK_SPEED_M_S, space.id);
+      yield* walk(paths.route(trip.inside.at(-1)!, trip.inside[0])!, "walking", duration - travelTime(back, speed), space.id);
       admission.release(track.t);
     }
     yield* walk(back, "absent", duration);
@@ -95,7 +99,7 @@ export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: V
     if (track.t < duration) track.points.push({ t: duration, ...track.position, activity: "absent" });
     return { personId: visitor.id, kind: "visitor", points: track.points };
   }
-  yield* walk(destinationPath, space.type === "meeting_room" ? "in_meeting" : "waiting", duration - visitor.durationMin * 60 - pathLength(exitPath) / WALK_SPEED_M_S);
+  yield* walk(destinationPath, space.type === "meeting_room" ? "in_meeting" : "waiting", duration - visitor.durationMin * 60 - travelTime(exitPath, speed));
   track.t += visitor.durationMin * 60;
   yield* walk(exitPath, "absent", duration);
   movement.releaseAll(track.t);

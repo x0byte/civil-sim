@@ -78,8 +78,9 @@ export class ShopperWorld {
       this.venues.push({ space, point, spots, doors: space.doorIds.map((id) => openingCentre(plan, plan.openings.find((d) => d.id === id)!)) });
     }
   }
-  entrance(draw: number): Entrance | undefined {
-    return weighted(this.entrances, (e) => e.share, draw) ?? this.entrances[Math.floor(draw * this.entrances.length)];
+  entrance(draw: number, usable?: (entrance: Entrance) => boolean): Entrance | undefined {
+    const entrances = usable ? this.entrances.filter(usable) : this.entrances;
+    return weighted(entrances, (e) => e.share, draw) ?? entrances[Math.floor(draw * entrances.length)];
   }
   liftClearanceBefore(t: number): number {
     let lo = 0; let hi = this.arrivals.length;

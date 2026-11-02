@@ -19,7 +19,7 @@ function setup(maxWaitMin: number | undefined = 10) {
         polygon: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }], doorIds: [] },
     ] };
   const navigation = createNavigation(plan, () => {});
-  const scenario: Scenario = { version: "0.5", id: "queue-test", name: "Queue test", seed: 1,
+  const scenario: Scenario = { version: "0.6", id: "queue-test", name: "Queue test", seed: 1,
     workday: { start: "08:00", end: "17:00" }, teams: [], people: [], meetings: [],
     rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, ...(maxWaitMin === undefined ? {} : { queueing: { maxWaitMin } }) };
   const events: SimEvent[] = [];

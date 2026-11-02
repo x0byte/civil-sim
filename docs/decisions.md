@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Engine v0.6 profiles, route choices and density
+- **Connector choice precedes familiarity.** Measure detours against the shortest path through the chosen connector sequence, so familiarity 1 remains 0% even when someone prefers a longer lift route. *(Product owner, approved option 1; see contract change request.)*
+- **Profile and trait draws are independent of existing behaviour draws.** Weighted draws by profile id preserve earlier relative assignments when a new profile is appended and existing shares are rescaled equally. Access geometry and connector alternatives share cached floor searches. *(Codex, implementing the approved brief.)*
+- **Crowding uses chronological motion updates no more than four seconds apart and shared flow gates.** Larger people consume proportionally longer headways. Space admission near 4.5 weighted people/m² leaves a margin for movement between observations; waiting remains outside capped rooms. Cancellation keeps room leases until a physical exit. Closing allowances can shorten visits conservatively. *(Codex.)*
+- **Density reports use exact one-metre circles at half-metre cell centres, sampled every five seconds.** Tiny labels without a cell centre also check occupied points. Discomfort includes the person's own size; each positive sample represents the following five seconds, clipped at closing. These assumptions, overlap and calibration limits are explained in the results and engine report. *(Codex.)*
+
 ## 2026-11-02: Contract v0.6 (people who differ, and crowding)
 - **Approved: kinds of person drawn by share, with bell-curve traits** (speed, how well they know the building, crowd comfort), access limits (step-free, no escalator), size in a crowd and lift/escalator/stairs preference; plus **crowding** (density slows walking; doors and escalators have flow limits). Results add "who struggled" per kind, crowding per space, a peak-density grid and a step-free warning. Scenario and results v0.6; floor plan stays v0.3. *(Product owner)*
 - **Evacuation is v0.7, after crowding is proven. Crowding is on by default in the app but optional in the contract, so older results stay comparable. Preset and assistant numbers are shown as assumptions.** *(Product owner, as recommended)*

@@ -33,7 +33,10 @@ export class Pathfinder {
   private graph?: Graph;
   private work?: SearchWork;
   readonly grid: WalkableGrid;
+  private treeLimit = 64;
   constructor(grid: WalkableGrid) { this.grid = grid; }
+  /** Connector alternatives revisit many of the same footprint cells. */
+  retainTrees(limit: number): void { this.treeLimit = limit; }
 
   private endpoint(point: Vec2): number {
     const index = this.grid.indexAt(point);
@@ -59,7 +62,7 @@ export class Pathfinder {
         if (tree) this.trees.delete(source);
         else tree = this.search(source);
         this.trees.set(source, tree);
-        if (this.trees.size > 64) this.trees.delete(this.trees.keys().next().value!);
+        if (this.trees.size > this.treeLimit) this.trees.delete(this.trees.keys().next().value!);
         route = this.simplify(reverse ? b : a, reverse ? a : b, reverse ? start : goal, tree);
         if (reverse) route.reverse();
       }

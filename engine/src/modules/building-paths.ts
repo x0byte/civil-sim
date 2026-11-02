@@ -5,6 +5,13 @@ import { levelOf, onLevel } from "./levels.ts";
 import type { LevelPoint } from "./levels.ts";
 import { Pathfinder, pathLength } from "./pathfinding.ts";
 
+export interface PathRoutes {
+  readonly grid: WalkableGrid;
+  readonly floors: Map<string, Pathfinder>;
+  route(a: LevelPoint, b: LevelPoint): Vec2[] | null;
+  distances(points: Vec2[]): (number | null)[][];
+}
+
 export function rideSeconds(plan: FloorPlan, connector: Connector, from: string, to: string): number {
   const height = Math.abs(plan.levels.find((l) => l.id === from)!.elevation - plan.levels.find((l) => l.id === to)!.elevation);
   if (connector.kind === "stairs") return height / 0.4;
@@ -24,12 +31,14 @@ export class BuildingPaths {
   private readonly base: { nodes: LevelPoint[]; links: Map<number, { next: number; connector: Connector }[]> };
   private readonly minimumTime: number[][];
   private readonly cache = new Map<string, Vec2[] | null>();
+  private readonly allowedLinks?: Set<string>;
 
-  constructor(plan: FloorPlan, grids: Map<string, WalkableGrid>) {
+  constructor(plan: FloorPlan, grids: Map<string, WalkableGrid>, floors?: Map<string, Pathfinder>, allowedLinks?: Set<string>) {
     this.plan = plan;
+    this.allowedLinks = allowedLinks;
     this.first = plan.levels[0].id;
     this.grid = grids.get(this.first)!;
-    this.floors = new Map([...grids].map(([id, grid]) => [id, new Pathfinder(grid)]));
+    this.floors = floors ?? new Map([...grids].map(([id, grid]) => [id, new Pathfinder(grid)]));
     const n = plan.levels.length;
     this.minimumTime = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 0 : Infinity));
     for (const connector of plan.connectors) for (const from of connector.levelIds) for (const to of connector.levelIds) {
@@ -89,6 +98,7 @@ export class BuildingPaths {
         });
         for (const i of indices) for (const j of indices) {
           if (i === j) continue;
+          if (this.allowedLinks && !this.allowedLinks.has(`${connector.id}:${nodes[i].levelId}>${nodes[j].levelId}`)) continue;
           const up = this.plan.levels.findIndex((l) => l.id === nodes[i].levelId) < this.plan.levels.findIndex((l) => l.id === nodes[j].levelId);
           if (connector.kind === "escalator" && connector.direction && (connector.direction === "up") !== up) continue;
           const list = links.get(i) ?? [];

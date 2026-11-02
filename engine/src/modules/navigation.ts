@@ -1,11 +1,21 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Warning } from "../../../contracts/results.ts";
 import { distance, openingCentre, pointInPolygon, polygonCentroid } from "./geometry.ts";
+import type { WalkableGrid } from "./grid.ts";
+import type { PathRoutes } from "./building-paths.ts";
 import { rasterise } from "./grid.ts";
 import { BuildingPaths } from "./building-paths.ts";
 import { levelOf, onLevel } from "./levels.ts";
 
-export function createNavigation(plan: FloorPlan, warn: (warning: Warning) => void) {
+export interface Navigation {
+  first: string; grid: WalkableGrid; grids: Map<string, WalkableGrid>; paths: PathRoutes;
+  entrances: (Vec2 & { levelId?: string })[]; targets: Map<string, Map<number, Vec2>>;
+  component: (point: Vec2) => number;
+  connectorMetrics: { connectorId: string; trips: number; peakWaiting: number; longestWaitS: number }[];
+  queueBase?: Navigation;
+}
+
+export function createNavigation(plan: FloorPlan, warn: (warning: Warning) => void): Navigation {
   const first = plan.levels[0].id;
   const grids = new Map(plan.levels.map((level) => [level.id, rasterise(plan, level.id)]));
   const grid = grids.get(first)!;
@@ -63,5 +73,3 @@ export function createNavigation(plan: FloorPlan, warn: (warning: Warning) => vo
   const connectorMetrics = plan.connectors.map((c) => ({ connectorId: c.id, trips: 0, peakWaiting: 0, longestWaitS: 0 }));
   return { grid, grids, paths, entrances, targets, component, first, connectorMetrics };
 }
-
-export type Navigation = ReturnType<typeof createNavigation>;

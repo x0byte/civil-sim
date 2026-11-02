@@ -1,5 +1,6 @@
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, Track, TrackPoint } from "../../../contracts/results.ts";
+import type { Traveller } from "./profiles.ts";
 import type { LevelPoint } from "./levels.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import { distance } from "./geometry.ts";
@@ -11,9 +12,10 @@ export class TrackBuilder {
   readonly points: TrackPoint[];
   t = 0;
   readonly speed: number;
+  readonly person?: Traveller;
   position: Vec2 & { levelId: string };
-  constructor(position: LevelPoint, levelId = "ground", speed = WALK_SPEED_M_S) {
-    this.speed = speed;
+  constructor(position: LevelPoint, levelId = "ground", speed = WALK_SPEED_M_S, person?: Traveller) {
+    this.speed = speed; this.person = person;
     this.position = { ...onLevel(position, levelOf(position, levelId)), levelId: levelOf(position, levelId) };
     this.points = [{ t: 0, ...this.position, activity: "absent" }];
   }
@@ -28,6 +30,8 @@ export class TrackBuilder {
       this.t += distance(path[i - 1], path[i]) / this.speed;
       this.position = { x: path[i].x, y: path[i].y, levelId: levelOf(path[i], this.position.levelId) };
       this.mark(i === path.length - 1 ? activity : "walking");
+      const pause = (path[i] as LevelPoint).hesitateS ?? 0;
+      if (pause > 0) { this.t += pause; this.mark(i === path.length - 1 ? activity : "walking"); }
     }
     if (path.length === 1) this.mark(activity);
   }

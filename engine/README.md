@@ -1,4 +1,4 @@
-# Simulation engine v0.5
+# Simulation engine v0.6
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -11,6 +11,51 @@ import { simulate } from "./engine/src/index.ts";
 
 const result = simulate(plan, scenario);
 ```
+
+## Profiles and crowds
+
+Scenario v0.6 accepts optional profiles and crowding; floor plans remain v0.3. Named
+staff/visitor assignments override profile shares. Every trait and profile choice uses
+its own deterministic stream, so profiles leave arrival and shopper-type draws intact.
+Shares use independent weighted draws by profile id: appending a new profile can win
+people from existing profiles but does not reshuffle the remaining assignments when
+their shares are rescaled equally. Shoppers retain consecutive `shopper-1`, `shopper-2`, … ids.
+
+Access policies share floor geometry and cached paths. Step-free routes exclude narrow
+doors and all connectors except lifts; no-escalator routes exclude escalators. Between
+floors, preferences weight usable connector sequences with an expected-time penalty.
+Sequences do not revisit intermediate floors; the unrestricted shortest allowed route
+is also included, covering layouts that need to revisit a floor. Horizontal paths are
+shortest through the selected sequence. Familiarity adds a seeded visible wrong turn
+and hesitation, bounded to twice the original distance and omitted when time is short.
+As approved by the product owner, detour percentages use that chosen sequence as their baseline.
+
+With crowding on, movement and flow gates run on the same chronological scheduler as
+rooms and lifts. Speeds use exact weighted circles in the forward half of a 1 m radius,
+excluding oneself. Movement updates at most four seconds apart. Door gates share flow
+in both directions; connector gates and doors apply headways proportional to size.
+Waiting for space begins near 4.5 people/m² at cell centres and nearby people, providing
+a margin below 5.4 between motion observations. This permits overlapping people and
+does not model collision avoidance, body shapes or a calibrated pedestrian response.
+Room queue motion uses the density-adjusted speed and access-restricted geometry.
+Closing allowances conservatively reserve slow walking and possible queues.
+
+All results include five-second density samples on the existing 0.5 m heatmap grid.
+Each value counts exact 1 m circles with profile size as weight. Space peaks use grid
+centres inside the space, with occupied-point checks for labels containing no grid
+centre. `minutesOver2` and discomfort count the following five seconds, clipped at
+closing. Discomfort includes the person's own weight, so a large profile with a low
+comfort limit can exceed it alone. Time riding between floors is excluded; lift waits
+on a floor are included. These are modelling assumptions until calibrated.
+
+Omitting both fields preserves the complete captured v0.5 output except the version
+and new density/profile fields. Six captured sample hashes enforce that guarantee.
+`metrics.profiles` is then empty; density metrics still run. Public `walkingDistances`
+keeps its geometry-only meaning and does not assign profiles or apply crowd speeds.
+
+Run `npm run benchmark:people` in `engine/` for three-run medians and the per-profile
+report, including arrivals × 3.5. It writes the results and `people-benchmark.json` to
+ignored `engine/out/`. See `docs/engine-v0.6-report.md` for the acceptance run.
 
 ## Walking distances
 
@@ -62,10 +107,11 @@ npm test --prefix engine
 npm run typecheck --prefix engine
 npm run samples --prefix engine
 npm run benchmark:shoppers --prefix engine
+npm run benchmark:people --prefix engine
 ```
 
 `npm run samples --prefix engine` writes ignored `engine/out/office-a.result.json`,
-`office-b.result.json`, `sealed-room.result.json`, `mall-2f.result.json`, and `mall-weekend.result.json`. The UI can load these contract
+`office-b.result.json`, `sealed-room.result.json`, `mall-2f.result.json`, `mall-weekend.result.json`, and `mall-weekend-people.result.json`. The UI can load these contract
 results directly. Connecting the viewer to the engine belongs to the app owner.
 
 The engine returns the full results contract: interpolated keyframe tracks, events,
@@ -165,7 +211,7 @@ their summary. Every scenario person, including managers, is a `staff` track.
 
 ## Floors and connectors
 
-Inputs use floor-plan v0.3 and scenario v0.5; results use v0.5. Each floor has its own
+Inputs use floor-plan v0.3 and scenario v0.6; results use v0.6. Each floor has its own
 walkable grid, walls, doors, targets, standing spots, room queues and occupancy.
 Connector footprint cells override walls on every served floor. Desks and exterior
 doors retain their declared floor. A one-way route that cannot complete a return trip

@@ -1,5 +1,6 @@
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics } from "../../../contracts/results.ts";
+import type { TrackBuilder } from "./track.ts";
 import type { RoomRequest } from "./queues.ts";
 
 interface Call { request: RoomRequest; arrived: number; complete: (admitted: boolean) => void; waiting: boolean }
@@ -9,8 +10,10 @@ interface Car { level: string; busy: boolean; waiting: Call[]; capacity: number;
 export class Lifts {
   private readonly cars = new Map<string, Car>();
   private readonly plan: FloorPlan;
+  private readonly observer?: (track: TrackBuilder, riding: boolean) => void;
   private readonly schedule: (t: number, run: () => void) => void;
-  constructor(plan: FloorPlan, metrics: ConnectorMetrics[], schedule: (t: number, run: () => void) => void) {
+  constructor(plan: FloorPlan, metrics: ConnectorMetrics[], schedule: (t: number, run: () => void) => void, observer?: (track: TrackBuilder, riding: boolean) => void) {
+    this.observer = observer;
     this.plan = plan;
     this.schedule = schedule;
     for (const c of plan.connectors.filter((c) => c.kind === "lift")) this.cars.set(c.id, {
@@ -61,6 +64,7 @@ export class Lifts {
         car.metric.longestWaitS = Math.max(car.metric.longestWaitS, board - call.arrived);
         call.request.track.t = board;
         call.request.track.mark("in_lift");
+        this.observer?.(call.request.track, true);
         riders.push(call);
       }
       this.drop(car, riders, board);
@@ -77,6 +81,7 @@ export class Lifts {
         track.t = arrival;
         track.position = { x: track.position.x, y: track.position.y, levelId: to };
         track.mark("walking");
+        this.observer?.(track, false);
         car.metric.trips++;
         call.complete(true);
       }

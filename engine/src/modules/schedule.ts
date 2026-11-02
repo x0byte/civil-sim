@@ -1,3 +1,6 @@
+import { crowdReserve } from "./profiles.ts";
+import type { Traveller } from "./profiles.ts";
+import { travelTime } from "./pathfinding.ts";
 import { onLevel } from "./levels.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, SimEvent, Track, Warning } from "../../../contracts/results.ts";
@@ -49,7 +52,8 @@ function requests(scenario: Scenario, person: Person, duration: number) {
 }
 
 export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Person, duration: number,
-  navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void): PersonSchedule {
+  navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void, personTraits?: Traveller): PersonSchedule {
+  const speed = personTraits?.speed ?? WALK_SPEED_M_S;
   const { paths, targets, entrances } = navigation;
   const desk = plan.fixtures.find((f) => f.id === person.deskId)!;
   const deskPosition = onLevel(desk.position, desk.levelId);
@@ -60,31 +64,37 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
   const absent = (): Track => absentTrack(person.id, "staff", duration, navigation.grids.get(desk.levelId)!, deskPosition, desk.levelId);
   if (!arrivalPath) {
     warn({ code: "unreachable_desk", message: `Desk ${desk.id} for ${person.id} cannot be reached from an exterior door; this person stays absent.`, refIds: [desk.id, person.id] });
+    if (personTraits) events.push({ t: desired.arrival, personId: person.id, type: "blocked", spaceId: desk.spaceId });
     return absent();
   }
   const component = navigation.component(deskPosition);
   const back = (path: Vec2[]): Vec2[] => paths.route(path.at(-1)!, path[0])!;
-  const commuteInS = pathLength(arrivalPath) / WALK_SPEED_M_S;
-  const commuteOutS = pathLength(back(arrivalPath)) / WALK_SPEED_M_S;
-  const travelBudget = (path: Vec2[]) => plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)));
+  const commuteInS = travelTime(arrivalPath, speed);
+  const departurePath = back(arrivalPath);
+  const commuteOutS = travelTime(departurePath, speed);
+  const travelBudget = (path: Vec2[]) => personTraits ? Math.max(travelTime(path, speed), travelTime(back(path), speed)) : (plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)))) / WALK_SPEED_M_S;
   const start = clockSeconds(scenario.workday.start);
   const meetings = scenario.meetings.filter((m) => m.attendeeIds.includes(person.id)).map((meeting) => {
     const point = spots.point(meeting.spaceId, component, person.id);
     const outward = point ? paths.route(deskPosition, point) : null;
     const path = outward && paths.route(point!, deskPosition) ? outward : null;
+    if (!path && personTraits) events.push({ t: clockSeconds(meeting.start) - start, personId: person.id, type: "blocked", spaceId: meeting.spaceId });
     if (!path) warn({ code: "unreachable_space", message: `${person.id} cannot reach meeting space ${meeting.spaceId} from their desk.`, refIds: [meeting.spaceId, person.id] });
     return { meeting, path, start: clockSeconds(meeting.start) - start, end: clockSeconds(meeting.start) - start + meeting.durationMin * 60,
-      travelS: path ? travelBudget(path) / WALK_SPEED_M_S : 0 };
+      travelS: path ? travelBudget(path) : 0 };
   }).filter((m): m is typeof m & { path: Vec2[] } => m.path !== null).sort((a, b) => a.start - b.start);
   // Keep the requested first/last 30-minute windows, accommodating early/late meetings when possible.
   const arrival = Math.max(0, Math.min(desired.arrival, ...meetings.map((m) => m.start - m.travelS - commuteInS - 1)));
   const departure = Math.min(duration, Math.max(desired.departure, ...meetings.map((m) => m.end + m.travelS + commuteOutS + 1)));
-  const deskDeparture = departure - commuteOutS;
+  const liftExit = departurePath.some((p) => plan.connectors.some((c) => c.id === (p as { connectorId?: string }).connectorId && c.kind === "lift"));
+  const closingReserve = personTraits ? crowdReserve(departurePath, personTraits, departure, plan)
+    + (liftExit ? 60 + 44 * Math.ceil(personTraits.people.activeSize(departure) / 8) : 0) : commuteOutS;
+  const deskDeparture = departure - closingReserve;
   if (arrival + commuteInS + 1 > deskDeparture) {
     warn({ code: "other", message: `The workday is too short for ${person.id} to reach their desk and leave; this person stays absent.`, refIds: [person.id] });
     return absent();
   }
-  const track = new TrackBuilder(arrivalPath[0]);
+  const track = new TrackBuilder(arrivalPath[0], navigation.first, speed, personTraits);
   const movement = new RoomMovement(plan, navigation, track, person.id);
   let walkDeadline = Math.min(deskDeparture - 1, ...meetings.map((meeting) => meeting.start - meeting.travelS - 1));
   function* walk(path: Vec2[], activity: Activity, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
@@ -122,7 +132,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
         lunchTrip = roomTrip(space, path, navigation);
         if (lunchTrip) path = [...lunchTrip.outside, ...lunchTrip.inside.slice(1)];
       }
-      lunch = placeLunch({ ...request, path, travelS: travelBudget(path) / WALK_SPEED_M_S,
+      lunch = placeLunch({ ...request, path, travelS: travelBudget(path),
         ...(request.kind === "pantry" ? { spaceId: pantry.spaceId } : {}) }, meetings, track.t, deskDeparture);
       if (!lunch) warn({ code: "other", message: `${person.id}'s lunch cannot fit around meetings, travel and attendance within the lunch window; lunch is skipped.`, refIds: [person.id] });
     }
@@ -134,9 +144,9 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       const visit = desired.visits[visitIndex++];
       if (visit.t < track.t + EPSILON) continue;
       const destinations = available.get(visit.activity)!;
-      if (!destinations.length) continue;
+      if (!destinations.length) { if (personTraits) { const target = plan.spaces.find((s) => s.type === visit.activity); if (target) events.push({ t: visit.t, personId: person.id, type: "blocked", spaceId: target.id }); } continue; }
       const destination = destinations[Math.floor(visit.choice * destinations.length)];
-      const travel = travelBudget(destination.path) / WALK_SPEED_M_S;
+      const travel = travelBudget(destination.path);
       if (visit.t + 2 * travel + visit.duration > until) continue;
       track.t = visit.t;
       walkDeadline = until - visit.duration - travel;
@@ -147,8 +157,8 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
           warn({ code: "unreachable_space", message: `${person.id} cannot safely approach the queue for ${space.id}; this visit is skipped.`, refIds: [person.id, space.id] });
           continue;
         }
-        const insideS = travelBudget(trip.inside) / WALK_SPEED_M_S;
-        const outsideS = travelBudget(trip.outside) / WALK_SPEED_M_S;
+        const insideS = travelBudget(trip.inside);
+        const outsideS = travelBudget(trip.outside);
         if (visit.t + outsideS * 2 + insideS * 2 + visit.duration > until) continue;
         walkDeadline = until - outsideS - insideS * 2 - visit.duration;
         yield* walk(trip.outside, "walking");
@@ -186,8 +196,8 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       const trip = lunchTrip;
       const end = appointment.start + appointment.duration;
       if (trip) {
-        const insideS = travelBudget(trip.inside) / WALK_SPEED_M_S;
-        const outsideS = travelBudget(trip.outside) / WALK_SPEED_M_S;
+        const insideS = travelBudget(trip.inside);
+        const outsideS = travelBudget(trip.outside);
         track.t = Math.max(track.t, appointment.start - outsideS - insideS);
         yield* walk(trip.outside, "walking");
         const admission = yield { personId: person.id, spaceId: space.id, track, gate: trip.gate, approach: trip.approach,
@@ -261,8 +271,8 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
   yield* walk(back(arrivalPath), "absent");
   movement.releaseAll(track.t);
   // Floating-point accumulation may differ by a few ulps from the intended departure.
-  if (plan.levels.length === 1) track.points.at(-1)!.t = departure;
-  events.push({ t: plan.levels.length === 1 ? departure : track.t, personId: person.id, type: "leave" });
+  if (plan.levels.length === 1 && !personTraits) track.points.at(-1)!.t = departure;
+  events.push({ t: plan.levels.length === 1 && !personTraits ? departure : track.t, personId: person.id, type: "leave" });
   if (departure < duration) track.points.push({ t: duration, ...track.position, activity: "absent" });
   return { personId: person.id, kind: "staff", points: track.points };
 }
