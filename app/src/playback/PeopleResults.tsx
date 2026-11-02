@@ -82,10 +82,6 @@ export function CrowdedPlaces({ run, roomName }: { run: SimRun; roomName: (id: s
     .sort((a, b) => b.peakDensity - a.peakDensity)
     .slice(0, 5);
   if (!top.length) return null;
-  const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
-  const dayS = (toMin(scenario.workday.end) - toMin(scenario.workday.start)) * 60;
-  // Everyone heads out together near closing, so peaks there say more about leaving than about the layout.
-  const atClosing = top.filter((c) => dayS - c.peakT <= 20 * 60).length;
 
   return (
     <section className="panel">
@@ -118,8 +114,6 @@ export function CrowdedPlaces({ run, roomName }: { run: SimRun; roomName: (id: s
         </table>
         <p className="muted">
           At worst: {densityWord(top[0].peakDensity).toLowerCase()}. Below 1 person per m² people walk freely; around 2 they move at half speed; above 4 hardly at all.
-          {atClosing > top.length / 2 &&
-            " Most of these peaks are in the last minutes before closing, when the simulation sends people out more at once than real crowds leave; treat them with caution."}
         </p>
       </div>
     </section>

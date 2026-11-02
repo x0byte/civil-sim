@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Crowding on by default for every building
+- **Engine v0.6.1 fixed office meetings under crowding, so the app now turns crowding on for offices too**, as the v0.6 approval asked. The office warning in People and the closing-time caution in results are gone: departures before closing are now spread out. *(Claude, after checking the fixes independently)*
+
 ## 2026-11-02: Engine v0.6.1 review corrections
 - Meeting start is a desired arrival, not a deadline that cancels the rest of a staff member's day. Crowded travel budgets include slower walking and shared door flow; an unfinishable meeting is skipped with a room-named warning and a physical return to the desk. *(Codex, fixing the review repro.)*
 - Shoppers have an independently seeded latest departure during the final 45 minutes, bounded by their arrival, stay limit and day length. The departure-bunching acceptance limit is **per room**, as confirmed by the product owner. Actual room journeys start/end at standing positions; reusable nearby corridor routes are shortened by visible endpoint shortcuts, without compulsory centre visits. *(Codex; behavioural numbers remain assumptions.)*

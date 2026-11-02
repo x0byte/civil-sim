@@ -183,7 +183,7 @@ function PctInput({ value, onCommit }: { value: number; onCommit: (v: number) =>
 }
 
 /** Crowding on or off, with a plain account of what it does. */
-export function CrowdingSection({ profile, setProfile, mall }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void; mall: boolean }) {
+export function CrowdingSection({ profile, setProfile }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void }) {
   return (
     <section className="panel">
       <header>
@@ -202,9 +202,6 @@ export function CrowdingSection({ profile, setProfile, mall }: { profile: Office
             ? "Walking slows as the crowd thickens, and doors, stairs and escalators let only so many through at once; the rest wait their turn."
             : "Off: people walk through each other at full speed. Crowding is still measured in the results."}
         </p>
-        {profile.crowding && !mall && (
-          <p className="warn">Not reliable in offices yet: the simulation can cancel meetings and send people home. A fix is on the way.</p>
-        )}
       </div>
     </section>
   );

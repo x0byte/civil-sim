@@ -137,7 +137,7 @@ export function PeoplePanel() {
           ...(x.scenario.visitors?.length ? (["visitors"] as const) : []),
         ]}
       />
-      <CrowdingSection profile={profile} setProfile={setProfile} mall={hasShops(plan)} />
+      <CrowdingSection profile={profile} setProfile={setProfile} />
       <section className="panel">
         <header>
           <div>

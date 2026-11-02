@@ -171,8 +171,7 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
     visitors: { ...DEFAULT_VISITORS, perDay: 0 },
     ...(shops ? { shoppers: DEFAULT_SHOPPERS } : {}),
     kinds: kindsFromPreset("typical"),
-    // On for malls only until the engine stops cancelling office meetings under crowding (docs/codex-brief-v0.6.1.md).
-    crowding: shops,
+    crowding: true,
     seed: 42,
   };
 }

@@ -51,11 +51,11 @@ describe("kinds of people", () => {
     expect(r.tracks.filter((t) => t.kind === "shopper").every((t) => t.profileId)).toBe(true);
   });
 
-  it("an office gets kinds for its staff but no crowding yet", () => {
+  it("an office gets kinds for its staff, and crowding", () => {
     const office = plan("office-a");
     const x = expandProfile(defaultProfile(office), office);
     expect(Object.keys(x.scenario.profiles!).sort()).toEqual(["list", "staff"]);
-    expect(x.scenario.crowding).toBeUndefined();
+    expect(x.scenario.crowding).toEqual({ enabled: true });
     expect(validateScenario(x.scenario, office)).toEqual([]);
   });
 
