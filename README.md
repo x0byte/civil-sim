@@ -32,7 +32,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 **Phase 2: shopping malls**
 1. **Floors:** several floors joined by stairs, escalators and lifts (contract v0.4, done).
 2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front (contract v0.5, in progress).
-3. **People who differ, and crowding:** wheelchair users, older adults, children, first-time visitors and lift-lovers drawn from bell curves; crowds slow people down; "who struggled" results (contract v0.6, proposed).
+3. **People who differ, and crowding:** wheelchair users, older adults, children, first-time visitors and lift-lovers drawn from bell curves; crowds slow people down; "who struggled" results (contract v0.6, approved; engine in progress).
 4. **Evacuation:** alarm, exits, refuge points for step-free people; how fast the building empties (contract v0.7).
 5. **Calibration:** compare against mall door counters and Wi-Fi data.
 

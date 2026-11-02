@@ -52,6 +52,8 @@ export type IssueCode =
   | "visitor"
   | "queueing"
   | "shoppers"
+  | "profiles"
+  | "crowding"
   | "reserved_id";
 
 export interface ValidationIssue {
@@ -300,6 +302,40 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
     if (!chance(shoppers.impulse)) err("shoppers", "shopper impulse must be 0–1");
     if (!(shoppers.toiletVisitsPerHour >= 0)) err("shoppers", "shopper toiletVisitsPerHour must be zero or more");
   }
+
+  const profiles = scenario.profiles;
+  const profileIds = new Set<string>();
+  if (profiles) {
+    if (!profiles.list.length) err("profiles", "profiles need at least one profile in the list");
+    const spread = (sp: { mean: number; sd: number; min: number; max: number }) =>
+      [sp.mean, sp.sd, sp.min, sp.max].every(Number.isFinite) && sp.sd >= 0 && sp.min <= sp.mean && sp.mean <= sp.max;
+    for (const p of profiles.list) {
+      if (!p.id || profileIds.has(p.id)) err("profiles", `profile ids must be unique and non-empty ("${p.id}")`);
+      profileIds.add(p.id);
+      if (!spread(p.speed) || !(p.speed.min > 0)) err("profiles", `profile ${p.id}: speed needs min ≤ mean ≤ max, sd ≥ 0, and min above 0`);
+      if (!["any", "no_escalator", "step_free"].includes(p.access)) err("profiles", `profile ${p.id}: access must be "any", "no_escalator" or "step_free"`);
+      if (!(p.size > 0)) err("profiles", `profile ${p.id}: size must be above 0`);
+      const pr = [p.prefers.stairs, p.prefers.escalator, p.prefers.lift];
+      if (!pr.every((n) => n >= 0) || !pr.some((n) => n > 0)) err("profiles", `profile ${p.id}: preferences must be zero or more, at least one above 0`);
+      if (!spread(p.familiarity) || p.familiarity.min < 0 || p.familiarity.max > 1) err("profiles", `profile ${p.id}: familiarity needs 0 ≤ min ≤ mean ≤ max ≤ 1 and sd ≥ 0`);
+      if (!spread(p.crowdComfort) || !(p.crowdComfort.min > 0)) err("profiles", `profile ${p.id}: crowdComfort needs min ≤ mean ≤ max, sd ≥ 0, and min above 0`);
+    }
+    for (const kind of ["staff", "visitors", "shoppers"] as const) {
+      const list = profiles[kind];
+      if (!list) continue;
+      let sum = 0;
+      for (const s of list) {
+        if (!profileIds.has(s.profileId)) err("profiles", `${kind} profile share names unknown profile "${s.profileId}"`);
+        if (!(s.share >= 0 && s.share <= 1)) err("profiles", `${kind} profile share for ${s.profileId} must be 0–1`);
+        sum += s.share;
+      }
+      if (Math.abs(sum - 1) > 1e-6) err("profiles", `${kind} profile shares must add up to 1`);
+    }
+  }
+  for (const x of [...scenario.people, ...(scenario.visitors ?? [])]) {
+    if (x.profileId !== undefined && !profileIds.has(x.profileId)) err("profiles", `${x.id}: profile "${x.profileId}" is not in scenario.profiles`);
+  }
+  if (scenario.crowding && scenario.crowding.enabled !== true) err("crowding", "crowding must be { enabled: true } or left out");
 
   if (plan) {
     const desks = new Set(plan.fixtures.filter((f) => f.type === "desk").map((f) => f.id));

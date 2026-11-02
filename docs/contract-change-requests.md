@@ -176,7 +176,8 @@ Template:
 
 ## v0.6: People who differ, and crowding
 - Requested by: Claude, 2026-11-02
-- Status: **open**, waiting for the product owner
+- Status: **approved** by the product owner, 2026-11-02, with the three recommended decisions (evacuation in v0.7; crowding on by default in the app; presets and the assistant propose numbers, marked as assumptions)
+- Implemented as proposed, with these details settled while writing the types: profile metrics are empty and crowding metrics and the density grid are still filled in when profiles are omitted; crowd density is people per m² within 1.0 m of a point, sampled every 5 s; `mall-weekend` stays unchanged as the v0.5 baseline and the new `mall-weekend-people` sample carries profiles and crowding; the narrow-door case is tested on a copy of the plan in the engine's tests rather than changing `mall-2f`.
 
 **In plain words.** Today everyone of a kind is the same person: same speed, same route, happy to take any stairs, never bothered by a crowd. Real buildings are used by children and grandparents, wheelchair users, parents with pushchairs, people on crutches, first-time visitors who don't know the way, and people who will queue for a lift rather than step on an escalator. This change gives every simulated person their own traits, drawn from bell curves, so the results can answer **"who struggled, where, and why?"**:
 - "The 9 wheelchair users waited a total of 41 minutes for the lift; at 18:30 one waited 6 minutes."
@@ -268,7 +269,7 @@ interface Person {     // and Visitor
   - Playback can colour people by kind and filter to one kind ("show only wheelchair users").
   - A **"Who struggled"** results section (per kind: detours, lift waits, blocked trips, discomfort); crowd hot spots on the plan; step-free warnings.
   - The assistant gets a tool to set kinds of people.
-- Samples: `mall-weekend` gains profiles and crowding; one plan gets a door too narrow for wheelchairs, to prove the warning.
+- Samples: a new `mall-weekend-people` (the Saturday crowd with profiles and crowding); a door too narrow for wheelchairs is tested on a copy of `mall-2f`.
 
 **Left for v0.7 (evacuation).** An alarm at a set time; everyone heads for the nearest usable exit; lifts out of use; step-free people go to a refuge point and wait for help; time for the building to empty, per floor and per kind of person; where queues form at stairs and exits. It builds directly on this version's traits and crowding.
 

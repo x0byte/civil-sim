@@ -214,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.5",
+  version: "0.6",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -241,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.5",
+  version: "0.6",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -398,7 +398,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.5",
+  version: "0.6",
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -422,7 +422,7 @@ const mallScenario: Scenario = {
 // A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
 // Arrival rates and shopper types are assumptions until calibrated against door counts.
 const mallWeekend: Scenario = {
-  version: "0.5",
+  version: "0.6",
   id: "mall-weekend",
   name: "Saturday: shop staff and about 850 shoppers",
   seed: 21,
@@ -450,6 +450,39 @@ const mallWeekend: Scenario = {
   },
 };
 
+// The same Saturday with people who differ and crowding on. Kinds of person and their shares are
+// assumptions for a Sri Lankan mall until checked against counts; one staff member uses a wheelchair.
+const sp = (mean: number, sd: number, min: number, max: number) => ({ mean, sd, min, max });
+const mallWeekendPeople: Scenario = {
+  ...mallWeekend,
+  id: "mall-weekend-people",
+  name: "Saturday with people who differ: about 850 shoppers, crowding on",
+  people: mallWeekend.people.map((p, i) => (i === 0 ? { ...p, profileId: "wheelchair" } : p)),
+  profiles: {
+    list: [
+      { id: "staff", name: "Works here", speed: sp(1.3, 0.15, 0.9, 1.7), access: "any", size: 1, prefers: { stairs: 1, escalator: 1, lift: 0.3 }, familiarity: sp(1, 0, 1, 1), crowdComfort: sp(1.8, 0.3, 1, 3) },
+      { id: "regular", name: "Regular adult", speed: sp(1.25, 0.2, 0.8, 1.8), access: "any", size: 1, prefers: { stairs: 0.5, escalator: 2, lift: 0.5 }, familiarity: sp(0.8, 0.15, 0.3, 1), crowdComfort: sp(1.5, 0.4, 0.6, 3) },
+      { id: "first-time", name: "First-time visitor", speed: sp(1.15, 0.2, 0.7, 1.7), access: "any", size: 1, prefers: { stairs: 0.5, escalator: 2, lift: 1 }, familiarity: sp(0.35, 0.15, 0, 0.8), crowdComfort: sp(1.4, 0.4, 0.6, 3) },
+      { id: "older", name: "Older adult", speed: sp(0.95, 0.15, 0.5, 1.3), access: "no_escalator", size: 1, prefers: { stairs: 0.3, escalator: 0, lift: 3 }, familiarity: sp(0.6, 0.2, 0.1, 1), crowdComfort: sp(1, 0.3, 0.4, 2) },
+      { id: "child", name: "Child with an adult", speed: sp(1, 0.2, 0.6, 1.5), access: "any", size: 0.7, prefers: { stairs: 1, escalator: 2, lift: 1 }, familiarity: sp(0.5, 0.2, 0, 1), crowdComfort: sp(2, 0.5, 0.8, 4) },
+      { id: "pushchair", name: "Parent with a pushchair", speed: sp(1, 0.15, 0.6, 1.4), access: "step_free", size: 2, prefers: { stairs: 0, escalator: 0, lift: 1 }, familiarity: sp(0.7, 0.2, 0.2, 1), crowdComfort: sp(1, 0.3, 0.4, 2) },
+      { id: "wheelchair", name: "Wheelchair user", speed: sp(0.9, 0.15, 0.5, 1.4), access: "step_free", size: 2.5, prefers: { stairs: 0, escalator: 0, lift: 1 }, familiarity: sp(0.7, 0.2, 0.2, 1), crowdComfort: sp(1, 0.3, 0.4, 2) },
+      { id: "walking-aid", name: "Uses a walking aid", speed: sp(0.7, 0.12, 0.4, 1), access: "no_escalator", size: 1.3, prefers: { stairs: 0.2, escalator: 0, lift: 3 }, familiarity: sp(0.7, 0.2, 0.2, 1), crowdComfort: sp(0.9, 0.3, 0.4, 2) },
+    ],
+    staff: [{ profileId: "staff", share: 1 }],
+    shoppers: [
+      { profileId: "regular", share: 0.62 },
+      { profileId: "first-time", share: 0.12 },
+      { profileId: "older", share: 0.1 },
+      { profileId: "child", share: 0.08 },
+      { profileId: "pushchair", share: 0.05 },
+      { profileId: "wheelchair", share: 0.015 },
+      { profileId: "walking-aid", share: 0.015 },
+    ],
+  },
+  crowding: { enabled: true },
+};
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
@@ -459,6 +492,7 @@ const out: Record<string, unknown> = {
   "mall-2f.floorplan.json": mall,
   "mall-day.scenario.json": mallScenario,
   "mall-weekend.scenario.json": mallWeekend,
+  "mall-weekend-people.scenario.json": mallWeekendPeople,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

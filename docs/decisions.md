@@ -2,6 +2,11 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-02: Contract v0.6 (people who differ, and crowding)
+- **Approved: kinds of person drawn by share, with bell-curve traits** (speed, how well they know the building, crowd comfort), access limits (step-free, no escalator), size in a crowd and lift/escalator/stairs preference; plus **crowding** (density slows walking; doors and escalators have flow limits). Results add "who struggled" per kind, crowding per space, a peak-density grid and a step-free warning. Scenario and results v0.6; floor plan stays v0.3. *(Product owner)*
+- **Evacuation is v0.7, after crowding is proven. Crowding is on by default in the app but optional in the contract, so older results stay comparable. Preset and assistant numbers are shown as assumptions.** *(Product owner, as recommended)*
+- **"Smart / not so smart" is modelled as familiarity with the building**, not intelligence: measurable as detours against the shortest route. *(Claude, approved with v0.6)*
+
 ## 2026-11-02: Design assistant (first version)
 - **An AI assistant sets up inputs; it never runs the simulation.** The engine stays deterministic, so the same setup always gives the same result. The assistant edits a draft of the plan and people settings through the editor's own operations, and the user applies or discards it as one undo step. Apply is refused if the plan was edited by hand meanwhile. *(Product owner: "proposes and you click Apply")*
 - **Each user pastes their own Anthropic API key; the browser calls Claude directly.** Fine for the owner and testers, not for clients: a client version needs a small server so no key reaches the browser. The key is kept in memory, or in this browser's storage only if the user ticks "Remember". *(Product owner)*

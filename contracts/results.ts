@@ -1,8 +1,8 @@
-// Simulation results contract, v0.5.
+// Simulation results contract, v0.6.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.5";
+export const RESULTS_VERSION = "0.6";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -52,6 +52,8 @@ export interface Track {
   /** Staff person id, visitor id, or a shopper id the engine makes up (unique in the result). */
   personId: string;
   kind: "staff" | "visitor" | "shopper";
+  /** The person's profile id, when the scenario has profiles and one applies to them. */
+  profileId?: string;
   points: TrackPoint[];
 }
 
@@ -74,8 +76,11 @@ export interface Heatmaps {
   footfall: number[];
   /** Total person-seconds spent in the cell. Length cols*rows. */
   dwellS: number[];
-  /** One grid per floor, in plan level order. `footfall` and `dwellS` above repeat the first floor's. */
-  levels: { levelId: string; footfall: number[]; dwellS: number[] }[];
+  /**
+   * One grid per floor, in plan level order. `footfall` and `dwellS` above repeat the first floor's.
+   * `peakDensity`: the most people per m² ever seen around the cell (see Metrics.crowding for how density is measured).
+   */
+  levels: { levelId: string; footfall: number[]; dwellS: number[]; peakDensity: number[] }[];
 }
 
 export type SimEventType =
@@ -94,7 +99,9 @@ export type SimEventType =
   /** Waited the maximum time at a full room and went back without using it. */
   | "gave_up"
   /** A shopper went into a shop or the food court (`spaceId`). Shoppers also get "arrive" and "leave". */
-  | "shop_visit";
+  | "shop_visit"
+  /** Couldn't reach `spaceId` by any route they can use (e.g. step-free), so went elsewhere or did without. */
+  | "blocked";
 
 export interface SimEvent {
   t: number;
@@ -134,6 +141,45 @@ export interface Metrics {
   headcount: { t: number; count: number }[];
   /** Shopper totals. All zero when there are no shoppers. */
   shoppers: ShopperSummary;
+  /** One entry per profile in `scenario.profiles.list`, in that order. Empty without profiles. */
+  profiles: ProfileMetrics[];
+  /** One entry per space anyone entered, in plan order. */
+  crowding: CrowdingMetrics[];
+}
+
+/**
+ * How each kind of person got on: everyone given that profile, staff, visitors and shoppers together.
+ * This is the "who struggled" table.
+ */
+export interface ProfileMetrics {
+  profileId: string;
+  /** People given this profile. */
+  count: number;
+  meanWalkM: number;
+  meanWalkS: number;
+  /** Average over their trips of how much longer the route walked was than the shortest route they could use, in %. */
+  meanDetourPct: number;
+  /** Seconds spent waiting for lifts, everyone with this profile together, and the single longest wait. */
+  liftWaitS: number;
+  longestLiftWaitS: number;
+  /** "blocked" events: trips they couldn't make. */
+  blocked: number;
+  /** Seconds spent with the crowd around them above their own crowdComfort, all together; and how many people that happened to. */
+  uncomfortableS: number;
+  uncomfortablePeople: number;
+}
+
+/**
+ * Crowd density is people per m² within 1.0 m of a point (each person counting as their profile's
+ * `size`, 1 without profiles), sampled every 5 s. For a space: the densest point inside it.
+ */
+export interface CrowdingMetrics {
+  spaceId: string;
+  peakDensity: number;
+  /** First time the peak was reached. */
+  peakT: number;
+  /** Minutes during which some point in the space was above 2 people per m². */
+  minutesOver2: number;
 }
 
 export interface ShopMetrics {
@@ -197,6 +243,8 @@ export type WarningCode =
   | "unreachable_space"
   | "no_exterior_door"
   | "meeting_over_capacity"
+  /** People who need step-free routes can't reach a room or floor (no lift, or doors under 0.8 m). Names the room or floor. */
+  | "not_step_free"
   | "other";
 
 export interface Warning {
