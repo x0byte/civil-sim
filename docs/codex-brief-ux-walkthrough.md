@@ -15,7 +15,7 @@ as before (`AGENTS.md`, temporary app permission); Claude reviews.
 ```bash
 cd ../civil-sim-engine
 git fetch
-git switch -c app/ux-walkthrough <the reviewed v0.9 branch Claude names>
+git switch -c app/ux-walkthrough integrate/v0.9
 ```
 
 ## Part 1: the friendly flow
