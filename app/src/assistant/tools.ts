@@ -481,27 +481,35 @@ function nullableAsAnyOf(schema: unknown): unknown {
 }
 
 /**
- * The API allows at most 20 strict tools per request. These take a few simple settings and check
- * every value themselves when they run, so they go without strict mode; the rest keep it.
+ * Strict mode guarantees well-formed input, but the API allows at most 20 strict tools and at most
+ * 16 "this or null" fields across them. These keep it: the geometry tools, where a malformed point
+ * list would be costly, plus cheap tools with few or no such fields. Every other tool checks its
+ * own input when it runs, and `runTool` turns anything that still slips through into an error the
+ * model can correct.
  */
-export const RELAXED_TOOLS = new Set([
-  "set_crowding",
-  "set_hours",
-  "set_staff",
-  "set_comfort",
-  "set_site",
-  "set_weather",
+export const STRICT_TOOLS = new Set([
+  "add_wall",
+  "add_room",
+  "add_opening",
+  "update_opening",
+  "add_connector",
+  "add_furniture",
+  "add_neighbour",
+  "add_road",
+  "add_floor",
+  "remove",
   "set_safety_flag",
   "set_evacuation",
-  "add_floor",
-  "update_floor",
+  "set_hours",
+  "set_crowding",
 ]);
 export const MAX_STRICT_TOOLS = 20;
+export const MAX_STRICT_UNIONS = 16;
 
 /** Tool definitions, in a fixed order so the request prefix stays cacheable. */
 export const TOOLS: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({
   ...t,
-  strict: !RELAXED_TOOLS.has(t.name),
+  strict: STRICT_TOOLS.has(t.name),
   input_schema: nullableAsAnyOf(t.input_schema) as Anthropic.Tool["input_schema"],
 }));
 
@@ -537,6 +545,15 @@ const pts = (v: unknown) => (v as Vec2[]).map((p) => ({ x: p.x, y: p.y }));
 
 /** Runs one tool call against the draft. Unknown ids and impossible edits come back as errors for the model to correct. */
 export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
+  try {
+    return runToolUnchecked(name, input, draft);
+  } catch (e) {
+    // Tools without strict mode can get malformed input; tell the model rather than stop the request.
+    return fail(draft, `That input couldn't be used (${(e as Error).message}). Check the fields against the tool's description and try again.`);
+  }
+}
+
+function runToolUnchecked(name: string, input: Input, draft: Draft): ToolOutcome {
   const plan = draft.plan;
   const floorName = (id: string) => plan.levels.find((l) => l.id === id)?.name ?? id;
   const needFloor = (id: unknown) =>

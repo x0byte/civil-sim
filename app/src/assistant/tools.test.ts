@@ -5,7 +5,7 @@ import officeJson from "../../../samples/office-a.floorplan.json";
 import { normalize } from "../model/planOps.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { diffPlans } from "./diff.ts";
-import { type Draft, MAX_STRICT_TOOLS, RELAXED_TOOLS, TOOLS, describe, problems, runTool } from "./tools.ts";
+import { type Draft, MAX_STRICT_TOOLS, MAX_STRICT_UNIONS, STRICT_TOOLS, TOOLS, describe, problems, runTool } from "./tools.ts";
 
 const mall = normalize(mallJson as FloorPlan);
 const start = (plan: FloorPlan = mall): Draft => ({ plan, profile: defaultProfile(plan) });
@@ -24,15 +24,42 @@ group("assistant tools", () => {
   it("follows the strict-schema rules: every property required, no extras", () => {
     for (const t of TOOLS) {
       const schema = t.input_schema as unknown as { properties: Record<string, unknown>; required: string[]; additionalProperties: boolean };
-      expect(t.strict, t.name).toBe(!RELAXED_TOOLS.has(t.name));
+      expect(t.strict, t.name).toBe(STRICT_TOOLS.has(t.name));
       expect(schema.additionalProperties, t.name).toBe(false);
       expect([...schema.required].sort(), t.name).toEqual(Object.keys(schema.properties).sort());
     }
   });
 
-  it("stays within the API's limit of strict tools per request", () => {
-    expect(TOOLS.filter((t) => t.strict).length).toBeLessThanOrEqual(MAX_STRICT_TOOLS);
-    expect([...RELAXED_TOOLS].every((name) => TOOLS.some((t) => t.name === name))).toBe(true);
+  it("stays within the API's limits on strict tools and their nullable fields", () => {
+    const strict = TOOLS.filter((t) => t.strict);
+    const unions = (s: unknown): number => {
+      if (!s || typeof s !== "object") return 0;
+      if (Array.isArray(s)) return s.reduce((n: number, x) => n + unions(x), 0);
+      const o = s as Record<string, unknown>;
+      return (o.anyOf || Array.isArray(o.type) ? 1 : 0) + Object.values(o).reduce((n: number, v) => n + unions(v), 0);
+    };
+    expect(strict.length).toBeLessThanOrEqual(MAX_STRICT_TOOLS);
+    expect(strict.reduce((n, t) => n + unions(t.input_schema), 0)).toBeLessThanOrEqual(MAX_STRICT_UNIONS);
+    // And at most 24 optional fields across them (any property not in "required").
+    const optional = (s: unknown): number => {
+      if (!s || typeof s !== "object") return 0;
+      if (Array.isArray(s)) return s.reduce((n: number, x) => n + optional(x), 0);
+      const o = s as { properties?: Record<string, unknown>; required?: string[] };
+      const own = o.properties ? Object.keys(o.properties).filter((k) => !o.required?.includes(k)).length : 0;
+      return own + Object.values(o).reduce((n: number, v) => n + optional(v), 0);
+    };
+    expect(strict.reduce((n, t) => n + optional(t.input_schema), 0)).toBeLessThanOrEqual(24);
+    expect([...STRICT_TOOLS].every((name) => TOOLS.some((t) => t.name === name))).toBe(true);
+  });
+
+  it("turns malformed input to a tool without strict mode into an error, not a crash", () => {
+    for (const t of TOOLS.filter((x) => !x.strict)) {
+      for (const input of [{}, { kinds: "nope", shares: 3, polygon: "x", remove_ids: 7 }]) {
+        const out = runTool(t.name, input as Record<string, unknown>, start());
+        expect(typeof out.result, t.name).toBe("string");
+      }
+    }
+    expect(runTool("set_kinds_of_people", { enabled: null, preset: null, kinds: "nope", remove_ids: null, shares: null }, start())).toMatchObject({ error: true });
   });
 
   it("fits the API's strict-schema rules all the way down", () => {
