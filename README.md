@@ -42,7 +42,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 
 **Version 1 plan:** see `docs/v1-plan.md` (offices and malls: evacuation, friendly UI and walk-through, "Find improvements", heat and airflow, ready for clients, calibration).
 
-**Version 2 and later:** schools and other building types; the layout optimiser; calibration against real Sri Lankan buildings.
+**Version 2 and later:** schools (pupils, timetables, bells, drills) and other building types.
 
 ## Commands
 
