@@ -18,6 +18,11 @@ The app uses explicit user fetches only: a single 200 m Overpass query, four vis
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Version 1 scope and UX direction
+- **Version 1 is offices and shopping malls; schools are version 2.** Remaining v1 work, in order: evacuation and accessibility, a friendly UI with a game-like walk-through, "Find improvements" (the AI proposes and tests changes), heat and airflow, a server for clients, calibration. *(Product owner)*
+- **The app must be usable by non-technical people, with the assistant doing the complicated parts.** Principles in `docs/v1-plan.md`: three visible steps, assistant on every screen, results as a scorecard and "Top things to fix" with Show me / Try a fix, simple first with detail on request, plain words only. *(Product owner, principles drafted by Claude)*
+- **Walk-through: people as simple figures with Overview, Walk and Follow modes, in the existing 3D view.** App only; the engine's tracks already hold everything needed. People can overlap up close because crowds are modelled as density, and the app says so. *(Product owner, agreeing with Claude)*
+
 ## 2026-11-04: Contract v0.9 (evacuation and accessibility)
 - **Approved: an evacuation is its own run from a chosen alarm time with the same people; people who know the building take the nearest exit and others mostly go back the way they came; lifts stop unless they're evacuation lifts and escalators become stairs; step-free people without an evacuation lift wait at refuges, which are counted, not emptied; accessibility checks are common guidance, not certification.** Floor plan v0.6, scenario and results v0.9. *(Product owner, as recommended)*
 

@@ -40,7 +40,9 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 
 **Design assistant:** ✓ describe a change in plain words; Claude proposes the edit to the plan or the people, and you apply it.
 
-**Later:** schools and other building types; heat and airflow; the layout optimiser; calibration against real Sri Lankan buildings.
+**Version 1 plan:** see `docs/v1-plan.md` (offices and malls: evacuation, friendly UI and walk-through, "Find improvements", heat and airflow, ready for clients, calibration).
+
+**Version 2 and later:** schools (pupils, timetables, bells, drills) and other building types.
 
 ## Commands
 
