@@ -30,6 +30,26 @@ group("assistant tools", () => {
     }
   });
 
+  it("fits the API's strict-schema rules all the way down", () => {
+    // From the API's structured-outputs limits; the API answers 400 to any of these.
+    const FORBIDDEN = ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength", "maxItems", "uniqueItems", "pattern", "oneOf", "not"];
+    const FORMATS = ["date-time", "time", "date", "duration", "email", "hostname", "uri", "ipv4", "ipv6", "uuid"];
+    const bad: string[] = [];
+    const walk = (s: Record<string, unknown>, path: string): void => {
+      for (const k of FORBIDDEN) if (k in s) bad.push(`${path}: ${k}`);
+      if (typeof s.minItems === "number" && s.minItems > 1) bad.push(`${path}: minItems ${s.minItems}`);
+      if (typeof s.format === "string" && !FORMATS.includes(s.format)) bad.push(`${path}: format ${s.format}`);
+      if (Array.isArray(s.type)) bad.push(`${path}: a type list (use anyOf)`);
+      if (s.type === "object" && s.additionalProperties !== false) bad.push(`${path}: object without additionalProperties: false`);
+      if (Array.isArray(s.enum) && s.type && s.enum.some((v) => typeof v !== (s.type === "integer" ? "number" : s.type))) bad.push(`${path}: enum value of the wrong type`);
+      for (const [p, sub] of Object.entries((s.properties ?? {}) as Record<string, Record<string, unknown>>)) walk(sub, `${path}.${p}`);
+      if (s.items) walk(s.items as Record<string, unknown>, `${path}[]`);
+      for (const k of ["anyOf", "allOf"]) (s[k] as Record<string, unknown>[] | undefined)?.forEach((sub, i) => walk(sub, `${path}.${k}${i}`));
+    };
+    for (const t of TOOLS) walk(t.input_schema as unknown as Record<string, unknown>, t.name);
+    expect(bad).toEqual([]);
+  });
+
   it("adds a window to the right wall of the first floor", () => {
     const d = run(start(), [["add_opening", { wall_id: "f-w-right", kind: "window", offset: 15, width: null }]]);
     const w = d.plan.openings.find((o) => o.wallId === "f-w-right" && o.kind === "window");

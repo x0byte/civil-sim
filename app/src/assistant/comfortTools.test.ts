@@ -53,6 +53,9 @@ suite("comfort assistant tools", () => {
       const s = schema as Record<string, unknown>;
       // The API rejects strict tools with array lengths other than 0 or 1 at the low end.
       if (s.minItems !== undefined) expect([0, 1]).toContain(s.minItems);
+      // "X or null" must be anyOf, never a type list, and enums never list null.
+      expect(Array.isArray(s.type), JSON.stringify(s).slice(0, 80)).toBe(false);
+      if (Array.isArray(s.enum)) expect(s.enum).not.toContain(null);
       if (s.properties) {
         expect(s.additionalProperties).toBe(false);
         expect([...(s.required as string[])].sort()).toEqual(Object.keys(s.properties).sort());

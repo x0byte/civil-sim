@@ -98,8 +98,8 @@ const noiseProperties = {
   all_day: nullable("boolean", "True removes hours. null or false keeps hours unless hours supplied."),
 };
 
-/** Tool definitions, in a fixed order so the request prefix stays cacheable. */
-export const TOOLS: Anthropic.Tool[] = [
+/** Tool definitions as written; `TOOLS` below is what goes to the API. */
+const TOOL_DEFS: Anthropic.Tool[] = [
   comfortTool("set_safety_flag", "Mark or unmark an exterior fire exit (alarm only), an evacuation lift, an accessible toilet, or a refuge. Guidance, not certification.", {
     id: {type:"string"}, flag:{type:"string",enum:["fireExit","evacuationLift","accessible","refuge"]}, value:{type:"boolean"},
   }),
@@ -465,6 +465,23 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: { on: { type: "boolean" } }, required: ["on"], additionalProperties: false },
   },
 ];
+
+/**
+ * The API's strict mode wants "X or null" written as anyOf, not as a type list: it rejects an
+ * enum on a type list. Definitions above use the shorter type-list form; this rewrites them.
+ */
+function nullableAsAnyOf(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(nullableAsAnyOf);
+  if (!schema || typeof schema !== "object") return schema;
+  const s = Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, nullableAsAnyOf(v)])) as Record<string, unknown>;
+  if (!Array.isArray(s.type) || s.type.length !== 2 || !s.type.includes("null")) return s;
+  const { type, description, enum: values, ...rest } = s as { type: string[]; description?: string; enum?: unknown[] };
+  const branch = { type: type.find((t) => t !== "null"), ...rest, ...(values ? { enum: values.filter((v) => v !== null) } : {}) };
+  return { anyOf: [branch, { type: "null" }], ...(description ? { description } : {}) };
+}
+
+/** Tool definitions, in a fixed order so the request prefix stays cacheable. */
+export const TOOLS: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({ ...t, input_schema: nullableAsAnyOf(t.input_schema) as Anthropic.Tool["input_schema"] }));
 
 type Input = Record<string, unknown>;
 const ok = (draft: Draft, result: string, change?: Change): ToolOutcome => ({ draft, result: withProblems(draft.plan, result), change });
