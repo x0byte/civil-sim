@@ -11,7 +11,7 @@ describe("v0.8 site and weather", () => {
   const captures = JSON.parse(readFileSync(new URL("data/v072-full-sha256.json", import.meta.url), "utf8")).sha256;
   it.each(Object.keys(captures))("preserves the entire v0.7.2 result: %s", (key) => {
     const [p, s] = key.split("/"); const result = JSON.parse(JSON.stringify(simulate(plan(p), scenario(s))));
-    expect(result.version).toBe("0.8"); result.version = "0.7";
+    expect(result.version).toBe("0.9"); result.version = "0.7"; delete result.metrics.accessibility; delete result.metrics.evacuation;result.warnings=result.warnings.filter((w: {code:string})=>w.code!=="accessibility");result.assumptions=result.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations.");
     if (result.metrics.comfort) { delete result.metrics.comfort.windows; delete result.metrics.comfort.weatherUsed; }
     expect(createHash("sha256").update(JSON.stringify(result)).digest("hex")).toBe(captures[key]);
   });

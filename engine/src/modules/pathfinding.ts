@@ -17,11 +17,11 @@ export function pathLength(path: Vec2[]): number {
   return length;
 }
 
-/** Connector durations are unchanged by a person's horizontal walking speed. */
+/** Stairs/lifts keep fixed durations; ramps scale with the person's walking speed. */
 export function travelTime(path: Vec2[], speed: number): number {
   if (speed === 1.3) return pathLength(path) / 1.3;
   let seconds = 0;
-  for (let i = 1; i < path.length; i++) seconds += connectorTime(path[i - 1], path[i]) ?? distance(path[i - 1], path[i]) / speed;
+  for (let i = 1; i < path.length; i++) { const fixed=connectorTime(path[i - 1], path[i]); seconds += fixed === undefined ? distance(path[i - 1], path[i]) / speed : fixed * ((path[i] as {rampWalk?:boolean}).rampWalk ? 1.3/speed : 1); }
   return seconds;
 }
 

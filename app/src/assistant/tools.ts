@@ -19,6 +19,7 @@ import {
   addRoad,
   updateNoiseSource,
   setSite,
+  setSafetyFlag,
   setWindowGlass,
   setRoomFinish,
   addLevel,
@@ -98,6 +99,12 @@ const noiseProperties = {
 
 /** Tool definitions, in a fixed order so the request prefix stays cacheable. */
 export const TOOLS: Anthropic.Tool[] = [
+  comfortTool("set_safety_flag", "Mark or unmark an exterior fire exit (alarm only), an evacuation lift, an accessible toilet, or a refuge. Guidance, not certification.", {
+    id: {type:"string"}, flag:{type:"string",enum:["fireExit","evacuationLift","accessible","refuge"]}, value:{type:"boolean"},
+  }),
+  comfortTool("set_evacuation", "Set up a separate evacuation run using the same people/day until the alarm. The user presses Run an evacuation. No assisted rescue is simulated.", {
+    enabled:{type:"boolean"},alarm_at:nullable("string","HH:MM within the workday; null keeps or defaults to midday."),blocked_exit_ids:{type:"array",items:{type:"string"}},
+  }),
   comfortTool("set_location", "Set the site from supplied coordinates OR a pasted full Google Maps link. Never invent coordinates for a place name; ask for a link instead. Fetching surroundings is a separate user button.", {
     lat: nullable("number", "Latitude -90 to 90; null keeps."), lon: nullable("number", "Longitude -180 to 180; null keeps. Supply both coordinates together."), maps_link: nullable("string", "Pasted full link with coordinates, or null."), utc_offset: nullable("number", "Clock hours ahead of UTC, -12 to 14; null keeps."),
   }),
@@ -497,6 +504,20 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
   const edit = (next: FloorPlan) => ({ ...draft, plan: normalize(next) });
 
   switch (name) {
+    case "set_safety_flag": {
+      const flag=input.flag as "fireExit"|"evacuationLift"|"accessible"|"refuge";
+      if(!["fireExit","evacuationLift","accessible","refuge"].includes(flag)||typeof input.value!=="boolean")return fail(draft,"Choose a valid safety flag and true or false.");
+      const kind=flag==="fireExit"?"opening":flag==="evacuationLift"?"connector":"space";
+      const next=setSafetyFlag(plan,kind,input.id as string,flag,input.value);if(next===plan)return fail(draft,"That flag needs an exterior door, lift, toilet or room of the matching type.");
+      return ok(edit(next),"Safety setting saved. Checks are guidance, not certification.",{text:"Safety setting"});
+    }
+    case "set_evacuation": {
+      if(typeof input.enabled!=="boolean"||!Array.isArray(input.blocked_exit_ids)||input.blocked_exit_ids.some(id=>!plan.openings.some(o=>o.id===id&&o.kind==="door"&&o.exterior)))return fail(draft,"Choose existing exterior doors to block.");
+      const alarmAt=typeof input.alarm_at==="string"?input.alarm_at:draft.profile.evacuation?.alarmAt??"12:00";
+      if(input.alarm_at!=null&&typeof input.alarm_at!=="string")return fail(draft,"Alarm must be HH:MM.");
+      if(input.enabled&&(!isClock(alarmAt)||alarmAt<draft.profile.workday.start||alarmAt>=draft.profile.workday.end))return fail(draft,"Alarm must be HH:MM within the workday.");
+      return ok({...draft,profile:{...draft.profile,evacuation:input.enabled?{alarmAt,blockedExitIds:input.blocked_exit_ids as string[]}:undefined}},"Evacuation setup saved; press Run an evacuation to run it.",{text:"Evacuation setup"});
+    }
     case "set_location": {
       try {
         if (input.maps_link != null && (input.lat != null || input.lon != null)) return fail(draft, "Use either a pasted link or a coordinate pair.");
@@ -788,6 +809,7 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
       if (bad) return fail(draft, bad);
       if (plan.levels.length < 2) return fail(draft, "There's only one floor. Add a floor first.");
       const kind = input.kind as (typeof CONNECTOR_TYPES)[number]["kind"];
+      if(!CONNECTOR_TYPES.some(c=>c.kind===kind)||!Array.isArray(input.polygon)||(input.polygon as Vec2[]).length<3||(input.polygon as Vec2[]).some(p=>!Number.isFinite(p?.x)||!Number.isFinite(p?.y))||polygonArea(input.polygon as Vec2[])<.5)return fail(draft,"Choose a connector kind and a finite footprint of at least 0.5 m².");
       const r = addConnector(plan, pts(input.polygon), kind, input.floor_id as string);
       let next = setConnectorKind(r.plan, r.id, kind);
       next = updateItem(next, "connector", r.id, (c) => ({
@@ -1021,6 +1043,7 @@ export function describe(draft: Draft): string {
   for (const n of plan.site?.neighbours ?? []) lines.push(`neighbour ${n.id} "${n.name ?? "Neighbour"}": ${n.heightM} m (${n.heightFrom}), footprint ${n.polygon.map(xy).join(" ")}`);
   for (const r of plan.site?.roads ?? []) lines.push(`road ${r.id} "${r.name ?? "Road"}" ${r.kind}, ${r.dbA ?? "typical"} dB(A), path ${r.path.map(xy).join(" ")}, hours ${r.hours ? `${r.hours.from}–${r.hours.to}` : "06:00–22:00"}`);
   lines.push(`Location: ${plan.site?.location ? `${plan.site.location.lat},${plan.site.location.lon}` : "not set (ask for coordinates or a Maps link)"}; UTC offset ${plan.site?.utcOffsetHours ?? 5.5}.`);
+  lines.push(`Evacuation: ${profile.evacuation ? `alarm ${profile.evacuation.alarmAt}, blocked exits ${(profile.evacuation.blockedExitIds??[]).join(", ")||"none"}`:"ordinary day"}.`);
   lines.push(`Weather: ${profile.comfort?.weather ? `${profile.comfort.weather.kind}, ${profile.comfort.weather.source}` : `not fetched, preference ${profile.comfort?.weatherKind ?? "typical"}`}.`);
   for (const n of plan.noiseSources ?? [])
     lines.push(
@@ -1034,7 +1057,7 @@ export function describe(draft: Draft): string {
         .filter((o) => o.wallId === w.id)
         .map(
           (o) =>
-            `${o.kind} ${o.id} at ${r1(o.offset)} m, ${o.width} m wide${o.exterior ? ", entrance" : ""}${o.arrivalShare !== undefined ? `, ${Math.round(o.arrivalShare * 100)}% of shoppers` : ""}${o.kind === "window" ? `, glass ${o.transmittance ?? DEFAULT_GLASS.transmittance}, sill ${o.sillM ?? DEFAULT_GLASS.sillM}, top ${o.headM ?? DEFAULT_GLASS.headM}, frosted ${!!o.frosted}, shaded ${!!o.shaded}` : ""}`,
+            `${o.kind} ${o.id} at ${r1(o.offset)} m, ${o.width} m wide${o.exterior ? o.fireExit ? ", fire exit (alarm only)" : ", entrance" : ""}${o.arrivalShare !== undefined ? `, ${Math.round(o.arrivalShare * 100)}% of shoppers` : ""}${o.kind === "window" ? `, glass ${o.transmittance ?? DEFAULT_GLASS.transmittance}, sill ${o.sillM ?? DEFAULT_GLASS.sillM}, top ${o.headM ?? DEFAULT_GLASS.headM}, frosted ${!!o.frosted}, shaded ${!!o.shaded}` : ""}`,
         );
       lines.push(
         `  wall ${w.id} ${xy(w.a)}→${xy(w.b)} length ${r1(Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y))} m${ops.length ? ` [${ops.join("; ")}]` : ""}`,
@@ -1043,6 +1066,7 @@ export function describe(draft: Draft): string {
     for (const s of plan.spaces.filter((x) => x.levelId === level.id)) {
       const extra = [
         `lighting ${s.lightingLux ?? ROOM_COMFORT[s.type].lux} lux, surfaces ${s.acoustics ?? ROOM_COMFORT[s.type].acoustics}, floor shade ${s.floorLRV ?? "not checked"}, wall shade ${s.wallLRV ?? "not checked"}`,
+        s.accessible ? "accessible toilet" : "", s.refuge ? "refuge" : "",
         s.capacity !== undefined ? `capacity ${s.capacity}` : "",
         s.attraction !== undefined ? `shop pull ${s.attraction}` : "",
         s.doorIds.length ? `doors ${s.doorIds.join(",")}` : "NO DOOR",
@@ -1056,7 +1080,7 @@ export function describe(draft: Draft): string {
   }
   for (const c of plan.connectors) {
     lines.push(
-      `connector ${c.id} "${c.name}" ${c.kind}${c.direction ? ` ${c.direction}` : ""} serving ${c.levelIds.join(",")}, footprint ${c.polygon.map(xy).join(" ")}`,
+      `connector ${c.id} "${c.name}" ${c.kind}${c.direction ? ` ${c.direction}` : ""}${c.evacuationLift?", evacuation lift":""} serving ${c.levelIds.join(",")}, footprint ${c.polygon.map(xy).join(" ")}`,
     );
   }
   const sh = profile.shoppers;

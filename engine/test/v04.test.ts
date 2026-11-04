@@ -14,13 +14,13 @@ import { plan, scenario } from "./fixtures.ts";
 
 const rect = (x: number, y: number, w: number, h: number): Vec2[] => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
 function building(count = 2): FloorPlan {
-  return { version: "0.5", id: "floors", name: "Floors", units: "m", bounds: { width: 12, height: 10 },
+  return { version: "0.6", id: "floors", name: "Floors", units: "m", bounds: { width: 12, height: 10 },
     levels: Array.from({ length: count }, (_, i) => ({ id: `l${i}`, name: `Floor ${i}`, elevation: i * 4.5 })),
     walls: [], openings: [], spaces: [], fixtures: [], connectors: [
       { id: "lift", name: "Lift", kind: "lift", polygon: rect(4, 4, 2, 2), levelIds: Array.from({ length: count }, (_, i) => `l${i}`), capacity: 2 },
     ] };
 }
-const emptyScenario = (): Scenario => ({ version: "0.8", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
+const emptyScenario = (): Scenario => ({ version: "0.9", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
   teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } });
 
 function changes(result: SimulationResult): { track: Track; index: number }[] {
@@ -61,11 +61,11 @@ function liftIntervals(tracks: Track[]) {
 describe("v0.4 floors and compatibility", () => {
   it.each(["office-a", "office-b", "sealed-room"])("preserves the complete v0.3 output for %s apart from new fields", (id) => {
     const result = simulate(plan(id), scenario(id === "sealed-room" ? "sealed-day" : "office-day"));
-    expect(result.version).toBe("0.8");
+    expect(result.version).toBe("0.9");
     expect(result.metrics.connectors).toEqual([]);
     expect(result.heatmaps.levels.map(({ peakDensity: _density, noiseDbA: _noise, lightLux: _light, glare: _glare, ...legacy }) => legacy)).toEqual([{ levelId: "ground", footfall: result.heatmaps.footfall, dwellS: result.heatmaps.dwellS }]);
     expect(result.tracks.every((t) => t.points.every((p) => p.levelId === "ground"))).toBe(true);
-    const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.comfort; delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; });
+    const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.accessibility; delete legacy.metrics.evacuation; legacy.warnings=legacy.warnings.filter((w: {code:string})=>w.code!=="accessibility"); legacy.assumptions=legacy.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations."); delete legacy.metrics.comfort; delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; });
     legacy.version = "0.3"; delete legacy.metrics.shops; delete legacy.metrics.headcount; delete legacy.metrics.shoppers; delete legacy.heatmaps.levels; delete legacy.metrics.connectors;
     legacy.tracks.forEach((t: { points: { levelId?: string }[] }) => t.points.forEach((p) => { delete p.levelId; }));
     legacy.assumptions = legacy.assumptions.slice(4);
@@ -76,7 +76,7 @@ describe("v0.4 floors and compatibility", () => {
   it("runs the mall deterministically, reaches upstairs shops, and respects floor geometry and capacities", () => {
     const p = plan("mall-2f"); const s = scenario("mall-day");
     const before = JSON.stringify([p, s]); const result = simulate(p, s);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     expect(JSON.stringify(simulate(p, s))).toBe(JSON.stringify(result));
     expect(JSON.stringify([p, s])).toBe(before);
     safety(p, result);
@@ -142,7 +142,7 @@ describe("v0.4 floors and compatibility", () => {
     p.spaces = p.levels.map((l) => ({ id: `wc-${l.id}`, levelId: l.id, name: "Toilet", type: "toilet", privacy: "shared", capacity: 1, polygon: rect(1, 1, 2, 2), doorIds: [] }));
     const s = emptyScenario(); s.visitors = [{ id: "a", arrive: "09:10", waitMin: 0, durationMin: 10, spaceId: "wc-l0" }, { id: "b", arrive: "09:10", waitMin: 0, durationMin: 10, spaceId: "wc-l1" }];
     const result = simulate(p, s); safety(p, result);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     expect(result.metrics.peakOccupancy.map((m) => m.peak)).toEqual([1, 1]);
     expect(result.metrics.queues.map((m) => m.peopleWhoWaited)).toEqual([0, 0]);
     const stays = result.tracks.map((t) => t.points.find((q) => q.activity === "waiting")!);
@@ -156,7 +156,7 @@ describe("v0.4 floors and compatibility", () => {
     p.spaces.push({ id: "shop", levelId: "l0", name: "Shop", type: "shop", privacy: "public", polygon: rect(1, 1, 2, 2), doorIds: [] });
     const s = emptyScenario(); s.visitors = [{ id: "a", arrive: "09:10", waitMin: 0, durationMin: 10, spaceId: "shop" }];
     const result = simulate(p, s); safety(p, result);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     expect(result.tracks[0].points[0].levelId).toBe("l1");
     expect(result.tracks[0].points.some((q) => q.activity === "waiting" && q.levelId === "l0")).toBe(true);
     expect(result.metrics.connectors[0].trips).toBe(2);
@@ -269,7 +269,7 @@ describe("large building acceptance", () => {
     const { p, s } = largeBuilding();
     const start = performance.now(); const result = simulate(p, s); const elapsed = performance.now() - start;
     expect(result.tracks).toHaveLength(500);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     expect(result.metrics.connectors.every((m) => m.trips > 500)).toBe(true);
     expect(result.events.filter((e) => e.type === "toilet_visit").length).toBeGreaterThan(800);
     expect(result.events.some((e) => e.type === "queue_start")).toBe(true);

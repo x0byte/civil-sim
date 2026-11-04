@@ -31,7 +31,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
         const a = track.points[i];
         const b = track.points[i + 1];
         if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift") { inside = false; continue; }
-        if (a.activity !== "walking") {
+        if (a.activity !== "walking" && a.activity !== "evacuating") {
           inside = doors.some((door) => distance(b, door) <= EXPOSURE_RADIUS_M + EPSILON);
           continue;
         }
@@ -50,7 +50,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
   });
 }
 
-export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}): { heatmaps: Heatmaps; metrics: Metrics } {
+export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}, duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start)): { heatmaps: Heatmaps; metrics: Metrics } {
   const cols = Math.ceil(plan.bounds.width / HEAT_CELL_M);
   const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
   const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: Array<number>(cols * rows).fill(0), dwellS: Array<number>(cols * rows).fill(0) }));
@@ -68,7 +68,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
       const dt = b.t - a.t;
       const spans = cellSpans(a, b, HEAT_CELL_M, cols, rows);
       for (const span of spans) dwellS[span.index] += dt * (span.to - span.from);
-      if (a.activity !== "walking") { lastWalkingCell = -1; continue; }
+      if (a.activity !== "walking" && a.activity !== "evacuating") { lastWalkingCell = -1; continue; }
       walkingDistanceM += distance(a, b);
       walkingTimeS += dt;
       for (const span of spans) {
@@ -89,7 +89,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
     }));
   const occupancy = peakOccupancy(plan, tracks);
   const crowded: CrowdedSamples = new Map();
-  const density = sampleDensity(plan, tracks, clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start), people, occupancy, scenario.comfort ? (id, from, to) => {
+  const density = sampleDensity(plan, tracks, duration, people, occupancy, scenario.comfort ? (id, from, to) => {
     const list = crowded.get(id) ?? []; const last = list.at(-1);
     if (last?.to === from) last.to = to; else list.push({ from, to });
     crowded.set(id, list);
@@ -104,6 +104,6 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS, levels: resultLevels },
     metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
       meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
-      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: occupancy, queues: queueMetrics(plan, events), connectors, ...retailMetrics(plan, scenario, tracks, events, allWalkingMetrics, occupancy), profiles, crowding: density.crowding, comfort },
+      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: occupancy, queues: queueMetrics(plan, events), connectors, ...retailMetrics(plan, scenario, tracks, events, allWalkingMetrics, occupancy), profiles, crowding: density.crowding, comfort, evacuation: null, accessibility: [] },
   };
 }

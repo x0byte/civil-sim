@@ -1,3 +1,4 @@
+import { AccessibilityResults, EvacuationResults } from "./EvacuationResults.tsx";
 import { deskLabel } from "../model/deskLabel.ts";
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -73,8 +74,10 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
     .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
     .sort((a, b) => b.peak - a.peak);
 
+  if(result.metrics.evacuation) return <EvacuationResults run={run}/>;
   return (
     <>
+      <AccessibilityResults run={run}/>
       {stale && (
         <div className="stale-banner">
           The plan has changed since this run.

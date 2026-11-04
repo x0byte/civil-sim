@@ -2,7 +2,6 @@ import { connectorRate } from "./flow.ts";
 import { familiarPath, horizontalLength } from "./profiles.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import type { LevelPoint } from "./levels.ts";
-import { rideSeconds } from "./building-paths.ts";
 import type { FloorPlan, Space, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity } from "../../../contracts/results.ts";
 import type { Navigation } from "./navigation.ts";
@@ -136,7 +135,9 @@ export class RoomMovement {
     }
     if (this.track.person && trip.baseline > 1e-9 && !skipSpaceId) {
       this.track.person.trips++;
-      this.track.person.detourSum += Math.max(0, (trip.actual / trip.baseline - 1) * 100);
+      const detourPct = Math.max(0, (trip.actual / trip.baseline - 1) * 100);
+      this.track.person.detourSum += detourPct;
+      if(this.track.person.people.scenario.evacuation) (this.track.person.tripHistory ??= []).push({t:this.track.t,detourPct});
     }
   }
 
@@ -150,7 +151,7 @@ export class RoomMovement {
       if (from === to) continue;
       const remainingS = travelTime(path.slice(i), this.track.speed);
       const connectorDeadline = deadline - remainingS;
-      const expectedS = (path[i] as LevelPoint).travelS!;
+      const expectedS = (path[i] as LevelPoint).travelS! * ((path[i] as LevelPoint).rampWalk ? 1.3/this.track.speed : 1);
       yield* this.walkDirect(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId, trip);
       const id = (path[i] as LevelPoint).connectorId;
       const connector = this.plan.connectors.find((c) => c.id === id)!;
@@ -164,12 +165,12 @@ export class RoomMovement {
       } else {
         if (this.track.person?.people.scenario.crowding) {
           const admission = yield { personId: this.personId, spaceId: connector.id, track: this.track, gate: this.track.position, approach: this.track.position,
-            deadline: connectorDeadline - rideSeconds(this.plan, connector, from, to), flow: { key: connector.id, rate: connectorRate(connector) } };
+            deadline: connectorDeadline - expectedS, flow: { key: connector.id, rate: connectorRate(connector) } };
           if (!admission.admitted) throw new RoomMovementDenied(this, connector.id, "Connector entry cannot fit before the protected activity.");
         }
         this.navigation.connectorMetrics.find((m) => m.connectorId === connector.id)!.trips++;
         this.track.mark("climbing");
-        this.track.t += rideSeconds(this.plan, connector, from, to);
+        this.track.t += expectedS;
         this.track.position = { ...onLevel(path[i], to), levelId: to };
       }
       this.track.mark("walking");

@@ -22,7 +22,7 @@ export function SitePanel() {
   const context = (p: typeof plan) => JSON.stringify([p.id, p.site?.location, p.site?.northDeg]);
   const fetchNow = async () => {
     setBusy(true); setMessage("Fetching nearby buildings and roads…"); const c = new AbortController(); controller.current = c;
-    const timeout = setTimeout(() => c.abort(), 35000); const before = context(plan);
+    const timeout = setTimeout(() => c.abort(), 85000); const before = context(plan);
     try {
       const data = await fetchSurroundings(plan, c.signal);
       if (context(useEditor.getState().plan) !== before) throw new Error("The location or north changed. Fetch again to use the new position.");
@@ -42,7 +42,7 @@ export function SitePanel() {
     <p className="muted">North aligns the plan with the street. Changing location or north repositions saved surroundings; fetch again for fresh coverage. The map pin is the plan origin, not its centre.</p>
     <button disabled={!location || busy} onClick={fetchNow}>{busy ? "Fetching surroundings…" : message.includes("Retry") || message.includes("timed out") ? "Retry surroundings" : "Fetch surroundings"}</button>
     {message && <p className="muted" role="status">{message}</p>}
-    <p className="muted">One query within 200 m, saved in this project. Building heights from floors or assumptions need checking. Features overlapping this plan's bounds are left out to avoid shading the building with itself.</p>
+    <p className="muted">Buildings and roads within 200 m, saved in this project. Building heights from floors or assumptions need checking. Features overlapping this plan's bounds are left out to avoid shading the building with itself.</p>
     {!!site?.neighbours?.length && <details><summary>{site.neighbours.length} neighbours · {site.neighbours.filter((n) => n.heightFrom === "assumed" || n.heightFrom === "floors").length} heights to check</summary>
       <div className="site-items">{site.neighbours.map((n) => <button key={n.id} onClick={() => select({ kind: "neighbour", id: n.id })}>{n.name ?? "Neighbour"} · {n.heightM} m{n.heightFrom === "assumed" || n.heightFrom === "floors" ? " · check this height" : ""}</button>)}</div></details>}
     {!!site?.roads?.length && <details><summary>{site.roads.length} roads</summary><div className="site-items">{site.roads.map((r) => <button key={r.id} onClick={() => select({ kind: "road", id: r.id })}>{r.name ?? "Road"} · {r.kind}</button>)}</div></details>}

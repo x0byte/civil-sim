@@ -549,3 +549,24 @@ steps and one-metre road integration. Older input pairs preserve v0.7.2 output
 apart from version and the added window/weather result fields.
 
 Run `node scripts/benchmark-site.ts` for the site/comfort sample comparison.
+
+
+### v0.9 evacuation and accessibility
+
+Set `scenario.evacuation` to run the same seeded day up to an alarm, then empty
+the building. Reactions have independent streams. Staff/familiar people prefer
+quickest exits; others favour their arrival entrance, switching for blocked exits
+or over a minute of estimated queue disadvantage. Ordinary lifts stop at their
+next landing, marked evacuation lifts stay available, and stopped escalators
+operate as stairs in both directions. Step-free people use gentle ramps/lifts,
+otherwise a reachable refuge on their floor; rescue is counted but not simulated.
+
+Ramps use 85% of each person’s flat walking speed and a rise/run gradient from the minimum-area
+footprint rectangle's longer side. Step-free trips use only marked accessible
+toilets when any are supplied, retaining the v0.8 fallback otherwise. Normal
+arrivals/departures exclude fire exits. All runs have five accessibility checks
+and one warning per failed check. Common guidance; check your local regulations.
+
+`npm run benchmark:evacuation` records three-run medians, evacuation details for
+both supplied samples, and accessibility checks for all older sample pairs.
+The engine remains synchronous, offline and browser compatible.

@@ -35,12 +35,20 @@ async function responseJson(response: Response, service: string): Promise<unknow
   if (!response.ok) throw new Error(response.status === 429 ? `${service} is busy (rate limit). Wait a little, then Retry.` : `${service} could not respond (${response.status}). Retry later.`);
   return response.json();
 }
-export async function fetchSurroundings(plan: FloorPlan, signal?: AbortSignal, endpoint = import.meta.env?.VITE_OVERPASS_URL ?? "https://overpass.private.coffee/api/interpreter"): Promise<{ neighbours: Neighbour[]; roads: Road[]; credits: string[]; raw: OverpassResponse }> {
+export async function fetchSurroundings(plan: FloorPlan, signal?: AbortSignal, endpoint = import.meta.env?.VITE_OVERPASS_URL ?? "https://overpass-api.de/api/interpreter"): Promise<{ neighbours: Neighbour[]; roads: Road[]; credits: string[]; raw: OverpassResponse }> {
   const location = plan.site?.location; if (!location) throw new Error("Set the site location first.");
-  const url = `${endpoint}?${new URLSearchParams({ data: overpassQuery(location) })}`;
-  const response = await fetch(url, { signal });
-  const raw = await responseJson(response, "OpenStreetMap surroundings") as OverpassResponse;
-  return { ...convertOverpass(raw, plan), credits: [`© OpenStreetMap contributors, fetched ${new Date().toISOString().slice(0, 10)}`], raw };
+  const body = new URLSearchParams({ data: overpassQuery(location) });
+  const request = async (url: string): Promise<OverpassResponse> => {
+    const timeout = new AbortController(); const timer = setTimeout(() => timeout.abort(), 40000);
+    const abort = () => timeout.abort(); signal?.addEventListener("abort", abort, { once: true });
+    try { if(signal?.aborted) throw new Error("The surroundings request was cancelled."); return await responseJson(await fetch(url, { method: "POST", body, signal: timeout.signal }), "OpenStreetMap surroundings") as OverpassResponse; }
+    finally { clearTimeout(timer); signal?.removeEventListener("abort",abort); }
+  };
+  let raw: OverpassResponse;
+  try { raw = await request(endpoint); }
+  catch(error) { if(signal?.aborted || endpoint === "https://overpass.private.coffee/api/interpreter") throw error; raw = await request("https://overpass.private.coffee/api/interpreter"); }
+
+  return { ...convertOverpass(raw, plan), credits: [`© OpenStreetMap contributors (ODbL), fetched ${new Date().toISOString().slice(0, 10)}`], raw };
 }
 export interface ArchiveResponse { hourly: { time: string[]; cloud_cover: number[]; temperature_2m: number[]; relative_humidity_2m: number[]; rain: number[] } }
 export function archiveDay(raw: ArchiveResponse, date: string, offset: number): WeatherHour[] {

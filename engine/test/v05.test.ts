@@ -29,10 +29,10 @@ const shopperTracks = (r: SimulationResult): Track[] => r.tracks.filter((t) => t
 describe("v0.5 compatibility and generation", () => {
   it.each(["office-a", "office-b", "sealed-room", "mall-2f"])("preserves the complete v0.4 result without shoppers: %s", (name) => {
     const result = simulate(plan(name), scenario(name === "sealed-room" ? "sealed-day" : name === "mall-2f" ? "mall-day" : "office-day"));
-    expect(result.version).toBe("0.8");
+    expect(result.version).toBe("0.9");
     expect(result.metrics.shoppers).toEqual({ count: 0, meanStayMin: 0, meanShopsVisited: 0, meanWalkM: 0 });
     expect(result.metrics.shops.every((s) => s.visits === 0 && s.passBys === 0 && s.peak === 0)).toBe(true);
-    const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.comfort; delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; }); legacy.version = "0.4";
+    const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.accessibility; delete legacy.metrics.evacuation; legacy.warnings=legacy.warnings.filter((w: {code:string})=>w.code!=="accessibility"); legacy.assumptions=legacy.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations."); delete legacy.metrics.comfort; delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; }); legacy.version = "0.4";
     delete legacy.metrics.shops; delete legacy.metrics.headcount; delete legacy.metrics.shoppers;
     const expected = JSON.parse(readFileSync(new URL("data/v04-sha256.json", import.meta.url), "utf8"));
     expect(createHash("sha256").update(JSON.stringify(legacy)).digest("hex")).toBe(expected.sha256[name]);
@@ -72,7 +72,7 @@ describe("mall-weekend acceptance", () => {
   it("generates the arrival curve, entrance shares and deterministic unique tracks", () => {
     const before = JSON.stringify([p, s]);
     expect(JSON.stringify(simulate(p, s))).toBe(JSON.stringify(result)); expect(JSON.stringify([p, s])).toBe(before);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     const tracks = shopperTracks(result); expect(tracks.length).toBeGreaterThanOrEqual(765); expect(tracks.length).toBeLessThanOrEqual(935);
     expect(new Set(result.tracks.map((t) => t.personId)).size).toBe(result.tracks.length);
     const arrivals = result.events.filter((e) => e.type === "arrive" && e.personId.startsWith("shopper-"));

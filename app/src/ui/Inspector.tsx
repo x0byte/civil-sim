@@ -1,3 +1,4 @@
+import { rampGradient } from "../../../engine/src/modules/accessibility.ts";
 import { useEffect, useState } from "react";
 import type { Connector, ConnectorKind, Level, Privacy, Space, SpaceType } from "../../../contracts/floorplan.ts";
 import { polygonArea, wallLength } from "../model/geometry.ts";
@@ -14,6 +15,7 @@ import {
   setSite,
   updateNeighbour,
   setConnectorKind,
+  setSafetyFlag,
   setWallLength,
   spaceTypeLabel,
   updateItem,
@@ -99,7 +101,7 @@ export function Inspector() {
               onChange={(e) =>
                 commit((p) =>
                   updateItem(p, "opening", o.id, (x) => {
-                    const { exterior: _, arrivalShare: __, ...rest } = x;
+                    const { exterior: _, arrivalShare: __, fireExit: ___, ...rest } = x;
                     return e.target.checked ? { ...rest, exterior: true } : rest;
                   }),
                 )
@@ -108,7 +110,8 @@ export function Inspector() {
             Entrance (leads outside)
           </label>
         )}
-        {o.kind === "door" && o.exterior && (
+        {o.kind === "door" && o.exterior && <label className="check"><input type="checkbox" checked={!!o.fireExit} onChange={e=>commit(p=>setSafetyFlag(p,"opening",o.id,"fireExit",e.target.checked))}/>Fire exit (alarm only)</label>}
+        {o.kind === "door" && o.exterior && !o.fireExit && (
           <>
             <label className="check">
               <input
@@ -165,7 +168,7 @@ export function Inspector() {
             const auto = s.name.startsWith(spaceTypeLabel(s.type)) || /^Room \d+$/.test(s.name);
             const capacity = defaultCapacity(type, s.capacity);
             upd((x) => {
-              const { capacity: _, ...rest } = x;
+              const { capacity: _, accessible: __, ...rest } = x;
               const next: Space = { ...rest, type, privacy: meta.privacy, name: auto ? meta.label : x.name };
               return capacity ? { ...next, capacity } : next;
             });
@@ -181,7 +184,7 @@ export function Inspector() {
                   checked={s.capacity !== undefined}
                   onChange={(e) =>
                     upd((x) => {
-                      const { capacity: _, ...rest } = x;
+                      const { capacity: _, accessible: __, ...rest } = x;
                       return e.target.checked ? { ...rest, capacity: 6 } : rest;
                     })
                   }
@@ -221,6 +224,8 @@ export function Inspector() {
             <p className="muted">How strongly it draws shoppers: 1 is a typical shop, 3 an anchor store. Farther shops pull less.</p>
           </>
         )}
+        {s.type === "toilet" && <label className="check"><input type="checkbox" checked={!!s.accessible} onChange={e=>commit(p=>setSafetyFlag(p,"space",s.id,"accessible",e.target.checked))}/>Accessible toilet</label>}
+        <label className="check"><input type="checkbox" checked={!!s.refuge} onChange={e=>commit(p=>setSafetyFlag(p,"space",s.id,"refuge",e.target.checked))}/>Refuge for assisted evacuation</label>
         <RoomFinish space={s} />
         <dl className="stats">
           <dt>Area</dt>
@@ -455,6 +460,7 @@ function ElevationInput({ value, onCommit }: { value: number; onCommit: (v: numb
 function ConnectorPanel({ connector: c, levels, onDelete }: { connector: Connector; levels: Level[]; onDelete: () => void }) {
   const { commit } = useEditor.getState();
   const upd = (fn: (x: Connector) => Connector) => commit((p) => updateItem(p, "connector", c.id, fn));
+  const plan = useEditor(s=>s.plan);
   const name = (id: string) => levels.find((l) => l.id === id)?.name ?? id;
   const order = levels.map((l) => l.id);
   const served = [...c.levelIds].sort((a, b) => order.indexOf(a) - order.indexOf(b));
@@ -504,6 +510,8 @@ function ConnectorPanel({ connector: c, levels, onDelete }: { connector: Connect
           }}
         />
       )}
+      {c.kind === "ramp" && lower && upper && <p>{rampText(plan,c)}</p>}
+      {c.kind === "lift" && <label className="check"><input type="checkbox" checked={!!c.evacuationLift} onChange={e=>commit(p=>setSafetyFlag(p,"connector",c.id,"evacuationLift",e.target.checked))}/>Evacuation lift (keeps running in an alarm)</label>}
       {c.kind === "escalator" && lower && upper && (
         <SelectField<"up" | "down">
           label="Direction"
@@ -556,3 +564,5 @@ function Panel({ title, sub, onDelete, children }: { title: string; sub: string;
     </section>
   );
 }
+
+export function rampText(plan: import("../../../contracts/floorplan.ts").FloorPlan,c: Connector):string { const g=rampGradient(plan,c);return `1 in ${Math.round(1/g)} — ${g<=1/12+1e-9?"fine for wheelchairs":"too steep for wheelchairs"}`; }

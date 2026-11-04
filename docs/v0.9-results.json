@@ -1,0 +1,611 @@
+{
+  "evacuations": [
+    {
+      "pair": "office-a-evac/office-day-evac",
+      "medianMs": 35.461584000000016,
+      "runsMs": [
+        47.354333999999994,
+        35.461584000000016,
+        34.63583399999999
+      ],
+      "evacuation": {
+        "outS": 118.01507746029893,
+        "refugeS": 0,
+        "stranded": 0,
+        "byFloor": [
+          {
+            "levelId": "ground",
+            "people": 14,
+            "clearS": 118.01507746029893
+          }
+        ],
+        "byProfile": [
+          {
+            "profileId": "",
+            "people": 14,
+            "meanOutS": 74.70283041535342,
+            "slowestOutS": 118.01507746029893,
+            "atRefuge": 0,
+            "stranded": 0
+          }
+        ],
+        "exits": [
+          {
+            "openingId": "d-entrance",
+            "people": 8,
+            "firstS": 43.11747938887038,
+            "lastS": 107.8805747049937,
+            "peakQueue": 0
+          },
+          {
+            "openingId": "d-fire",
+            "people": 6,
+            "firstS": 33.846153846153356,
+            "lastS": 118.01507746029893,
+            "peakQueue": 0
+          }
+        ],
+        "connectors": [],
+        "refuges": []
+      },
+      "accessibility": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": true,
+          "message": "Every used floor has an accessible toilet.",
+          "refIds": []
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "pair": "mall-2f-evac/mall-weekend-evac",
+      "medianMs": 1819.5161660000003,
+      "runsMs": [
+        1835.6850830000003,
+        1819.5161660000003,
+        1806.9344170000004
+      ],
+      "evacuation": {
+        "outS": 154.74657268791998,
+        "refugeS": 87.13364742176418,
+        "stranded": 0,
+        "byFloor": [
+          {
+            "levelId": "ground",
+            "people": 39,
+            "clearS": 133.53637327926117
+          },
+          {
+            "levelId": "first",
+            "people": 57,
+            "clearS": 137.06653998298498
+          }
+        ],
+        "byProfile": [
+          {
+            "profileId": "staff",
+            "people": 7,
+            "meanOutS": 54.65546580569259,
+            "slowestOutS": 66.06089618859914,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "regular",
+            "people": 45,
+            "meanOutS": 88.90203788133537,
+            "slowestOutS": 133.04106656618023,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "first-time",
+            "people": 14,
+            "meanOutS": 84.28880232064459,
+            "slowestOutS": 137.8425231562942,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "older",
+            "people": 13,
+            "meanOutS": 110.61773977543075,
+            "slowestOutS": 154.74657268791998,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "child",
+            "people": 7,
+            "meanOutS": 106.94820763181269,
+            "slowestOutS": 152.4918236418307,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "pushchair",
+            "people": 7,
+            "meanOutS": 88.13928835455954,
+            "slowestOutS": 95.70532786375043,
+            "atRefuge": 4,
+            "stranded": 0
+          },
+          {
+            "profileId": "wheelchair",
+            "people": 2,
+            "meanOutS": 61.13109661044291,
+            "slowestOutS": 79.6864619881344,
+            "atRefuge": 0,
+            "stranded": 0
+          },
+          {
+            "profileId": "walking-aid",
+            "people": 1,
+            "meanOutS": 133.53637327926117,
+            "slowestOutS": 133.53637327926117,
+            "atRefuge": 0,
+            "stranded": 0
+          }
+        ],
+        "exits": [
+          {
+            "openingId": "g-d-main",
+            "people": 47,
+            "firstS": 49.25816272058364,
+            "lastS": 148.1638669472486,
+            "peakQueue": 2
+          },
+          {
+            "openingId": "g-d-side",
+            "people": 30,
+            "firstS": 54.6045084842699,
+            "lastS": 154.74657268791998,
+            "peakQueue": 1
+          },
+          {
+            "openingId": "g-d-fire",
+            "people": 15,
+            "firstS": 41.93353551925247,
+            "lastS": 130.3914759683903,
+            "peakQueue": 2
+          }
+        ],
+        "connectors": [
+          {
+            "connectorId": "esc-up",
+            "people": 44,
+            "peakQueue": 5,
+            "queueS": 28.841205538588838
+          },
+          {
+            "connectorId": "esc-down",
+            "people": 2,
+            "peakQueue": 0,
+            "queueS": 0
+          },
+          {
+            "connectorId": "stairs",
+            "people": 7,
+            "peakQueue": 0,
+            "queueS": 0
+          }
+        ],
+        "refuges": [
+          {
+            "spaceId": "f-refuge",
+            "people": 4,
+            "firstS": 42.07838977474603,
+            "lastS": 87.13364742176418
+          }
+        ]
+      },
+      "accessibility": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on First floor.",
+          "refIds": [
+            "first"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ],
+      "warnings": []
+    }
+  ],
+  "accessibility": [
+    {
+      "pair": "office-a/office-day",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor.",
+          "refIds": [
+            "ground"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ]
+    },
+    {
+      "pair": "office-b/office-day",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor.",
+          "refIds": [
+            "ground"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ]
+    },
+    {
+      "pair": "sealed-room/sealed-day",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor.",
+          "refIds": [
+            "ground"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ]
+    },
+    {
+      "pair": "mall-2f/mall-day",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor, First floor.",
+          "refIds": [
+            "ground",
+            "first"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": false,
+          "message": "No refuge, evacuation lift or level exit on First floor.",
+          "refIds": [
+            "first"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": "mall-2f/mall-weekend",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor, First floor.",
+          "refIds": [
+            "ground",
+            "first"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": false,
+          "message": "No refuge, evacuation lift or level exit on First floor.",
+          "refIds": [
+            "first"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": "mall-2f/mall-weekend-people",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor, First floor.",
+          "refIds": [
+            "ground",
+            "first"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": false,
+          "message": "No refuge, evacuation lift or level exit on First floor.",
+          "refIds": [
+            "first"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": "office-a-comfort/office-day-comfort",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor.",
+          "refIds": [
+            "ground"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ]
+    },
+    {
+      "pair": "mall-2f-comfort/mall-weekend-comfort",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor, First floor.",
+          "refIds": [
+            "ground",
+            "first"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": false,
+          "message": "No refuge, evacuation lift or level exit on First floor.",
+          "refIds": [
+            "first"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": "office-a-site/office-day-site",
+      "checks": [
+        {
+          "code": "door_width",
+          "ok": true,
+          "message": "All doors are at least 0.8 m wide.",
+          "refIds": []
+        },
+        {
+          "code": "ramp_gradient",
+          "ok": true,
+          "message": "All ramps are 1 in 12 or gentler; no steep ramps.",
+          "refIds": []
+        },
+        {
+          "code": "accessible_toilet_per_floor",
+          "ok": false,
+          "message": "No accessible toilet on Ground floor.",
+          "refIds": [
+            "ground"
+          ]
+        },
+        {
+          "code": "step_free_route_per_floor",
+          "ok": true,
+          "message": "Every used floor has a step-free route from an entrance.",
+          "refIds": []
+        },
+        {
+          "code": "refuge_or_evacuation_lift_per_floor",
+          "ok": true,
+          "message": "Every used floor has a refuge, evacuation lift or level exit.",
+          "refIds": []
+        }
+      ]
+    }
+  ]
+}

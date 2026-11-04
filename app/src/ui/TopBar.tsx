@@ -1,3 +1,4 @@
+import { EvacuationDialog } from "../sim/EvacuationDialog.tsx";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
@@ -39,6 +40,7 @@ export function TopBar() {
   const imageRef = useRef<HTMLInputElement>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [evacOpen,setEvacOpen]=useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [dxf, setDxf] = useState<{ drawing: DxfDrawing; name: string } | null>(null);
 
@@ -182,6 +184,7 @@ export function TopBar() {
       >
         ▶ Run day
       </button>
+      <button disabled={errors.length>0} onClick={()=>setEvacOpen(true)}>Run an evacuation…</button>
 
       <div className="segmented">
         <button className={view === "2d" ? "active" : ""} onClick={() => setView("2d")}>
@@ -202,6 +205,7 @@ export function TopBar() {
         {dark ? "Light" : "Dark"}
       </button>
 
+      {evacOpen && <EvacuationDialog onClose={()=>setEvacOpen(false)}/>}
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (

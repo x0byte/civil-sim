@@ -44,7 +44,7 @@ export class ShopperWorld {
     // If stairs cannot provide an escape, allow the car to clear every queued
     // call and every potential returning person, even without a shared pickup.
     this.clearancePerPersonS = 2 * cycle * Math.max(1, lifts.length);
-    const doors = plan.openings.filter((d) => d.kind === "door" && d.exterior);
+    const doors = plan.openings.filter((d) => d.kind === "door" && d.exterior && !d.fireExit);
     const remainder = Math.max(0, 1 - doors.reduce((n, d) => n + (d.arrivalShare ?? 0), 0));
     const unspecified = doors.filter((d) => d.arrivalShare === undefined).length;
     this.entrances = doors.flatMap((door) => {

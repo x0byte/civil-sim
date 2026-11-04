@@ -1,4 +1,5 @@
 import type { Connector, FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
+import { rampRun } from "./accessibility.ts";
 import { distance, pointInPolygon } from "./geometry.ts";
 import type { WalkableGrid } from "./grid.ts";
 import { levelOf, onLevel } from "./levels.ts";
@@ -14,6 +15,7 @@ export interface PathRoutes {
 
 export function rideSeconds(plan: FloorPlan, connector: Connector, from: string, to: string): number {
   const height = Math.abs(plan.levels.find((l) => l.id === from)!.elevation - plan.levels.find((l) => l.id === to)!.elevation);
+  if (connector.kind === "ramp") return Math.hypot(rampRun(connector),height) / (1.3 * .85);
   if (connector.kind === "stairs") return height / 0.4;
   if (connector.kind === "escalator") return height * 4;
   // Expected pickup: one door cycle plus half a traverse of the served shaft.
@@ -140,7 +142,7 @@ export class BuildingPaths {
       };
       for (const link of links.get(current) ?? []) {
         const seconds = rideSeconds(this.plan, link.connector, nodes[current].levelId!, nodes[link.next].levelId!);
-        offer(link.next, [nodes[current], { ...nodes[link.next], connectorId: link.connector.id, travelS: seconds } as LevelPoint], seconds);
+        offer(link.next, [nodes[current], { ...nodes[link.next], connectorId: link.connector.id, travelS: seconds, ...(link.connector.kind === "ramp" ? { rampWalk:true } : {}) } as LevelPoint], seconds);
       }
       for (let next = 1; next < nodes.length; next++) {
         if (done[next] || nodes[current].levelId !== nodes[next].levelId) continue;

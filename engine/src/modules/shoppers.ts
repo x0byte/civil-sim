@@ -66,7 +66,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
   const choicesFor = (from: Vec2, kind: Venue["space"]["type"], excluded: Set<string>) => world.choices(from, kind, excluded).map((choice) => {
     if (!person) return { ...choice, blocked: false };
     const usable = rawRoute(from, choice.venue.point);
-    return { ...choice, path: usable ?? choice.path, blocked: !usable, weight: usable ? (choice.venue.space.attraction ?? 1) * Math.exp(-pathLength(usable) / 50) : choice.weight };
+    return { ...choice, path: usable ?? choice.path, blocked: !usable || kind === "toilet" && person.profile?.access === "step_free" && world.plan.spaces.some(s=>s.type==="toilet"&&s.accessible) && !choice.venue.space.accessible, weight: usable ? (choice.venue.space.attraction ?? 1) * Math.exp(-pathLength(usable) / 50) : choice.weight };
   });
   const blocked = (venue: Venue) => { if (person) events.push({ t: track.t, personId: request.id, type: "blocked", spaceId: venue.space.id }); };
   const track = new TrackBuilder(entrance.point, entrance.point.levelId, speed, person);

@@ -68,6 +68,7 @@ export const FIXTURE_TYPES: { type: FixtureType; label: string }[] = [
 
 export const CONNECTOR_TYPES: { kind: ConnectorKind; label: string }[] = [
   { kind: "stairs", label: "Stairs" },
+  { kind: "ramp", label: "Ramp" },
   { kind: "escalator", label: "Escalator" },
   { kind: "lift", label: "Lift" },
 ];
@@ -306,13 +307,14 @@ export function addConnector(plan: FloorPlan, polygon: Vec2[], kind: ConnectorKi
 /** Changes what kind of connector it is, fixing up the fields that only some kinds have. */
 export function setConnectorKind(plan: FloorPlan, id: string, kind: ConnectorKind): FloorPlan {
   return updateItem(plan, "connector", id, (c) => {
-    const { direction: _d, capacity: _c, ...rest } = c;
+    const { direction: _d, capacity: _c, evacuationLift: _e, ...rest } = c;
     const next: Connector = { ...rest, kind };
     const autoName = new RegExp(`^${connectorLabel(c.kind)}( \\d+)?$`).test(c.name);
     if (autoName) next.name = c.name.replace(connectorLabel(c.kind), connectorLabel(kind));
     if (kind === "escalator") next.direction = c.direction ?? "up";
     if (kind === "lift") {
       next.capacity = c.capacity ?? DEFAULT_LIFT_CAPACITY;
+      if(c.evacuationLift !== undefined) next.evacuationLift = c.evacuationLift;
       // A lift that replaces stairs serves the same floors and every floor between them.
       const ids = plan.levels.map((l) => l.id);
       const at = c.levelIds.map((x) => ids.indexOf(x)).filter((i) => i >= 0);
@@ -622,4 +624,12 @@ export function setSurroundings(plan: FloorPlan, neighbours: Neighbour[], roads:
     roads: [...(plan.site?.roads ?? []).filter((r) => !r.id.startsWith("osm-way-")), ...roads],
     credits: [...new Set([...(plan.site?.credits ?? []).filter((c) => !c.startsWith("© OpenStreetMap contributors")), ...credits])],
   } };
+}
+
+
+/** Safety flags go through normal plan history; illegal flag combinations are refused. */
+export function setSafetyFlag(plan:FloorPlan, kind:"opening"|"space"|"connector",id:string,flag:"fireExit"|"accessible"|"refuge"|"evacuationLift",value:boolean):FloorPlan {
+ if(kind==="opening") { const o=getItem(plan,kind,id); if(!o||flag!=="fireExit"||o.kind!=="door"||!o.exterior)return plan;return updateItem(plan,kind,id,o=>{const {arrivalShare:_,...rest}=o;return {...rest,fireExit:value};}); }
+ if(kind==="space") { const room=getItem(plan,kind,id);if(!room||(flag!=="refuge"&&(flag!=="accessible"||room.type!=="toilet")))return plan;return updateItem(plan,kind,id,r=>({...r,[flag]:value})); }
+ const c=getItem(plan,kind,id);return c&&c.kind==="lift"&&flag==="evacuationLift"?updateItem(plan,kind,id,c=>({...c,evacuationLift:value})):plan;
 }

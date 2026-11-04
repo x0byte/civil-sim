@@ -47,9 +47,10 @@ function runWith(plan: FloorPlan, scenario: Scenario, extra: Partial<Pick<SimRun
 }
 
 /** Runs a workday on the plan with its population profile (or the default one built from its desks). */
-export function runSimulation(plan: FloorPlan, profile?: OfficeProfile): Outcome {
+export function runSimulation(plan: FloorPlan, profile?: OfficeProfile, evacuation?: Scenario["evacuation"]): Outcome {
   const p = profile ?? defaultProfile(plan);
   const x = expandProfile(p, plan);
+  if(evacuation)x.scenario.evacuation=evacuation;else delete x.scenario.evacuation;
   return runWith(plan, x.scenario, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
 }
 
@@ -65,13 +66,16 @@ export function runComparison(
   b: FloorPlan,
   labels: [string, string],
   profileA?: OfficeProfile,
+  evacuation?: Scenario["evacuation"],
 ): { comparison: Comparison } | { errors: string[] } {
   const p = profileA ?? defaultProfile(a);
   const x = expandProfile(p, a);
   const base = x.scenario;
+  if(evacuation)base.evacuation=evacuation;else delete base.evacuation;
   const ra = runWith(a, base, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
   if ("errors" in ra) return { errors: ra.errors.map((e) => `${labels[0]}: ${e}`) };
   const recast = recastScenario(base, b);
+  if(recast.scenario.evacuation)recast.scenario.evacuation={...recast.scenario.evacuation,blockedExitIds:recast.scenario.evacuation.blockedExitIds?.filter(id=>b.openings.some(o=>o.id===id&&o.exterior))};
   const rb = runWith(b, recast.scenario, { notes: recast.notes, collaborations: p.collaborations });
   if ("errors" in rb) return { errors: rb.errors.map((e) => `${labels[1]}: ${e}`) };
   return { comparison: { a: ra.run, b: rb.run, labels } };

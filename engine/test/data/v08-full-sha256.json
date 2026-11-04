@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "a883dbd",
+  "sha256": {
+    "office-a/office-day": "a2360a46182ee6fbdf079cbc938a43508a8f58d1ed3a9541b9316307a375cf94",
+    "office-b/office-day": "bb8654fd0a15e61b14ae5f288de3add6031552bfeac0da473dad999ef5f0a788",
+    "sealed-room/sealed-day": "7b0afeab3f1e55a909f0a7fdd44e65b6cb3d7503cba7c2ae9c26eb7b9d3d7d42",
+    "mall-2f/mall-day": "59049a03e9aa9b7bb4a5dd854d08a5e43490b75bde1365c2fb7c148ad9db227d",
+    "mall-2f/mall-weekend": "d486220e8a5bfada19741f687df64a3a26d745049c4c2b033cad927e92edc474",
+    "mall-2f/mall-weekend-people": "bac89d4b5ef2f8320ce8d0261d6604151208957d8f05c5c6484046bf3c9b0095",
+    "office-a-comfort/office-day-comfort": "150ba89279d47492a9583029e9013f44907f097f3e0f0d7a4d8fc21066c825f1",
+    "mall-2f-comfort/mall-weekend-comfort": "90afd5ac9e6f442ac6b9953d539e73bbc062142904c3a95ad77b770fd0df4344",
+    "office-a-site/office-day-site": "fb4760483f9adeefe704f9f8129b7678f0adbaaf2f791701b631e820ae12476c"
+  }
+}

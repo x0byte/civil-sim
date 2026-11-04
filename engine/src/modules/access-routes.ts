@@ -1,4 +1,5 @@
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
+import { usableConnector } from "./accessibility.ts";
 import { BuildingPaths } from "./building-paths.ts";
 import type { PathRoutes } from "./building-paths.ts";
 import { rasterise } from "./grid.ts";
@@ -25,7 +26,7 @@ export class AccessRoutes {
     const cached = this.policies.get(access); if (cached) return cached;
     const plan: FloorPlan = { ...this.plan,
       openings: this.plan.openings.map((o) => access === "step_free" && o.kind === "door" && o.width < 0.8 ? { ...o, kind: "window" } : o),
-      connectors: this.plan.connectors.filter((c) => access === "step_free" ? c.kind === "lift" : c.kind !== "escalator") };
+      connectors: this.plan.connectors.filter((c) => usableConnector(this.plan, c, access)) };
     const grids = access === "step_free" ? new Map(plan.levels.map((l) => [l.id, rasterise(plan, l.id)])) : this.base.grids;
     const paths = new BuildingPaths(plan, grids, access === "step_free" ? undefined : this.base.paths.floors);
     const entrances = this.base.entrances.filter((e) => grids.get(levelOf(e, this.base.first))!.canWalk(e, e));
@@ -43,7 +44,7 @@ export class AccessRoutes {
     const variantKey = `${access}:${from}>${to}`;
     let variants = this.alternatives.get(variantKey);
     if (!variants) {
-      const allowed = this.plan.connectors.filter((c) => access === "step_free" ? c.kind === "lift" : access === "no_escalator" ? c.kind !== "escalator" : true);
+      const allowed = this.plan.connectors.filter((c) => usableConnector(this.plan, c, access));
       const sequences: { connectorId: string; from: string; to: string }[][] = [];
       const visit = (at: string, seen: Set<string>, steps: typeof sequences[number]): void => {
         for (const connector of allowed.filter((c) => c.levelIds.includes(at))) for (const next of connector.levelIds) {
@@ -84,7 +85,7 @@ export class AccessRoutes {
         if (options.length === 1) result = options[0];
         else if (options.length) {
           const times = options.map((path) => travelTime(path, person.speed)); const best = Math.min(...times);
-          const logs = options.map((path, i) => connectorKinds(path, this.plan).reduce((n, kind) => n + Math.log(person.profile!.prefers[kind]), 0) - (times[i] - best) / 120);
+          const logs = options.map((path, i) => connectorKinds(path, this.plan).reduce((n, kind) => n + (kind === "ramp" ? 0 : Math.log(person.profile!.prefers[kind])), 0) - (times[i] - best) / 120);
           const highest = Math.max(...logs);
           const weights = logs.map((weight) => Number.isFinite(highest) ? Math.exp(weight - highest) : 0);
           const sum = weights.reduce((a, b) => a + b, 0);
@@ -101,7 +102,7 @@ export class AccessRoutes {
     const access = person.profile?.access ?? "any";
     const cached = this.escapes.get(access); if (cached) return cached;
     const policy = this.policy(access);
-    const connectors = this.plan.connectors.filter((c) => c.kind !== "lift" && person.profile?.access !== "step_free" && !(person.profile?.access === "no_escalator" && c.kind === "escalator"));
+    const connectors = this.plan.connectors.filter((c) => c.kind !== "lift" && usableConnector(this.plan,c,person.profile?.access ?? "any"));
     const result = new BuildingPaths({ ...this.plan, connectors }, policy.grids, policy.paths.floors); this.escapes.set(access, result); return result;
   }
 }

@@ -17,6 +17,8 @@ import { People, stepFreeWarnings } from "./modules/profiles.ts";
 import { AccessRoutes } from "./modules/access-routes.ts";
 import { onLevel } from "./modules/levels.ts";
 import { SITE_ASSUMPTIONS, siteWeather } from "./modules/site.ts";
+import { ACCESSIBILITY_NOTE, accessibilityChecks } from "./modules/accessibility.ts";
+import { actualConnectorMetrics, evacuate, EVACUATION_ASSUMPTIONS } from "./modules/evacuation.ts";
 import { COMFORT_ASSUMPTIONS } from "./modules/comfort.ts";
 
 export class SimulationInputError extends Error {
@@ -143,12 +145,20 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   }
   const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn);
   for (const track of tracks) { const profile = people.people.get(track.personId)?.profile; if (profile) track.profileId = profile.id; }
+  const evacuation = scenario.evacuation ? evacuate(plan,scenario,tracks,events,people,warn) : undefined;
+  const accessibility = accessibilityChecks(plan,access);
+  for(const check of accessibility) if(!check.ok) warn({code:"accessibility",message:check.message,refIds:check.refIds});
+  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS);
+  aggregated.metrics.evacuation = evacuation?.metrics ?? null; aggregated.metrics.accessibility = accessibility;
+  if(evacuation) aggregated.metrics.headcount = aggregated.metrics.headcount.filter(p=>p.t<=evacuation.durationS);
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
-  return {
-    version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS, tracks,
-    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics, people, warn), events,
+  const result:SimulationResult = {
+    version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS: evacuation?.durationS ?? durationS, tracks,
+    ...aggregated, events,
     assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS, ...(siteWeather(plan, scenario) ? SITE_ASSUMPTIONS : []), ...(plan.site?.credits ?? []), ...(scenario.comfort.weather ? [scenario.comfort.weather.source] : [])] : [...assumptions(scenario), ...(plan.site?.credits ?? [])], warnings,
   };
+  result.assumptions.push(ACCESSIBILITY_NOTE,...(scenario.evacuation ? EVACUATION_ASSUMPTIONS : []),...(plan.connectors.some(c=>c.kind==="ramp") ? ["Ramps use the longer side of their minimum-area footprint rectangle. Step-free routes allow 1 in 12 or gentler. Ramp travel uses 85% of each person’s flat walking speed (base 1.3 m/s)."] : []));
+  return result;
 }
 
 /** A mandatory commute can be blocked by a full room too. End attendance safely. */

@@ -48,7 +48,7 @@ export function createNavigation(plan: FloorPlan, warn: (warning: Warning) => vo
       }
     }
   }
-  const doors = plan.openings.filter((o) => o.kind === "door" && o.exterior);
+  const doors = plan.openings.filter((o) => o.kind === "door" && o.exterior && !o.fireExit);
   const entrances = doors.map((door) => onLevel(openingCentre(plan, door), plan.walls.find((w) => w.id === door.wallId)!.levelId))
     .filter((p) => grids.get(p.levelId!)!.canWalk(p, p));
   if (!doors.length) warn({ code: "no_exterior_door", message: "There is no exterior door; everyone stays absent.", refIds: [] });

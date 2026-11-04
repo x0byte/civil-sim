@@ -70,7 +70,7 @@ describe("room standing spots", () => {
   });
 
   it("uses distinct fallback points in a room too small for 0.6 m spacing", () => {
-    const p: FloorPlan = { version: "0.5", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "tiny", name: "Tiny", units: "m", bounds: { width: 1, height: 1 },
+    const p: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "tiny", name: "Tiny", units: "m", bounds: { width: 1, height: 1 },
       walls: [{ id: "edge", levelId: "ground", a: { x: 0, y: 0 }, b: { x: 0, y: 1 }, thickness: 0.01, height: 3 }],
       openings: [{ id: "door", wallId: "edge", kind: "door", offset: 0.5, width: 1, exterior: true }],
       fixtures: [], spaces: [{ id: "tiny", levelId: "ground", name: "Tiny", type: "pantry", privacy: "shared", polygon: [

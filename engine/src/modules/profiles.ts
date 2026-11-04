@@ -14,6 +14,7 @@ export interface Traveller {
   id: string; kind: Track["kind"]; profile?: PersonProfile; speed: number; drawnSpeed: number;
   size: number; familiarity: number; comfort: number; seed: number; arrival: number; stayS: number;
   people: People; accessRoutes?: AccessRoutes;
+  tripHistory?: { t:number; detourPct:number }[];
   trips: number; detourSum: number; routeNumber: number; navigation?: Navigation;
 }
 

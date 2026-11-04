@@ -6,9 +6,10 @@ recorded on 2026-11-04 by calling the app's `fetchWeather` for the sample locati
 requested location. GMT hours on 14–15 November support the local-day conversion.
 Source: https://open-meteo.com/en/docs/historical-weather-api (CC BY 4.0).
 
-Overpass conversion tests currently use explicitly constructed response-shaped
-geometry and tag cases. A successful recorded Colombo Overpass response could
-not be captured: overpass-api.de returned 406, private.coffee returned 429/timed
-out, and the alternate VK endpoint timed out. Do not describe these constructed
-cases as recorded OpenStreetMap data. The real browser failure/Retry behavior
-was checked; successful surroundings import still needs a live service check.
+`overpass-colombo.json` is the real response supplied in
+`docs/repro/overpass-colombo-6.9-79.853.json`, copied unchanged. It records buildings
+and roads near 6.9 N, 79.853 E, including Galle Road and Marine Drive. Credit:
+**© OpenStreetMap contributors (ODbL)**. Source timestamp and copyright are in the
+response. Tests cover this recording as well as constructed edge cases. No tests
+make live requests. The main endpoint is POSTed first, with the mirror used only
+after failure.

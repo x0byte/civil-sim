@@ -112,7 +112,8 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
   yield* walk(arrivalPath, "at_desk");
   const available = new Map<"toilet" | "pantry", { spaceId: string; path: Vec2[]; choiceDistance: number }[]>();
   for (const activity of ["toilet", "pantry"] as const) {
-    const spaces = plan.spaces.filter((s) => s.type === activity);
+    const restrict = activity === "toilet" && personTraits?.profile?.access === "step_free" && plan.spaces.some(s=>s.type === "toilet" && s.accessible);
+    const spaces = plan.spaces.filter((s) => s.type === activity && (!restrict || s.accessible));
     const destinations = spaces.flatMap((space) => {
       const target = spots.point(space.id, component, person.id);
       const path = target ? paths.route(deskPosition, target) : null;
@@ -121,6 +122,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       return path && choicePath && paths.route(target!, deskPosition) ? [{ spaceId: space.id, path, choiceDistance: pathLength(choicePath) }] : [];
     });
     available.set(activity, destinations);
+    if (restrict && !destinations.length) for(const v of desired.visits.filter(v=>v.activity===activity&&v.t>=arrival&&v.t<departure)) events.push({t:v.t,personId:person.id,type:"blocked",spaceId:spaces[0]?.id});
     const rate = activity === "toilet" ? scenario.rates.toiletVisitsPerDay : scenario.rates.pantryVisitsPerDay;
     if (rate > 0 && !destinations.length) warn({ code: "unreachable_space", message: `${person.id} has no reachable ${activity} space; these visits are skipped.`, refIds: [person.id, ...spaces.map((s) => s.id)] });
   }

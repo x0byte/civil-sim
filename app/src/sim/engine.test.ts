@@ -50,7 +50,7 @@ describe("engine with editor-built scenarios", () => {
       expect(tr.points[tr.points.length - 1].activity).toBe("absent");
       for (let i = 1; i < tr.points.length; i++) expect(tr.points[i].t).toBeGreaterThanOrEqual(tr.points[i - 1].t);
     }
-    expect(a.warnings.filter((w) => w.code !== "comfort")).toEqual([]);
+    expect(a.warnings.filter((w) => w.code !== "comfort" && w.code !== "accessibility")).toEqual([]);
     expect(a.metrics.comfort).not.toBeNull();
   });
 

@@ -1345,3 +1345,9 @@ button.legend-kind.active {
 .weather-strip > div { position: relative; }
 .weather-strip span { display: block; position: absolute; bottom: 0; width: 100%; background: var(--ink-3); }
 .weather-strip small { position: absolute; top: 62px; color: var(--ink-2); font-size: 10px; }
+
+.accessibility-checks { list-style: none; padding: 0; display: grid; gap: 10px; }
+.evac-timeline { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; }
+.evac-timeline button { padding: 3px 5px; font-size: inherit; }
+.timeline:has(.evac-timeline) { flex-wrap: wrap; }
+.timeline:has(.evac-timeline) .evac-timeline { flex-basis: 100%; justify-content: center; }

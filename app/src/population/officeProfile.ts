@@ -32,6 +32,7 @@ export interface Collaboration {
 
 export interface OfficeProfile {
   version: 1;
+  evacuation?: import("../../../contracts/scenario.ts").Evacuation;
   workday: { start: string; end: string };
   /** Share of staff in the office on the simulated day (hybrid working), 0–1. */
   attendance: number;
@@ -269,6 +270,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       ...(shoppers ? { shoppers } : {}),
       ...(profiles ? { profiles } : {}),
       ...(profile.comfort?.enabled ? { comfort: { enabled: true as const, date: profile.comfort.date, sky: profile.comfort.sky, ...(profile.comfort.weather ? { weather: profile.comfort.weather } : {}) } } : {}),
+      ...(profile.evacuation ? { evacuation: profile.evacuation } : {}),
       ...(profile.crowding ? { crowding: { enabled: true as const } } : {}),
     },
     notes,

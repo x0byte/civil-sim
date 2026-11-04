@@ -195,7 +195,7 @@ export function profileMetrics(tracks: Track[], people: People | undefined, disc
       let wait = 0;
       for (let i = 1; i < track.points.length; i++) {
         const a = track.points[i - 1]; const b = track.points[i]; const dt = b.t - a.t;
-        if (a.activity === "walking" && a.levelId === b.levelId) { metres += Math.hypot(b.x - a.x, b.y - a.y); seconds += dt; }
+        if ((a.activity === "walking" || a.activity === "evacuating") && a.levelId === b.levelId) { metres += Math.hypot(b.x - a.x, b.y - a.y); seconds += dt; }
         if (a.activity === "in_lift" && a.levelId === b.levelId) wait += dt;
         else { if (wait) { liftWaitS += wait; longestLiftWaitS = Math.max(longestLiftWaitS, wait); wait = 0; } }
       }

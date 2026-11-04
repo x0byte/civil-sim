@@ -12,12 +12,14 @@ import type { TrackBuilder } from "./track.ts";
 
 interface Motion { request: RoomRequest; path: Vec2[]; cumulative: number[]; total: number; at: number; segment: number; gate: number; gates: DoorGate[]; done: (ok: boolean) => void; paused: Set<number> }
 interface Job { t: number; track: TrackBuilder; deadline: number; ready: () => boolean; admit: (t: number) => number; cancel: (t: number) => void }
-interface Gate { rate: number; next: number; queue: Job[]; running: boolean }
+interface Gate { key?: string; rate: number; next: number; queue: Job[]; running: boolean }
 const EPS = 1e-3;
 
 /** Actual movement advances at most four seconds between density observations. */
 export class CrowdMotion {
   readonly field: DensityField;
+  readonly queueStats = new Map<string,{ peak: number; waitS: number }>();
+  queueDelay(key: string,t: number): number { const g=this.gates.get(key);return g ? Math.max(0,g.next-t)+g.queue.reduce((n,j)=>n+(j.track.person?.size??1)/g.rate,0) : 0; }
   private readonly plan: FloorPlan;
   private readonly schedule: (t: number, run: () => void) => void;
   private readonly events: SimEvent[];
@@ -46,8 +48,9 @@ export class CrowdMotion {
     // a generator schedules a later stay or request.
   }
   private enqueue(key: string, rate: number, job: Job): Gate {
-    const gate = this.gates.get(key) ?? { rate, next: 0, queue: [], running: false };
+    const gate = this.gates.get(key) ?? { key, rate, next: 0, queue: [], running: false };
     this.gates.set(key, gate); gate.queue.push(job);
+    const stats=this.queueStats.get(key)??{peak:0,waitS:0}; stats.peak=Math.max(stats.peak,gate.queue.length-(gate.next<=job.t?1:0));this.queueStats.set(key,stats);
     if (!gate.running) { gate.running = true; this.schedule(Math.max(job.t, gate.next), () => this.serve(gate)); }
     return gate;
   }
@@ -56,6 +59,7 @@ export class CrowdMotion {
     const t = Math.max(job.t, gate.next, job.track.t);
     if (t > job.deadline + 1e-6) { gate.queue.shift(); job.cancel(t); this.schedule(t, () => this.serve(gate)); return; }
     if (!job.ready()) { job.track.t = t + 1; gate.next = Math.max(gate.next, t + 1); this.schedule(t + 1, () => this.serve(gate)); return; }
+    this.queueStats.get(gate.key!)!.waitS += Math.max(0,t-job.t);
     gate.queue.shift(); const passedAt = job.admit(t); gate.next = passedAt + (job.track.person?.size ?? 1) / gate.rate;
     this.schedule(gate.next, () => this.serve(gate));
   }

@@ -68,7 +68,8 @@ export function useShownLevel(run: SimRun): string {
 
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
-  const clock = usePlayClock(run.result.durationS, run.result);
+  const alarm = run.result.events.find(e=>e.type==="alarm")?.t;
+  const clock = usePlayClock(run.result.durationS, run.result,alarm===undefined?0:Math.max(0,alarm-60));
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
@@ -104,7 +105,7 @@ export function Playback({ run }: { run: SimRun }) {
         <HeatToggle value={heat} onChange={setHeat} comfort={!!run.result.metrics.comfort} />
       </div>
       <div className="playback-bottom">
-        <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} />
+        <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} alarm={alarm} out={alarm===undefined||!run.result.metrics.evacuation?undefined:alarm+run.result.metrics.evacuation.outS} refuges={!!(run.result.metrics.evacuation?.refuges.length || run.result.metrics.evacuation?.stranded)} />
         {track && (
           <PersonDay
             track={track}
@@ -133,13 +134,13 @@ export interface PlayClock {
 }
 
 /** Simulation time that plays in real time at `speed` simulated seconds per second. Restarts when `resetKey` changes. */
-export function usePlayClock(durationS: number, resetKey: unknown): PlayClock {
+export function usePlayClock(durationS: number, resetKey: unknown, initialT = 0): PlayClock {
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(300);
 
   useEffect(() => {
-    setT(0);
+    setT(initialT);
     setPlaying(true);
   }, [resetKey]);
 
@@ -194,7 +195,7 @@ export function HeatToggle({ value, onChange, comfort = false }: { value: HeatMo
   );
 }
 
-export function Timeline({ clock, start, end }: { clock: PlayClock; start: string; end: string }) {
+export function Timeline({ clock, start, end, alarm, out, refuges }: { clock: PlayClock; start: string; end: string; alarm?:number;out?:number;refuges?:boolean }) {
   return (
     <div className="timeline">
       <button className="play" onClick={clock.toggle} title="Play / pause (Space)">
@@ -203,14 +204,14 @@ export function Timeline({ clock, start, end }: { clock: PlayClock; start: strin
       <span className="clock">{clockAt(start, clock.t)}</span>
       <input
         type="range"
-        min={0}
+        min={alarm===undefined?0:Math.max(0,alarm-60)}
         max={clock.durationS}
-        step={30}
+        step={alarm===undefined?30:1}
         value={clock.t}
         onChange={(e) => clock.setT(Number(e.target.value))}
         aria-label="Time of day"
       />
-      <span className="clock muted">{end}</span>
+      <span className="clock muted">{alarm===undefined?end:clockAt(start,clock.durationS)}</span>
       <select value={clock.speed} onChange={(e) => clock.setSpeed(Number(e.target.value))} aria-label="Playback speed">
         {SPEEDS.map((s) => (
           <option key={s.value} value={s.value}>
@@ -218,6 +219,7 @@ export function Timeline({ clock, start, end }: { clock: PlayClock; start: strin
           </option>
         ))}
       </select>
+      {alarm!==undefined&&<span className="evac-timeline"><button onClick={()=>clock.setT(alarm)}>Alarm {clockAt(start,alarm)}</button>{out!==undefined&&<button onClick={()=>clock.setT(out)}>{refuges?"Last exit":"Everyone out"} {clockAt(start,out)}</button>}</span>}
     </div>
   );
 }
@@ -509,7 +511,7 @@ export function PlanPlayer({
         <Legend
           counts={counts}
           present={everyone.length}
-          total={result.tracks.length}
+          total={result.metrics.evacuation?.byFloor.reduce((n,f)=>n+f.people,0) ?? result.tracks.length}
           heat={heat}
           seen={seen}
           kinds={kindRows?.length ? { rows: kindRows, focus, onFocus: setFocus } : undefined}
@@ -552,7 +554,7 @@ export function Legend({
     <div className="legend">
       {present !== null && (
         <div className="legend-title">
-          {present} of {total} people in the building
+          {present} of {total} people still inside
           {floor && (
             <div className="muted">
               {floor.people} on {floor.name}

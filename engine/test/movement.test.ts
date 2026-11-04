@@ -13,10 +13,10 @@ function setup(strips = false) {
   const polygon = strips
     ? [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 8 }, { x: 4, y: 8 }]
     : [{ x: 4, y: 1 }, { x: 6, y: 1 }, { x: 6, y: 3 }, { x: 4, y: 3 }];
-  const plan: FloorPlan = { version: "0.5", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
+  const plan: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
     walls: [], openings: [], fixtures: [], spaces: [{ id: "pantry", levelId: "ground", name: "Pantry", type: "pantry", privacy: "shared", capacity: 1, polygon, doorIds: [] }] };
   const navigation = createNavigation(plan, () => {});
-  const scenario: Scenario = { version: "0.8", id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
+  const scenario: Scenario = { version: "0.9", id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
     teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, queueing: { maxWaitMin: 1 } };
   const events: SimEvent[] = [];
   const warnings: Warning[] = [];
@@ -83,7 +83,7 @@ describe("capacity for every physical movement", () => {
     const tracks = test.run([test.person("a", from, to, 100, 0, to), test.person("b", from, to, 100, 0, to)]);
     expect(peakOccupancy(test.plan, tracks).map((p) => p.peak)).toEqual([1, 1]);
     expect(test.events.some((e) => e.type === "queue_start")).toBe(true);
-    expect(test.warnings).toEqual([]);
+    expect(test.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
   });
 
   it("does not release a resident lease for another walk entirely within the room", () => {

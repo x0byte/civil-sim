@@ -41,6 +41,7 @@ export function Toolbar() {
           <span>{t.label}</span>
         </button>
       ))}
+      <button className={tool === "connector" && connectorKind === "ramp" ? "tool active" : "tool"} onClick={()=>setConnectorKind("ramp")} title="Draw a ramp">{I("M3 18h18L3 6z")}<span>Ramp</span></button>
       {tool === "fixture" && (
         <div className="subtools">
           {FIXTURE_TYPES.map((f) => (

@@ -35,7 +35,13 @@ const casualActivities = new Set(["eating", "lunch", "pantry", "waiting"]);
 export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Track[], levels: Heatmaps["levels"],
   people: People | undefined, occupancy: { spaceId: string; peak: number }[], crowded: CrowdedSamples,
   warn: (w: Warning) => void): ComfortMetrics {
-  const duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start);
+  const duration = clockSeconds(scenario.evacuation?.alarmAt ?? scenario.workday.end) - clockSeconds(scenario.workday.start);
+  if(duration===0){
+    for(const l of levels){const count=l.footfall.length;l.noiseDbA=Array(count).fill(0);l.lightLux=Array(count).fill(0);l.glare=Array(count).fill(0);}
+    for(const t of tracks)t.discomfort=[];
+    const empty=()=>Object.fromEntries(CAUSES.map(c=>[c,0])) as Record<DiscomfortCause,number>;
+    return {byProfile:(scenario.profiles?.list.map(p=>p.id)??[""]).map(profileId=>({profileId,people:0,minutes:empty(),peopleAffected:empty(),overloadMinutes:0,overloadPeople:0})),bySpace:[],desks:[],windows:[],weatherUsed:scenario.comfort?.weather?.kind??"sky"};
+  }
   const start = clockSeconds(scenario.workday.start); const env = new Environment(plan, scenario); const sound = new Sound(env, tracks, duration);
   const cols = Math.ceil(plan.bounds.width / .5); const rows = Math.ceil(plan.bounds.height / .5);
   const entered = new Set(occupancy.filter((s) => s.peak > 0).map((s) => s.spaceId));

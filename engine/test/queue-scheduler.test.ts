@@ -11,7 +11,7 @@ import type { PersonSchedule } from "../src/modules/queues.ts";
 import { TrackBuilder, WALK_SPEED_M_S } from "../src/modules/track.ts";
 
 function setup(maxWaitMin: number | undefined = 10) {
-  const plan: FloorPlan = { version: "0.5", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
+  const plan: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "queue-test", name: "Queue test", units: "m", bounds: { width: 10, height: 10 },
     walls: [], openings: [], fixtures: [], spaces: [
       { id: "toilet", levelId: "ground", name: "Toilet", type: "toilet", privacy: "shared", capacity: 1,
         polygon: [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 4 }, { x: 4, y: 4 }], doorIds: [] },
@@ -19,7 +19,7 @@ function setup(maxWaitMin: number | undefined = 10) {
         polygon: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }], doorIds: [] },
     ] };
   const navigation = createNavigation(plan, () => {});
-  const scenario: Scenario = { version: "0.8", id: "queue-test", name: "Queue test", seed: 1,
+  const scenario: Scenario = { version: "0.9", id: "queue-test", name: "Queue test", seed: 1,
     workday: { start: "08:00", end: "17:00" }, teams: [], people: [], meetings: [],
     rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, ...(maxWaitMin === undefined ? {} : { queueing: { maxWaitMin } }) };
   const events: SimEvent[] = [];
@@ -67,7 +67,7 @@ describe("shared FCFS capacity scheduler", () => {
     expect(test.admissions.map((a) => a.id)).toEqual(["early", "a", "m", "z"]);
     expect(test.events.filter((e) => e.type === "queue_end").map((e) => e.personId)).toEqual(["a", "m", "z"]);
     expect(peakOccupancy(test.plan, result).find((space) => space.spaceId === "toilet")!.peak).toBe(1);
-    expect(test.warnings).toEqual([]);
+    expect(test.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
   });
 
   it("gives up exactly at the configured maximum and derives matching wait metrics", () => {
@@ -178,7 +178,7 @@ describe("shared FCFS capacity scheduler", () => {
       const to = track.points[i];
       expect(test.navigation.grid.canWalk(from, to)).toBe(true);
     }
-    expect(test.warnings).toEqual([]);
+    expect(test.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
   });
 
   it("leaves missing-capacity spaces unlimited and reports no queue entries for them", () => {
