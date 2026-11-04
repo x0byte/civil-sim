@@ -1,4 +1,4 @@
-import { useExperience } from "../experience/state.ts";
+import { type Step, completedSteps, useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
@@ -7,12 +7,15 @@ import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
+import { VoltMark } from "./Brand.tsx";
+import { Menu, type MenuItem } from "./Menu.tsx";
 
 export function TopBar() {
   const [dark, setDark] = useState(() => {
     try {
-      const saved = localStorage.getItem("civil-sim:theme");
-      return saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const saved = localStorage.getItem("volt:theme");
+      // A design tool: dark by default, light on request.
+      return saved ? saved === "dark" : true;
     } catch {
       return false;
     }
@@ -20,7 +23,7 @@ export function TopBar() {
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     try {
-      localStorage.setItem("civil-sim:theme", dark ? "dark" : "light");
+      localStorage.setItem("volt:theme", dark ? "dark" : "light");
     } catch {
       /* storage unavailable */
     }
@@ -46,8 +49,8 @@ export function TopBar() {
       else if (action === "dxf") importRef.current?.click();
       else if (action === "draw") setNewOpen(true);
     };
-    window.addEventListener("civil-sim:bring", bring);
-    return () => window.removeEventListener("civil-sim:bring", bring);
+    window.addEventListener("volt:bring", bring);
+    return () => window.removeEventListener("volt:bring", bring);
   }, []);
   const saveProject = () => {
     const { options, profiles } = useEditor.getState();
@@ -102,105 +105,117 @@ export function TopBar() {
     reader.readAsDataURL(file);
   };
 
+  const done = completedSteps(plan, ux.peopleReady, useEditor.getState().run);
+  const go = (step: Step) => {
+    ux.go(step);
+    if (step < 3) setView("2d");
+  };
+  const fileItems: MenuItem[] = [
+    { label: "New building…", onSelect: () => (ux.newBuilding(), setNewOpen(true)) },
+    { label: "Open file…", onSelect: () => importRef.current?.click() },
+    { label: "Save file", onSelect: saveProject },
+    "separator",
+    { label: "Trace a plan image…", onSelect: () => imageRef.current?.click() },
+    { label: "Import an AutoCAD drawing (DXF)…", onSelect: () => importRef.current?.click() },
+    "separator",
+    { heading: "Samples" },
+    ...SAMPLE_PLANS.map((sample) => ({
+      label: sample.label,
+      onSelect: () => {
+        load(sample.plan);
+        ux.newBuilding();
+      },
+    })),
+    "separator",
+    { label: "Save as an option…", onSelect: () => setSaveOpen(true) },
+    { label: "Compare options…", onSelect: () => setCompareOpen(true) },
+  ];
+  const editItems: MenuItem[] = [
+    { label: "Undo", shortcut: "⌘Z", disabled: !canUndo, onSelect: undo },
+    { label: "Redo", shortcut: "⇧⌘Z", disabled: !canRedo, onSelect: redo },
+  ];
+  const viewItems: MenuItem[] = [
+    { label: "Plan", checked: view === "2d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("2d") },
+    { label: "Building in 3D", checked: view === "3d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("3d") },
+    "separator",
+    { label: "Simple panels", checked: !ux.detailed, onSelect: () => ux.setDetailed(false) },
+    { label: "Detailed panels", checked: ux.detailed, onSelect: () => ux.setDetailed(true) },
+    "separator",
+    { label: "Dark theme", checked: dark, onSelect: () => setDark(!dark) },
+    { label: "Volt Assistant", checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
+    { label: "Dock the assistant", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
+  ];
+
   return (
-    <header className={`topbar ${ux.home ? "home-topbar" : ""} ${ux.step !== 1 ? "compact-topbar" : ""}`}>
-      <div className="brand">
-        <span className="logo">◧</span> civil-sim
+    <header className="appbar">
+      <div className="appbar-left">
+        <button className="appbar-brand" onClick={() => ux.setHome(true)} title="Home">
+          <VoltMark size={18} />
+          <span>Volt Design</span>
+        </button>
+        <Menu label="File" items={fileItems} />
+        <Menu label="Edit" items={editItems} />
+        <Menu label="View" items={viewItems} />
       </div>
 
-      <div className="group project-actions">
-        <button
-          onClick={() => {
-            ux.newBuilding();
-            setNewOpen(true);
-          }}
-        >
-          New
-        </button>
-        <select
-          value=""
-          onChange={(e) => {
-            const s = SAMPLE_PLANS.find((x) => x.id === e.target.value);
-            if (s) {
-              load(s.plan);
-              ux.newBuilding();
-            }
-          }}
-        >
-          <option value="" disabled>
-            Open sample…
-          </option>
-          {SAMPLE_PLANS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <button onClick={() => importRef.current?.click()} title="Open a civil-sim project, a floor plan, or an AutoCAD DXF drawing">
-          Open file
-        </button>
-        <button onClick={saveProject} title="Save the plan, its People settings and saved options in one file">
-          Save file
-        </button>
-        <button onClick={() => imageRef.current?.click()} className="primary-ghost" title="Upload a floor plan image to trace over">
-          Trace image
-        </button>
-        <input
-          ref={importRef}
-          type="file"
-          accept=".json,application/json,.dxf"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) openFile(f);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={imageRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) uploadImage(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-
-      <div className="group">
-        <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
-          Undo
-        </button>
-        <button onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
-          Redo
-        </button>
-      </div>
-
-      <div className="spacer" />
-
-      <button onClick={() => setSaveOpen(true)} title="Keep a copy of this layout to compare against later">
-        Save option
-      </button>
-      <button onClick={() => setCompareOpen(true)} title="Run the same people through two layouts side by side">
-        Compare
-      </button>
-      {ux.step === 1 && !ux.home && (
-        <div className="segmented">
-          <button className={view === "2d" ? "active" : ""} onClick={() => setView("2d")}>
-            Plan
-          </button>
-          <button className={view === "3d" ? "active" : ""} onClick={() => setView("3d")}>
-            Building in 3D
-          </button>
-        </div>
+      {ux.home ? (
+        <div />
+      ) : (
+        <nav className="workspaces" aria-label="Steps">
+          {STEPS.map((label, i) => {
+            const step = (i + 1) as Step;
+            return (
+              <button key={label} aria-current={ux.step === step ? "step" : undefined} onClick={() => go(step)}>
+                <span className={`step-dot ${done[i] ? "done" : ""}`}>{done[i] ? "✓" : step}</span>
+                {label}
+              </button>
+            );
+          })}
+        </nav>
       )}
 
-      <button onClick={() => setDark((value) => !value)} aria-label={dark ? "Use light theme" : "Use dark theme"}>
-        {dark ? "Light" : "Dark"}
-      </button>
+      <div className="appbar-right">
+        {!ux.home && (
+          <>
+            <button className="icon-button" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">
+              <UndoIcon />
+            </button>
+            <button className="icon-button" onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
+              <UndoIcon redo />
+            </button>
+            <span className="appbar-project" title={plan.name}>
+              {plan.name}
+            </span>
+          </>
+        )}
+        <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title="Volt Assistant">
+          <VoltMark size={14} />
+          Assistant
+        </button>
+      </div>
 
+      <input
+        ref={importRef}
+        type="file"
+        accept=".json,application/json,.dxf"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) openFile(f);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={imageRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) uploadImage(f);
+          e.target.value = "";
+        }}
+      />
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (
@@ -330,5 +345,16 @@ function SaveOptionDialog({ suggested, onSave, onCancel }: { suggested: string; 
         </div>
       </form>
     </div>
+  );
+}
+
+const STEPS = ["Building", "People", "Simulate"] as const;
+
+function UndoIcon({ redo }: { redo?: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={redo ? { transform: "scaleX(-1)" } : undefined}>
+      <path d="M5.5 4L2.5 7l3 3" />
+      <path d="M2.5 7H10a3.5 3.5 0 0 1 0 7H8" />
+    </svg>
   );
 }

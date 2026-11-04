@@ -28,7 +28,7 @@ vi.mock("@anthropic-ai/sdk", async (importOriginal) => {
   return { ...actual, default: Fake };
 });
 
-const { useAssistant } = await import("./assistant.ts");
+const { useAssistant, toolActivity } = await import("./assistant.ts");
 
 const toolUse = (id: string, name: string, input: object) => ({
   content: [{ type: "tool_use", id, name, input }],
@@ -52,6 +52,8 @@ describe("design assistant conversation", () => {
 
     const s = useAssistant.getState();
     expect(s.error).toBeNull();
+    expect(s.busy).toBe(false);
+    expect(s.activity).toEqual([]);
     expect(s.proposal?.changes.map((c) => c.text)).toEqual(["Window on First floor"]);
     expect(s.lines.at(-1)).toEqual({ role: "assistant", text: "I added a window to the right wall of the first floor." });
     // Not in the editor until applied.
@@ -104,6 +106,18 @@ describe("design assistant conversation", () => {
     const results = JSON.stringify(requests[1].messages);
     expect(results).toContain('"is_error":true');
     expect(useAssistant.getState().proposal?.changes).toHaveLength(1);
+  });
+
+  it("shows what it's doing while it works, in plain words", async () => {
+    const seen: string[][] = [];
+    const stop = useAssistant.subscribe((st) => st.busy && seen.push(st.activity));
+    script.push(toolUse("t1", "add_opening", WINDOW), say("Done."));
+    await useAssistant.getState().send("Add a window");
+    stop();
+    expect(seen.at(-1)).toEqual(["Reading your plan", "Thinking it through", "Adding a door or window", "Checking the result"]);
+    expect(toolActivity("set_kinds_of_people")).toBe("Choosing who comes in");
+    expect(toolActivity("add_opening", true)).toBe("Adding a door or window (trying again)");
+    expect(toolActivity("set_comfort")).toBe("Working on comfort");
   });
 
   it("reports API errors in plain words and keeps the conversation usable", async () => {

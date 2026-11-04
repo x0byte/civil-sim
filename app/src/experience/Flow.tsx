@@ -1,166 +1,16 @@
 import { useState } from "react";
-import { useExperience, completedSteps, suggestions, GLOSSARY } from "./state.ts";
+import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
 import { useEditor } from "../state/store.ts";
-import { blankPlan, getItem } from "../model/planOps.ts";
-import { SAMPLE_PLANS } from "../model/samples.ts";
+import { getItem } from "../model/planOps.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { DEFAULT_SHOPPERS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
 import { kindsFromPreset, type KindsPreset } from "../population/kinds.ts";
 import { TextField } from "../ui/fields.tsx";
-import { AssistantPanel } from "../assistant/AssistantPanel.tsx";
 import { runDay } from "../sim/runDay.ts";
 import { EvacuationDialog } from "../sim/EvacuationDialog.tsx";
 import { runComparison } from "../sim/runSimulation.ts";
 
-export function FlowHeader() {
-  const ux = useExperience(),
-    state = useEditor();
-  const done = completedSteps(state.plan, ux.peopleReady, state.run);
-  return (
-    <nav className="flow-header" aria-label="Your three steps">
-      <button className="home-button" onClick={() => ux.setHome(true)}>
-        ⌂ Home
-      </button>
-      <div className="step-list">
-        {(["Your building", "Who uses it", "See what happens"] as const).map((label, i) => (
-          <button
-            key={label}
-            aria-current={!ux.home && ux.step === i + 1 ? "step" : undefined}
-            onClick={() => {
-              ux.go((i + 1) as 1 | 2 | 3);
-              if (i < 2) state.setView("2d");
-            }}
-          >
-            <span>{done[i] ? "✓" : i + 1}</span>
-            <strong>{label}</strong>
-            {done[i] && <small>Ready</small>}
-          </button>
-        ))}
-      </div>
-      <div className="detail-switch" role="group" aria-label="Amount of detail">
-        <button aria-pressed={!ux.detailed} onClick={() => ux.setDetailed(false)}>
-          Simple
-        </button>
-        <button aria-pressed={ux.detailed} onClick={() => ux.setDetailed(true)}>
-          Detailed
-        </button>
-      </div>
-      <button className="assistant-launch" onClick={() => ux.ask()}>
-        ✦ Ask the assistant
-      </button>
-    </nav>
-  );
-}
-function Thumbnail({ mall = false }: { mall?: boolean }) {
-  return (
-    <svg viewBox="0 0 320 170" role="img" aria-label={mall ? "Mall floor plan thumbnail" : "Office floor plan thumbnail"}>
-      <rect x="20" y="15" width="280" height="140" rx="3" fill="var(--sample-ground)" stroke="currentColor" strokeWidth="4" />
-      {(mall ? [20, 90, 160, 230] : [20, 75, 125, 190]).map((x, i) => (
-        <g key={x}>
-          <rect x={x + 3} y="18" width={mall ? 64 : i === 3 ? 104 : 49} height="48" fill={["#b4a1de", "#87cfc5", "#efc984", "#a9c99a"][i]} />
-          <path d={`M${x + 54} 15v52`} stroke="currentColor" strokeWidth="3" />
-        </g>
-      ))}
-      <path d="M20 68h280" stroke="currentColor" strokeWidth="3" />
-      {Array.from({ length: mall ? 9 : 12 }, (_, i) => (
-        <g key={i} transform={`translate(${48 + (i % 6) * 43},${95 + Math.floor(i / 6) * 35})`}>
-          <rect width="19" height="10" rx="2" fill="#4f91c9" />
-          <circle cx="10" cy="17" r="4" fill="#315f7d" />
-        </g>
-      ))}
-      <path d="M278 155v-19h22" stroke="#349984" strokeWidth="3" fill="none" />
-    </svg>
-  );
-}
-export function StartScreen() {
-  const ux = useExperience();
-  const [tour, setTour] = useState(0);
-  const open = (id: string) => {
-    const sample = SAMPLE_PLANS.find((s) => s.id === id)!;
-    useEditor.getState().load(sample.plan);
-    ux.newBuilding();
-    ux.setHome(false);
-  };
-  const bring = (action: string) => {
-    useEditor.getState().load(blankPlan("My building", 24, 18));
-    ux.newBuilding();
-    ux.setHome(false);
-    if (action === "describe") ux.ask("Help me turn my building description into a plan. Ask me about the rooms, floors and dimensions first.");
-    else window.dispatchEvent(new CustomEvent("civil-sim:bring", { detail: action }));
-  };
-  return (
-    <div className="start-screen">
-      <div className="start-intro">
-        <span className="eyebrow">See your building through the people who use it</span>
-        <h1>A better building starts with a small experiment.</h1>
-        <p>Bring a plan, choose who comes in, then watch what happens. The assistant can help with every step.</p>
-        <button className="link" onClick={() => setTour(1)}>
-          Take the 30-second tour
-        </button>
-      </div>
-      <h2>Start from a sample</h2>
-      <div className="sample-cards">
-        <button onClick={() => open("office-a-evac")}>
-          <Thumbnail />
-          <span>
-            <strong>Office</strong>
-            <small>Desks, meetings and a busy pantry. See what helps people focus.</small>
-          </span>
-        </button>
-        <button onClick={() => open("mall-2f-evac")}>
-          <Thumbnail mall />
-          <span>
-            <strong>Mall</strong>
-            <small>Two floors, shops and a food court. Explore crowds and getting out.</small>
-          </span>
-        </button>
-      </div>
-      <h2>Bring your plan</h2>
-      <div className="bring-options">
-        {[
-          ["image", "Trace an image", "Use a photo or a scanned floor plan."],
-          ["dxf", "Import a drawing", "Bring a DXF file from your drawing tool."],
-          ["draw", "Draw a plan", "Start with walls, doors and rooms."],
-          ["describe", "Describe it", "Tell the assistant what you have in mind."],
-        ].map(([key, name, note]) => (
-          <button key={key} onClick={() => bring(key)}>
-            <strong>{name}</strong>
-            <span>{note}</span>
-          </button>
-        ))}
-      </div>
-      <button className="continue-project" onClick={() => ux.setHome(false)}>
-        Continue with the building already open →
-      </button>
-      <p className="honest-note">People’s behaviour, sound and light are estimates until checked against a real building.</p>
-      {tour > 0 && (
-        <div className="backdrop">
-          <section className="dialog tour" role="dialog" aria-label="Three-step tour">
-            <span className="eyebrow">{tour} of 3</span>
-            <h2>{["", "Your building", "Who uses it", "See what happens"][tour]}</h2>
-            <p>
-              {
-                [
-                  "",
-                  "Start from a sample, trace a plan or describe your building. Nothing has to be perfect to try it.",
-                  "We fill in a typical day. Change the crowd size or ask the assistant to describe your visitors.",
-                  "Run the day. Look at what to fix first, or walk through the building beside the people.",
-                ][tour]
-              }
-            </p>
-            <div className="dialog-actions">
-              <button onClick={() => setTour(0)}>Skip tour</button>
-              <button className="primary" onClick={() => setTour(tour === 3 ? 0 : tour + 1)}>
-                {tour === 3 ? "Let’s start" : "Next"}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
-    </div>
-  );
-}
 export function SimpleBuilding() {
   const state = useEditor(),
     ux = useExperience();
@@ -363,36 +213,4 @@ export function RunControls() {
       {evac && <EvacuationDialog onClose={() => setEvac(false)} />}
     </div>
   );
-}
-export function AssistantDock() {
-  const ux = useExperience(),
-    state = useEditor();
-  return ux.assistantOpen ? (
-    <aside className="assistant-drawer" aria-label="Design assistant drawer">
-      <div className="drawer-heading">
-        <strong>Make a small change</strong>
-        <button onClick={ux.closeAssistant} aria-label="Close assistant">
-          ×
-        </button>
-      </div>
-      <div className="assistant-suggestions">
-        {suggestions(ux.step, !!state.selection, ux.step === 3 && !!state.run).map((s) => (
-          <button key={s} onClick={() => ux.ask(s)}>
-            {s}
-          </button>
-        ))}
-      </div>
-      {ux.prompt && <p className="prepared-prompt">Your question: {ux.prompt}</p>}
-      <AssistantPanel />
-      <details className="glossary">
-        <summary>A few useful words</summary>
-        {Object.entries(GLOSSARY).map(([term, meaning]) => (
-          <p key={term}>
-            <strong>{term}: </strong>
-            {meaning}
-          </p>
-        ))}
-      </details>
-    </aside>
-  ) : null;
 }

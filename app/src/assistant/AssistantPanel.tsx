@@ -1,17 +1,13 @@
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useExperience } from "../experience/state.ts";
-import { useEffect, useRef, useState } from "react";
+import { VoltMark } from "../ui/Brand.tsx";
 import { useAssistant } from "./assistant.ts";
+import { Thinking } from "./AssistantWindow.tsx";
 
-const EXAMPLES = [
-  "Add a window to the right wall of the first floor",
-  "Make the clothing store an anchor and move the food court next to it",
-  "Set it up for a busy Poya day",
-];
-
-/** Talk to the design assistant. Its edits come back as a proposal to apply or discard. */
-export function AssistantPanel() {
+/** Talk to the Volt Assistant. Its edits come back as a proposal to apply or discard. */
+export function AssistantPanel({ suggestions }: { suggestions?: ReactNode }) {
   const key = useAssistant((s) => s.key);
-  return key ? <Chat /> : <KeyForm />;
+  return key ? <Chat suggestions={suggestions} /> : <KeyForm />;
 }
 
 function KeyForm() {
@@ -19,60 +15,50 @@ function KeyForm() {
   const [remember, setRemember] = useState(false);
   const ok = value.trim().startsWith("sk-ant-");
   return (
-    <section className="panel">
-      <header>
-        <div>
-          <h2>Design assistant</h2>
-          <span className="muted">Describe a change; it proposes the edit</span>
-        </div>
-      </header>
-      <div className="panel-body">
-        <p>
-          The assistant uses Claude and needs your Anthropic API key. Requests go straight from this browser to Anthropic, and you pay for what you
-          use.
-        </p>
-        <label className="field stacked">
-          <span>API key</span>
-          <input
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="sk-ant-…"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-          Remember on this computer
-        </label>
-        <p className="muted">
-          {remember
-            ? "Stored in this browser only. Anyone using this computer could find it, so don't tick this on a shared machine."
-            : "Kept until you close or reload the page."}
-        </p>
-        <button className="primary" disabled={!ok} onClick={() => useAssistant.getState().setKey(value.trim(), remember)}>
-          Start
-        </button>
-        {value && !ok && <p className="warn">Anthropic API keys start with "sk-ant-".</p>}
+    <div className="assistant-welcome">
+      <div className="assistant-hello">
+        <VoltMark size={28} />
+        <h2>Describe a change, Volt does the rest</h2>
+        <p className="muted">Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.</p>
       </div>
-    </section>
+      <label className="field stacked">
+        <span>Anthropic API key</span>
+        <input type="password" autoComplete="off" spellCheck={false} placeholder="sk-ant-…" value={value} onChange={(e) => setValue(e.target.value)} />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        Remember on this computer
+      </label>
+      <p className="muted small">
+        {remember
+          ? "Stored in this browser only. Anyone using this computer could find it, so don't tick this on a shared machine."
+          : "Kept until you close or reload the page."}{" "}
+        Requests go straight from this browser to Anthropic, and you pay for what you use.
+      </p>
+      <button className="primary wide" disabled={!ok} onClick={() => useAssistant.getState().setKey(value.trim(), remember)}>
+        Start
+      </button>
+      {value && !ok && <p className="warn">Anthropic API keys start with "sk-ant-".</p>}
+    </div>
   );
 }
 
-function Chat() {
+function Chat({ suggestions }: { suggestions?: ReactNode }) {
   const { lines, busy, error, proposal, remember } = useAssistant();
-  const { send, reset, forgetKey, apply, discard } = useAssistant.getState();
+  const { send, forgetKey, apply, discard } = useAssistant.getState();
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
-  const prompt = useExperience((s) => s.prompt),
-    promptKey = useExperience((s) => s.promptKey);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prompt = useExperience((s) => s.prompt);
+  const promptKey = useExperience((s) => s.promptKey);
   useEffect(() => {
-    if (prompt) setText(prompt);
+    if (!prompt) return;
+    setText(prompt);
+    inputRef.current?.focus();
   }, [prompt, promptKey]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [lines.length, busy]);
+  }, [lines.length, busy, proposal]);
 
   const submit = () => {
     if (!text.trim() || busy) return;
@@ -81,48 +67,45 @@ function Chat() {
   };
 
   return (
-    <section className="panel assistant">
-      <header>
-        <div>
-          <h2>Assistant</h2>
-          <span className="muted">Proposes changes for you to apply</span>
-        </div>
-        {lines.length > 0 && (
-          <button onClick={reset} disabled={busy} title="Start a new conversation">
-            New chat
-          </button>
+    <div className="assistant-chat">
+      <div className="chat">
+        {!lines.length && (
+          <div className="chat-empty">
+            <div className="assistant-hello">
+              <VoltMark size={28} />
+              <h2>What would you like to change?</h2>
+              <p className="muted">Ask about the building or the people. Changes show on the plan first, for you to apply or discard.</p>
+            </div>
+            {suggestions}
+          </div>
         )}
-      </header>
-      <div className="panel-body">
-        <div className="chat">
-          {!lines.length && (
-            <div className="chat-empty">
-              <p className="muted">Ask for a change to the plan or the people. For example:</p>
-              {EXAMPLES.map((x) => (
-                <button key={x} className="chip" onClick={() => setText(x)}>
-                  {x}
-                </button>
-              ))}
+        {lines.map((l, i) =>
+          l.role === "assistant" ? (
+            <div key={i} className="chat-line assistant">
+              <VoltMark size={14} className="chat-avatar" />
+              <div className="bubble">{l.text}</div>
             </div>
-          )}
-          {lines.map((l, i) => (
+          ) : (
             <div key={i} className={`chat-line ${l.role}`}>
-              {l.text}
+              <div className="bubble">{l.text}</div>
             </div>
-          ))}
-          {busy && <div className="chat-line assistant muted">Working on it…</div>}
-          <div ref={endRef} />
-        </div>
+          ),
+        )}
+        {busy && <Thinking />}
 
         {proposal && !busy && (
           <div className="proposal-card">
-            <strong>Waiting for you</strong>
+            <div className="proposal-title">
+              <strong>Ready for you to check</strong>
+              <span className="muted">
+                {proposal.changes.length} change{proposal.changes.length === 1 ? "" : "s"}, highlighted on the plan
+              </span>
+            </div>
             <ul>
               {proposal.changes.map((c, i) => (
                 <li key={i}>{c.text}</li>
               ))}
             </ul>
-            <p className="muted">Highlighted on the plan. Ask for tweaks before applying, or apply and undo later.</p>
             <div className="proposal-actions">
               <button onClick={discard}>Discard</button>
               <button className="primary" onClick={apply}>
@@ -131,32 +114,36 @@ function Chat() {
             </div>
           </div>
         )}
-
         {error && <p className="warn">{error}</p>}
-
-        <div className="chat-input">
-          <textarea
-            rows={3}
-            placeholder={proposal ? "Ask for a tweak, or apply it…" : "Describe a change…"}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-          />
-          <div className="chat-input-row">
-            <button className="link" onClick={forgetKey} title="Remove the API key from this browser">
-              {remember ? "Forget saved key" : "Change key"}
-            </button>
-            <button className="primary" onClick={submit} disabled={busy || !text.trim()}>
-              Send
-            </button>
-          </div>
-        </div>
+        <div ref={endRef} />
       </div>
-    </section>
+
+      <div className="chat-input">
+        <textarea
+          ref={inputRef}
+          rows={2}
+          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask Volt to change something…"}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <button className="send" onClick={submit} disabled={busy || !text.trim()} title="Send (Enter)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
+          </svg>
+        </button>
+      </div>
+      <div className="chat-foot">
+        <span className="muted">Enter to send · Shift+Enter for a new line</span>
+        <button className="link" onClick={forgetKey} title="Remove the API key from this browser">
+          {remember ? "Forget saved key" : "Change key"}
+        </button>
+      </div>
+    </div>
   );
 }

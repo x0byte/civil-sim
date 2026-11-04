@@ -31,6 +31,8 @@ interface Experience {
   detailed: boolean;
   peopleReady: boolean;
   assistantOpen: boolean;
+  /** Docked beside the workspace, or floating over it. Remembered. */
+  assistantDocked: boolean;
   prompt: string;
   promptKey: number;
   presentation: "2d" | "3d";
@@ -42,6 +44,8 @@ interface Experience {
   setDetailed: (d: boolean) => void;
   ask: (prompt?: string) => void;
   closeAssistant: () => void;
+  toggleAssistant: () => void;
+  setAssistantDocked: (docked: boolean) => void;
   show: (target: FocusTarget) => void;
   follow: (id: string, t?: number) => void;
   setCamera: (mode: Experience["camera"]) => void;
@@ -50,10 +54,11 @@ interface Experience {
 }
 export const useExperience = create<Experience>((set, get) => ({
   step: 1,
-  home: saved("civil-sim:welcomed", "no") !== "yes",
-  detailed: saved("civil-sim:detail", "simple") === "detailed",
+  home: saved("volt:welcomed", "no") !== "yes",
+  detailed: saved("volt:detail", "simple") === "detailed",
   peopleReady: false,
   assistantOpen: false,
+  assistantDocked: saved("volt:assistant-docked", "no") === "yes",
   prompt: "",
   promptKey: 0,
   presentation: "2d",
@@ -62,15 +67,20 @@ export const useExperience = create<Experience>((set, get) => ({
   focus: null,
   go: (step) => set({ step, home: false, ...(step === 3 ? { peopleReady: true } : {}) }),
   setHome: (home) => {
-    if (!home) remember("civil-sim:welcomed", "yes");
+    if (!home) remember("volt:welcomed", "yes");
     set({ home });
   },
   setDetailed: (detailed) => {
-    remember("civil-sim:detail", detailed ? "detailed" : "simple");
+    remember("volt:detail", detailed ? "detailed" : "simple");
     set({ detailed });
   },
   ask: (prompt) => set({ assistantOpen: true, ...(prompt ? { prompt, promptKey: get().promptKey + 1 } : {}) }),
   closeAssistant: () => set({ assistantOpen: false }),
+  toggleAssistant: () => set({ assistantOpen: !get().assistantOpen }),
+  setAssistantDocked: (assistantDocked) => {
+    remember("volt:assistant-docked", assistantDocked ? "yes" : "no");
+    set({ assistantDocked });
+  },
   show: (target) =>
     set({
       home: false,

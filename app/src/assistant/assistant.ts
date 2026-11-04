@@ -17,7 +17,7 @@ const KEY_STORAGE = "civil-sim:anthropic-key";
 /** Model turns per message before giving up, so a confused loop can't run up a bill. */
 const MAX_STEPS = 24;
 
-const SYSTEM = `You are the design assistant inside civil-sim, a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
+const SYSTEM = `You are Volt, the design assistant inside Volt Design, a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
 
 You change the plan and the people settings by calling tools. Your changes go into a proposal that the user sees highlighted on the plan and then applies or discards, so make the change asked for rather than asking permission. Ask a short question first only when the request is genuinely ambiguous (for example, which of two rooms they mean).
 
@@ -53,6 +53,8 @@ interface AssistantState {
   history: Anthropic.Beta.BetaMessageParam[];
   proposal: Proposal | null;
   busy: boolean;
+  /** What it's doing right now, newest last, in plain words ("Adding a window"). Empty when idle. */
+  activity: string[];
   /** Something the user should know about the last request, e.g. an API error. */
   error: string | null;
   setKey: (key: string, remember: boolean) => void;
@@ -86,6 +88,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   history: [],
   proposal: null,
   busy: false,
+  activity: [],
   error: null,
 
   setKey: (key, remember) => {
@@ -124,7 +127,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
       ...get().history,
       { role: "user", content: [{ type: "text", text: intro }, { type: "text", text }] },
     ];
-    set({ busy: true, error: null, history, lines: [...get().lines, { role: "user", text }] });
+    set({ busy: true, activity: ["Reading your plan"], error: null, history, lines: [...get().lines, { role: "user", text }] });
 
     const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
     let draft = start.draft;
@@ -133,6 +136,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     try {
       for (let step = 0; ; step++) {
         if (step >= MAX_STEPS) throw new Error("The assistant took too many steps on this request, so it was stopped. Try asking for less at once.");
+        set({ activity: [...get().activity, step === 0 ? "Thinking it through" : "Checking the result"] });
         const response = await client.beta.messages.create({
           model: MODEL,
           max_tokens: 16000,
@@ -160,6 +164,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
           const out = runTool(call.name, call.input as Record<string, unknown>, draft);
           draft = out.draft;
           if (out.change) changes.push(out.change);
+          set({ activity: [...get().activity, toolActivity(call.name, out.error)] });
           return { type: "tool_result", tool_use_id: call.id, content: out.result, ...(out.error ? { is_error: true } : {}) };
         });
         // All results for one turn go back in a single message.
@@ -176,6 +181,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     const changed = draft.plan !== start.base.plan || draft.profile !== start.base.profile;
     set({
       busy: false,
+      activity: [],
       proposal: changed ? { base: start.base, draft, changes } : null,
       lines: reply.length ? [...get().lines, { role: "assistant", text: reply.join("\n\n") }] : get().lines,
     });
@@ -216,4 +222,28 @@ function errorText(e: unknown): string {
   if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach the Claude API. Check your internet connection.";
   if (e instanceof Anthropic.APIError) return `The Claude API returned an error (${e.status ?? "unknown"}): ${e.message}`;
   return e instanceof Error ? e.message : String(e);
+}
+
+const TOOL_ACTIVITY: Record<string, string> = {
+  add_floor: "Adding a floor",
+  update_floor: "Adjusting a floor",
+  add_wall: "Drawing a wall",
+  add_opening: "Adding a door or window",
+  update_opening: "Adjusting a door or window",
+  add_room: "Adding a room",
+  update_room: "Reshaping a room",
+  add_furniture: "Placing furniture",
+  add_connector: "Adding stairs or a lift",
+  remove: "Removing something",
+  set_hours: "Setting the opening hours",
+  set_shoppers: "Setting up the shoppers",
+  set_staff: "Adjusting the staff",
+  set_kinds_of_people: "Choosing who comes in",
+  set_crowding: "Setting up crowding",
+};
+
+/** A tool call as a short plain-words status line. */
+export function toolActivity(name: string, failed?: boolean): string {
+  const label = TOOL_ACTIVITY[name] ?? `Working on ${name.replace(/^(set|add|update)_/, "").replace(/_/g, " ")}`;
+  return failed ? `${label} (trying again)` : label;
 }

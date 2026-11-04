@@ -18,6 +18,12 @@ The app uses explicit user fetches only: a single 200 m Overpass query, four vis
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Volt Design: name, app shell and assistant window
+- **The product is called Volt Design**, with the Volt logo. The repository, packages and saved-data keys keep `civil-sim`, so existing saved plans, options and API keys still load; saved project files are now named `….volt.json` and old ones still open. *(Product owner)*
+- **It looks like a desktop design tool, not a website:** one app bar (Volt mark, File / Edit / View menus, the three steps as Building · People · Simulate, undo and redo, the Assistant button); dark by default with a light theme; a home screen with "Start something new" tiles, Continue, and real plan thumbnails of the samples, instead of a marketing-style landing page. *(Product owner: "like a proper application, like Adobe")*
+- **The Volt Assistant is a window** that floats (drag by its title bar, resize from the corner), docks beside the workspace, or shrinks to a button; the choice is remembered. While it works it shows live steps in plain words, taken from what it's actually doing ("Reading your plan", "Adding a door or window", "Checking the result"), with an animated mark and a timer. *(Product owner, built by Claude)*
+- **Codex's unfinished UX work (flow, scorecard, figures, walk mode) is kept and reformatted** to the app's usual code style; its start screen, two-row header and assistant drawer are replaced by the above. *(Claude)*
+
 ## 2026-11-04: Version 1 scope and UX direction
 - **Version 1 is offices and shopping malls; schools are version 2.** Remaining v1 work, in order: evacuation and accessibility, a friendly UI with a game-like walk-through, "Find improvements" (the AI proposes and tests changes), heat and airflow, a server for clients, calibration. *(Product owner)*
 - **The app must be usable by non-technical people, with the assistant doing the complicated parts.** Principles in `docs/v1-plan.md`: three visible steps, assistant on every screen, results as a scorecard and "Top things to fix" with Show me / Try a fix, simple first with detail on request, plain words only. *(Product owner, principles drafted by Claude)*

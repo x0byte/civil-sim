@@ -45,7 +45,7 @@ describe("project files", () => {
 
   it("explains files it can't open", () => {
     expect(() => parseProjectOrPlan("not json")).toThrow("it isn't a valid JSON file");
-    expect(() => parseProjectOrPlan('{"hello":1}')).toThrow("it isn't a civil-sim project or floor plan");
+    expect(() => parseProjectOrPlan('{"hello":1}')).toThrow("it isn't a Volt Design project or floor plan");
     expect(() => parseProjectOrPlan(JSON.stringify({ format: "civil-sim-project", version: 9 }))).toThrow(/newer version/);
   });
 
@@ -59,6 +59,6 @@ describe("project files", () => {
   });
 
   it("names the file after the plan", () => {
-    expect(projectFileName({ ...a, name: "Office A: toilet beside manager" })).toBe("office-a-toilet-beside-manager.civilsim.json");
+    expect(projectFileName({ ...a, name: "Office A: toilet beside manager" })).toBe("office-a-toilet-beside-manager.volt.json");
   });
 });

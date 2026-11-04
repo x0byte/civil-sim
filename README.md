@@ -1,6 +1,6 @@
-# civil-sim
+# Volt Design
 
-Test a building layout on simulated people before it is built.
+Test a building layout on simulated people before it is built. (The repository and code keep the working name `civil-sim`.)
 
 Draw or trace a floor plan, fill it with people who have desks, teams, meetings and ordinary
 needs, run a workday, and see how they move and where the layout causes problems: long walks,

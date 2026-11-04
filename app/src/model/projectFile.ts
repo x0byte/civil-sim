@@ -33,7 +33,7 @@ export function buildProject(
 }
 
 export const projectFileName = (plan: FloorPlan) =>
-  `${plan.name.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project"}.civilsim.json`;
+  `${plan.name.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project"}.volt.json`;
 
 export type Opened =
   | { kind: "project"; project: ProjectFile; warnings: string[] }
@@ -53,7 +53,7 @@ export function parseProjectOrPlan(text: string): Opened {
   const obj = data as Record<string, unknown>;
   if (obj?.format === PROJECT_FORMAT) {
     if (obj.version !== PROJECT_VERSION) {
-      throw new Error(`it was saved by a newer version of civil-sim (project version ${String(obj.version)})`);
+      throw new Error(`it was saved by a newer version of Volt Design (project version ${String(obj.version)})`);
     }
     const p = obj as unknown as ProjectFile;
     if (!isPlan(p.plan)) throw new Error("its floor plan is missing or damaged");
@@ -73,7 +73,7 @@ export function parseProjectOrPlan(text: string): Opened {
     const plan = upgradePlan(obj);
     return { kind: "plan", plan, warnings: planWarnings(plan) };
   }
-  throw new Error("it isn't a civil-sim project or floor plan");
+  throw new Error("it isn't a Volt Design project or floor plan");
 }
 
 /** Older plans (v0.1 single floor, v0.2 before shops) are accepted and upgraded. */

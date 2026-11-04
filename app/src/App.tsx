@@ -1,11 +1,14 @@
 import { plainText } from "./experience/wording.ts";
 import { useEffect } from "react";
-import { FlowHeader, StartScreen, SimpleBuilding, SimplePeople, RunControls, AssistantDock } from "./experience/Flow.tsx";
+import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
+import { Home } from "./experience/Home.tsx";
+import { AssistantWindow } from "./assistant/AssistantWindow.tsx";
 import { useExperience } from "./experience/state.ts";
 import { FineTune } from "./experience/common.tsx";
 import { Story } from "./experience/Story.tsx";
 import { Experience3D } from "./experience/Experience3D.tsx";
 import "./experience/experience.css";
+import "./ui/shell.css";
 import { ProposalView } from "./assistant/ProposalView.tsx";
 import { useAssistant } from "./assistant/assistant.ts";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
@@ -59,11 +62,10 @@ export function App() {
   }, []);
 
   return (
-    <div className="app friendly-app">
-      <FlowHeader />
+    <div className={`app friendly-app ${ux.assistantOpen && ux.assistantDocked ? "assistant-is-docked" : ""}`}>
       <TopBar />
       {ux.home ? (
-        <StartScreen />
+        <Home />
       ) : (
         <main className="workspace">
           {ux.step === 1 && view === "2d" && !proposal && <Toolbar />}
@@ -129,7 +131,7 @@ export function App() {
           </aside>
         </main>
       )}
-      <AssistantDock />
+      <AssistantWindow />
       {toast && (
         <div className="toast" role="status">
           {plainText(useEditor.getState().plan, toast)}
