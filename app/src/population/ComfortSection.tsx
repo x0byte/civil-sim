@@ -37,6 +37,9 @@ export function ComfortSection({ profile, setProfile }: { profile: OfficeProfile
               Assumptions for comparing layouts: typical room lighting and surfaces are used until you describe them. These are not lighting
               or acoustic engineering predictions.
             </p>
+            <p className="muted">
+              The light need is for desk work, meetings and shopping. Eating, lunch, pantry visits and waiting need half as much; walking needs a quarter.
+            </p>
           </>
         ) : (
           <p className="muted">Off: sound, light, glare and seeing edges are not checked for this day.</p>

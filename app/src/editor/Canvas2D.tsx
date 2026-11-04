@@ -76,9 +76,11 @@ export function Canvas2D() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan);
+  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan, { top: 80, right: 48, bottom: 48, left: 48 });
   const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean } | null>(null);
-  const [northAt, setNorthAt] = useState<Vec2>({ x: 2, y: 2 });
+  const [northPosition, setNorthAt] = useState<Vec2 | null>(null);
+  const northAt = northPosition ?? { x: plan.bounds.width - 80 / cam.s, y: -36 / cam.s };
+  useEffect(() => setNorthAt(null), [plan.id]);
   const [draft, setDraft] = useState<Vec2[]>([]);
   const [rect, setRect] = useState<{ a: Vec2; b: Vec2 } | null>(null);
   const [calib, setCalib] = useState<{ a: Vec2; b: Vec2 } | null>(null);
@@ -261,7 +263,14 @@ export function Canvas2D() {
         return;
       }
       case "north": {
-        if (!d.rotate) { setNorthAt({ x: Math.max(0, Math.min(plan.bounds.width, raw.x - d.grab.x)), y: Math.max(0, Math.min(plan.bounds.height, raw.y - d.grab.y)) }); return; }
+        if (!d.rotate) {
+          const width = svgRef.current!.clientWidth; const height = svgRef.current!.clientHeight;
+          setNorthAt({
+            x: Math.max((34 - cam.x) / cam.s, Math.min((width - 34 - cam.x) / cam.s, raw.x - d.grab.x)),
+            y: Math.max((34 - cam.y) / cam.s, Math.min((height - 34 - cam.y) / cam.s, raw.y - d.grab.y)),
+          });
+          return;
+        }
         if (!d.started) { beginDrag(); d.started = true; }
         const northDeg = Math.atan2(raw.x - northAt.x, northAt.y - raw.y) * 180 / Math.PI;
         dragPlan((p) => setSite(p, { northDeg }));

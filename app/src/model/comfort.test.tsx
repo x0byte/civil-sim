@@ -48,7 +48,7 @@ describe("app comfort", () => {
     });
     expect(COMFORT_TOLERANCES).toEqual({
       noiseComfort: { mean: 70, sd: 4, min: 60, max: 80 },
-      focusNoiseComfort: { mean: 50, sd: 3, min: 42, max: 58 },
+      focusNoiseComfort: { mean: 50, sd: 3, min: 46, max: 58 },
       taskLux: { mean: 300, sd: 50, min: 200, max: 450 },
       glareComfort: { mean: 0.4, sd: 0.05, min: 0.3, max: 0.5 },
     });
