@@ -5,7 +5,7 @@ import officeJson from "../../../samples/office-a.floorplan.json";
 import { normalize } from "../model/planOps.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { diffPlans } from "./diff.ts";
-import { type Draft, TOOLS, describe, problems, runTool } from "./tools.ts";
+import { type Draft, MAX_STRICT_TOOLS, RELAXED_TOOLS, TOOLS, describe, problems, runTool } from "./tools.ts";
 
 const mall = normalize(mallJson as FloorPlan);
 const start = (plan: FloorPlan = mall): Draft => ({ plan, profile: defaultProfile(plan) });
@@ -24,10 +24,15 @@ group("assistant tools", () => {
   it("follows the strict-schema rules: every property required, no extras", () => {
     for (const t of TOOLS) {
       const schema = t.input_schema as unknown as { properties: Record<string, unknown>; required: string[]; additionalProperties: boolean };
-      expect(t.strict, t.name).toBe(true);
+      expect(t.strict, t.name).toBe(!RELAXED_TOOLS.has(t.name));
       expect(schema.additionalProperties, t.name).toBe(false);
       expect([...schema.required].sort(), t.name).toEqual(Object.keys(schema.properties).sort());
     }
+  });
+
+  it("stays within the API's limit of strict tools per request", () => {
+    expect(TOOLS.filter((t) => t.strict).length).toBeLessThanOrEqual(MAX_STRICT_TOOLS);
+    expect([...RELAXED_TOOLS].every((name) => TOOLS.some((t) => t.name === name))).toBe(true);
   });
 
   it("fits the API's strict-schema rules all the way down", () => {

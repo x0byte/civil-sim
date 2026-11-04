@@ -480,8 +480,30 @@ function nullableAsAnyOf(schema: unknown): unknown {
   return { anyOf: [branch, { type: "null" }], ...(description ? { description } : {}) };
 }
 
+/**
+ * The API allows at most 20 strict tools per request. These take a few simple settings and check
+ * every value themselves when they run, so they go without strict mode; the rest keep it.
+ */
+export const RELAXED_TOOLS = new Set([
+  "set_crowding",
+  "set_hours",
+  "set_staff",
+  "set_comfort",
+  "set_site",
+  "set_weather",
+  "set_safety_flag",
+  "set_evacuation",
+  "add_floor",
+  "update_floor",
+]);
+export const MAX_STRICT_TOOLS = 20;
+
 /** Tool definitions, in a fixed order so the request prefix stays cacheable. */
-export const TOOLS: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({ ...t, input_schema: nullableAsAnyOf(t.input_schema) as Anthropic.Tool["input_schema"] }));
+export const TOOLS: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({
+  ...t,
+  strict: !RELAXED_TOOLS.has(t.name),
+  input_schema: nullableAsAnyOf(t.input_schema) as Anthropic.Tool["input_schema"],
+}));
 
 type Input = Record<string, unknown>;
 const ok = (draft: Draft, result: string, change?: Change): ToolOutcome => ({ draft, result: withProblems(draft.plan, result), change });
