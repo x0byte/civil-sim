@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Codex builds, Claude reviews (for now)
+- **Codex does the building for v0.7, the app side included; Claude writes briefs and reviews each branch independently before it merges.** Saves Claude usage while the owner is near their limit. Codex still never edits `contracts/`. *(Product owner)*
+
 ## 2026-11-03: Contract v0.7 (comfort)
 - **Approved: sound, light (daylight, electric lighting, glare) and floor-and-wall contrast**, worked out per spot and compared with each person's own drawn tolerances along their actual path; "overload" is two or more discomforts at once. Floor plan v0.4, scenario and results v0.7. *(Product owner)*
 - **Lighting levels and acoustics default by room type, shown as assumptions; floor and wall shades have no default, so contrast reads "not checked" until entered. Desk rotation means the way the sitter faces. Comfort is on by default in the app but optional in the contract.** *(Product owner, as recommended)*

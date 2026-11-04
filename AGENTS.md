@@ -14,7 +14,11 @@ the layout causes problems. The product owner makes all scope decisions.
 | `engine/` | Codex | The simulation core (no UI) |
 | `docs/` | Shared | Decisions, roadmap, change requests |
 
-Never edit another agent's folder. If you need something from the other side, write it in
+Never edit another agent's folder.
+
+**Temporary (from 2026-11-04, until the product owner says otherwise):** Codex also builds `app/`
+features from briefs in `docs/` (starting with `docs/codex-brief-v0.7-app.md`), and Claude reviews
+each branch before it merges. Codex still never edits `contracts/`. If you need something from the other side, write it in
 `docs/contract-change-requests.md`.
 
 ## Working rules
