@@ -2,6 +2,10 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: App v0.7 comfort controls and reporting
+- New People profiles enable comfort with the fixed default date 2026-03-21; missing comfort in saved profiles stays off. Room defaults and typical tolerances live in one app module. Empty-kind rows are hidden in the results; default-profile people retain their approved row. Desk minutes describe opening hours, person minutes actual attendance.
+- The north arrow's placement is a local canvas aid; rotation is a saved, undoable site edit. Optional finishes can return to typical/unchecked; assistant null keeps a value, -1 clears numeric finishes, `typical` clears surfaces and `all_day` clears source hours. Noise sources participate in plan history, floor deletion, save/open and proposal highlighting. *(Codex, implementing the product-owner-approved app brief; Claude reviews.)*
+
 ## 2026-11-03: Engine v0.7 comfort observations
 - Comfort runs after movement, adding exposures without changing tracks' points or old random draws. New tolerance streams use the specified default spreads for profiles and exact means for unprofiled people. The default `profileId: ""` row follows listed profiles when needed, as approved by the product owner (option 1).
 - Light/glare grids use 15-minute observations; sound uses one-minute energy levels on a 1 m grid, expanded to the existing 0.5 m grid, with rolling 15-minute energy averages. Person exposures split at actual activity/room boundaries and minute observations; crowd stretches reuse v0.6's five-second observations, clipped to attendance. Overload and room discomfort count time once across causes. Desk summaries cover opening hours; track exposures cover attendance only. These are comparison assumptions, not calibrated engineering predictions. *(Codex, implementing the approved brief.)*

@@ -42,7 +42,7 @@ describe("kinds of people", () => {
   it("a mall gets kinds of people and crowding by default, and the engine reports who struggled", () => {
     const mall = plan("mall-2f");
     const x = expandProfile(defaultProfile(mall), mall);
-    expect(x.scenario.profiles?.shoppers?.length).toBe(7);
+    expect(x.scenario.profiles?.shoppers?.length).toBe(9);
     expect(x.scenario.profiles?.staff).toBeDefined();
     expect(x.scenario.crowding).toEqual({ enabled: true });
     expect(validateScenario(x.scenario, mall)).toEqual([]);

@@ -11,12 +11,15 @@ import {
   removeItem,
   removeLevel,
   setBounds,
+  setSite,
   setConnectorKind,
   setWallLength,
   spaceTypeLabel,
   updateItem,
   updateLevel,
 } from "../model/planOps.ts";
+import { DEFAULT_SITE } from "../model/comfortDefaults.ts";
+import { WindowGlass, RoomFinish, NoiseFields } from "./ComfortFields.tsx";
 import { FindWalls } from "../importers/FindWalls.tsx";
 import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "./fields.tsx";
@@ -53,7 +56,7 @@ export function Inspector() {
     if (!w) return null;
     const n = plan.openings.filter((o) => o.wallId === w.id).length;
     return (
-      <Panel title="Wall" sub={w.id} onDelete={remove}>
+      <Panel title="Wall" sub="Wall dimensions" onDelete={remove}>
         <NumField label="Length" value={wallLength(w)} min={0.1} onCommit={(v) => commit((p) => setWallLength(p, w.id, v))} />
         <NumField
           label="Thickness"
@@ -69,9 +72,7 @@ export function Inspector() {
           step={0.1}
           onCommit={(v) => commit((p) => updateItem(p, "wall", w.id, (x) => ({ ...x, height: v })))}
         />
-        <p className="muted">
-          {n ? `${n} door/window opening${n > 1 ? "s" : ""}. ` : ""}Drag the round handles to move its corners.
-        </p>
+        <p className="muted">{n ? `${n} door/window opening${n > 1 ? "s" : ""}. ` : ""}Drag the round handles to move its corners.</p>
       </Panel>
     );
   }
@@ -85,7 +86,7 @@ export function Inspector() {
       commit((p) => updateItem(p, "opening", o.id, (x) => ({ ...x, width: v, offset: centre })));
     };
     return (
-      <Panel title={o.kind === "door" ? "Door" : "Window"} sub={o.id} onDelete={remove}>
+      <Panel title={o.kind === "door" ? "Door" : "Window"} sub="Opening in a wall" onDelete={remove}>
         <NumField label="Width" value={o.width} min={0.3} onCommit={setWidth} />
         {o.kind === "door" && (
           <label className="check">
@@ -138,6 +139,7 @@ export function Inspector() {
             </p>
           </>
         )}
+        {o.kind === "window" && <WindowGlass opening={o} />}
         <p className="muted">Drag it along the wall to move it.</p>
       </Panel>
     );
@@ -216,6 +218,7 @@ export function Inspector() {
             <p className="muted">How strongly it draws shoppers: 1 is a typical shop, 3 an anchor store. Farther shops pull less.</p>
           </>
         )}
+        <RoomFinish space={s} />
         <dl className="stats">
           <dt>Area</dt>
           <dd>{polygonArea(s.polygon).toFixed(1)} m²</dd>
@@ -236,11 +239,20 @@ export function Inspector() {
     return c ? <ConnectorPanel connector={c} levels={plan.levels} onDelete={remove} /> : null;
   }
 
+  if (selection.kind === "noise") {
+    const n = getItem(plan, "noise", selection.id);
+    return n ? (
+      <Panel title="Noise source" sub={n.name} onDelete={remove}>
+        <NoiseFields source={n} />
+      </Panel>
+    ) : null;
+  }
+
   const f = getItem(plan, "fixture", selection.id);
   if (!f) return null;
   const room = plan.spaces.find((s) => s.id === f.spaceId);
   return (
-    <Panel title={FIXTURE_TYPES.find((t) => t.type === f.type)?.label ?? "Fixture"} sub={f.id} onDelete={remove}>
+    <Panel title={FIXTURE_TYPES.find((t) => t.type === f.type)?.label ?? "Fixture"} sub="Furniture" onDelete={remove}>
       <NumField
         label="Rotation"
         unit="°"
@@ -249,9 +261,7 @@ export function Inspector() {
         onCommit={(v) => commit((p) => updateItem(p, "fixture", f.id, (x) => ({ ...x, rotation: ((v % 360) + 360) % 360 })))}
       />
       <div className="row-buttons">
-        <button
-          onClick={() => commit((p) => updateItem(p, "fixture", f.id, (x) => ({ ...x, rotation: (x.rotation + 90) % 360 })))}
-        >
+        <button onClick={() => commit((p) => updateItem(p, "fixture", f.id, (x) => ({ ...x, rotation: (x.rotation + 90) % 360 })))}>
           Rotate 90°
         </button>
       </div>
@@ -274,8 +284,37 @@ function PlanPanel() {
   return (
     <Panel title="Floor plan" sub="Nothing selected">
       <TextField label="Name" value={plan.name} onCommit={(name) => commit((p) => ({ ...p, name }))} />
-      <NumField label="Width" value={plan.bounds.width} min={1} step={0.5} onCommit={(v) => commit((p) => setBounds(p, v, p.bounds.height))} />
-      <NumField label="Depth" value={plan.bounds.height} min={1} step={0.5} onCommit={(v) => commit((p) => setBounds(p, p.bounds.width, v))} />
+      <NumField
+        label="Width"
+        value={plan.bounds.width}
+        min={1}
+        step={0.5}
+        onCommit={(v) => commit((p) => setBounds(p, v, p.bounds.height))}
+      />
+      <NumField
+        label="Depth"
+        value={plan.bounds.height}
+        min={1}
+        step={0.5}
+        onCommit={(v) => commit((p) => setBounds(p, p.bounds.width, v))}
+      />
+      <NumField
+        label="North"
+        unit="°"
+        step={15}
+        value={plan.site?.northDeg ?? DEFAULT_SITE.northDeg}
+        onCommit={(northDeg) => commit((p) => setSite(p, { northDeg }))}
+      />
+      <NumField
+        label="Latitude"
+        unit="°"
+        step={0.1}
+        min={-90}
+        max={90}
+        value={plan.site?.latitude ?? DEFAULT_SITE.latitude}
+        onCommit={(latitude) => commit((p) => setSite(p, { latitude }))}
+      />
+      <p className="muted">North is clockwise from up the page. Latitude defaults to Colombo (6.9°).</p>
       <Floors levels={plan.levels} />
       {plan.underlay && (
         <>
@@ -329,10 +368,13 @@ function Floors({ levels }: { levels: Level[] }) {
   const plan = useEditor((s) => s.plan);
   const { commit, notify } = useEditor.getState();
   const items = (id: string) =>
-    plan.walls.filter((w) => w.levelId === id).length + plan.spaces.filter((x) => x.levelId === id).length + plan.fixtures.filter((x) => x.levelId === id).length;
+    plan.walls.filter((w) => w.levelId === id).length +
+    plan.spaces.filter((x) => x.levelId === id).length +
+    plan.fixtures.filter((x) => x.levelId === id).length +
+    (plan.noiseSources ?? []).filter((x) => x.levelId === id).length;
   const remove = (l: Level) => {
     const n = items(l.id);
-    if (n && !window.confirm(`Remove ${l.name} and the ${n} walls, rooms and furniture on it?`)) return;
+    if (n && !window.confirm(`Remove ${l.name} and the ${n} walls, rooms, furniture and noise sources on it?`)) return;
     commit((p) => removeLevel(p, l.id));
     notify(`${l.name} removed. Undo brings it back.`);
   };
@@ -368,7 +410,9 @@ function FloorName({ level }: { level: Level }) {
       aria-label="Floor name"
       value={text}
       onChange={(e) => setText(e.target.value)}
-      onBlur={() => (text.trim() && text !== level.name ? commit((p) => updateLevel(p, level.id, { name: text.trim() })) : setText(level.name))}
+      onBlur={() =>
+        text.trim() && text !== level.name ? commit((p) => updateLevel(p, level.id, { name: text.trim() })) : setText(level.name)
+      }
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
     />
   );
@@ -461,7 +505,14 @@ function ConnectorPanel({ connector: c, levels, onDelete }: { connector: Connect
         />
       )}
       {c.kind === "lift" && (
-        <NumField label="Capacity" unit="people" step={1} min={1} value={c.capacity ?? 8} onCommit={(v) => upd((x) => ({ ...x, capacity: Math.round(v) }))} />
+        <NumField
+          label="Capacity"
+          unit="people"
+          step={1}
+          min={1}
+          value={c.capacity ?? 8}
+          onCommit={(v) => upd((x) => ({ ...x, capacity: Math.round(v) }))}
+        />
       )}
       <p className="muted">
         {c.kind === "lift"
@@ -476,17 +527,7 @@ function ConnectorPanel({ connector: c, levels, onDelete }: { connector: Connect
   );
 }
 
-function Panel({
-  title,
-  sub,
-  onDelete,
-  children,
-}: {
-  title: string;
-  sub: string;
-  onDelete?: () => void;
-  children: React.ReactNode;
-}) {
+function Panel({ title, sub, onDelete, children }: { title: string; sub: string; onDelete?: () => void; children: React.ReactNode }) {
   return (
     <section className="panel">
       <header>

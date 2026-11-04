@@ -8,6 +8,7 @@ export function NumField({
   unit = "m",
   step = 0.05,
   min,
+  max,
 }: {
   label: string;
   value: number;
@@ -15,12 +16,13 @@ export function NumField({
   unit?: string;
   step?: number;
   min?: number;
+  max?: number;
 }) {
   const [text, setText] = useState(fmt(value));
   useEffect(() => setText(fmt(value)), [value]);
   const apply = () => {
     const v = Number(text);
-    if (Number.isFinite(v) && (min === undefined || v >= min) && Math.abs(v - value) > 1e-9) onCommit(v);
+    if (Number.isFinite(v) && (min === undefined || v >= min) && (max === undefined || v <= max) && Math.abs(v - value) > 1e-9) onCommit(v);
     else setText(fmt(value));
   };
   return (
@@ -31,6 +33,7 @@ export function NumField({
           type="number"
           step={step}
           min={min}
+          max={max}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={apply}

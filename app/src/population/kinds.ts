@@ -3,6 +3,7 @@
 // into the contract's Profiles for the engine. Every number here is an assumption until
 // checked against real counts; each kind carries a one-line reason so the UI can say why.
 
+import { COMFORT_TOLERANCES } from "../model/comfortDefaults.ts";
 import type { PersonProfile, ProfileShare, Profiles, Spread } from "../../../contracts/scenario.ts";
 
 export interface KindOfPerson extends PersonProfile {
@@ -114,6 +115,20 @@ export const KINDS: KindOfPerson[] = [
     crowdComfort: spread(0.9, 0.3, 0.4, 2),
     why: "A stick, crutches or a frame: slow, avoids escalators, strongly prefers the lift.",
   },
+  {
+    id: "low-vision", name: "Low vision", speed: spread(0.9, 0.15, 0.5, 1.3), access: "any", size: 1,
+    prefers: { stairs: 0.5, escalator: 0.5, lift: 2 }, familiarity: spread(0.5, 0.2, 0, 1), crowdComfort: spread(1, 0.3, 0.5, 2),
+    noiseComfort: COMFORT_TOLERANCES.noiseComfort, focusNoiseComfort: COMFORT_TOLERANCES.focusNoiseComfort,
+    taskLux: spread(500, 80, 350, 700), glareComfort: COMFORT_TOLERANCES.glareComfort, lowVision: true,
+    why: "Needs stronger light to see edges and prefers the lift.",
+  },
+  {
+    id: "sensory", name: "Sensitive to noise and light", speed: spread(1.15, 0.2, 0.7, 1.6), access: "any", size: 1,
+    prefers: { stairs: 1, escalator: 1, lift: 1 }, familiarity: spread(0.7, 0.2, 0.2, 1), crowdComfort: spread(0.8, 0.2, 0.4, 1.5),
+    noiseComfort: spread(60, 4, 52, 70), focusNoiseComfort: spread(44, 3, 38, 50), taskLux: COMFORT_TOLERANCES.taskLux,
+    glareComfort: spread(0.25, 0.04, 0.15, 0.35),
+    why: "Feels noise, glare and crowded places sooner than a typical adult.",
+  },
 ];
 
 export const KINDS_PRESETS: Record<KindsPreset, { label: string; note: string; shares: KindsSettings["shares"] }> = {
@@ -122,8 +137,18 @@ export const KINDS_PRESETS: Record<KindsPreset, { label: string; note: string; s
     note: "Mostly regulars, some first-timers, older people and children, and a few who need step-free access",
     shares: {
       staff: { staff: 97, "walking-aid": 2, wheelchair: 1 },
-      visitors: { "first-time": 85, older: 10, "walking-aid": 3, wheelchair: 2 },
-      shoppers: { regular: 62, "first-time": 12, older: 10, child: 8, pushchair: 5, wheelchair: 1.5, "walking-aid": 1.5 },
+      visitors: { "low-vision": 1, sensory: 2, "first-time": 82, older: 10, "walking-aid": 3, wheelchair: 2 },
+      shoppers: {
+        "low-vision": 1,
+        sensory: 2,
+        regular: 59,
+        "first-time": 12,
+        older: 10,
+        child: 8,
+        pushchair: 5,
+        wheelchair: 1.5,
+        "walking-aid": 1.5,
+      },
     },
   },
   access: {
@@ -131,8 +156,18 @@ export const KINDS_PRESETS: Record<KindsPreset, { label: string; note: string; s
     note: "Many more people who need lifts and wide doors, to find where access breaks down",
     shares: {
       staff: { staff: 85, "walking-aid": 5, wheelchair: 10 },
-      visitors: { "first-time": 50, older: 20, "walking-aid": 15, wheelchair: 15 },
-      shoppers: { regular: 35, "first-time": 5, older: 20, child: 5, pushchair: 15, wheelchair: 10, "walking-aid": 10 },
+      visitors: { "low-vision": 1, sensory: 2, "first-time": 47, older: 20, "walking-aid": 15, wheelchair: 15 },
+      shoppers: {
+        "low-vision": 1,
+        sensory: 2,
+        regular: 32,
+        "first-time": 5,
+        older: 20,
+        child: 5,
+        pushchair: 15,
+        wheelchair: 10,
+        "walking-aid": 10,
+      },
     },
   },
   opening: {
@@ -140,8 +175,18 @@ export const KINDS_PRESETS: Record<KindsPreset, { label: string; note: string; s
     note: "Most people have never been here, so signs and layout matter most",
     shares: {
       staff: { staff: 97, "walking-aid": 2, wheelchair: 1 },
-      visitors: { "first-time": 90, older: 6, "walking-aid": 2, wheelchair: 2 },
-      shoppers: { regular: 12, "first-time": 60, older: 10, child: 10, pushchair: 5, wheelchair: 1.5, "walking-aid": 1.5 },
+      visitors: { "low-vision": 1, sensory: 2, "first-time": 87, older: 6, "walking-aid": 2, wheelchair: 2 },
+      shoppers: {
+        "low-vision": 1,
+        sensory: 2,
+        regular: 9,
+        "first-time": 60,
+        older: 10,
+        child: 10,
+        pushchair: 5,
+        wheelchair: 1.5,
+        "walking-aid": 1.5,
+      },
     },
   },
 };
@@ -165,7 +210,7 @@ export function groupShares(kinds: KindsSettings, group: Group): ProfileShare[] 
 /** The contract's Profiles for the groups present today, or undefined when kinds are off or nobody gets one. */
 export function expandKinds(kinds: KindsSettings | undefined, present: Record<Group, boolean>): Profiles | undefined {
   if (!kinds?.enabled || !kinds.list.length) return undefined;
-  const profiles: Profiles = { list: kinds.list.map(({ why: _why, ...p }) => p) };
+  const profiles: Profiles = { list: kinds.list.map(({ why: _why, ...p }) => ({ ...COMFORT_TOLERANCES, lowVision: false, ...p })) };
   for (const g of ["staff", "visitors", "shoppers"] as Group[]) {
     const shares = present[g] ? groupShares(kinds, g) : [];
     if (shares.length) profiles[g] = shares;

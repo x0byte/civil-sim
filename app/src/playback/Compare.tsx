@@ -12,7 +12,8 @@ const INSETS = { top: 56, right: 24, bottom: 84, left: 24 };
 export function CompareView({ comparison }: { comparison: Comparison }) {
   const { a, b, labels } = comparison;
   const clock = usePlayClock(Math.max(a.result.durationS, b.result.durationS), comparison);
-  const heat = useEditor((s) => s.heat);
+  const savedHeat = useEditor((s) => s.heat);
+  const heat = (["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort)) ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
   // One scale for both (and every floor), so the same colour means the same amount in each layout.
   const heatMax = Math.max(heatPeak(a.result, heat), heatPeak(b.result, heat));
@@ -23,7 +24,7 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
         <PlanPlayer run={b} t={clock.t} heat={heat} heatMax={heatMax} insets={INSETS} title={`B · ${labels[1]}`} />
       </div>
       <div className="view-controls">
-        <HeatToggle value={heat} onChange={setHeat} />
+        <HeatToggle value={heat} onChange={setHeat} comfort={!!a.result.metrics.comfort && !!b.result.metrics.comfort} />
       </div>
       <Timeline clock={clock} start={a.scenario.workday.start} end={a.scenario.workday.end} />
     </div>
@@ -32,7 +33,8 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
 
 export function CompareResults({ comparison }: { comparison: Comparison }) {
   const { a, b, labels } = comparison;
-  const heat = useEditor((s) => s.heat);
+  const savedHeat = useEditor((s) => s.heat);
+  const heat = (["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort)) ? "off" : savedHeat;
   const rows = scoreRows(a, b);
   const sentences = summarySentences(a, b, labels);
   const notes = [...a.notes.map((n) => `${labels[0]}: ${n}`), ...b.notes.map((n) => `${labels[1]}: ${n}`)];

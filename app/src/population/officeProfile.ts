@@ -5,8 +5,9 @@
 // Kept in the app for now. When malls arrive it becomes a shared contract.
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
-import type { Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
+import type { Comfort, Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
 import { type KindsSettings, kindsFromPreset, expandKinds } from "./kinds.ts";
+import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, type ShopperSettings, expandShoppers, hasShops } from "./shoppers.ts";
 
 export interface Department {
@@ -49,6 +50,7 @@ export interface OfficeProfile {
   kinds?: KindsSettings;
   /** People slow down in crowds, and doors and escalators let only so many through. Missing means off (older saved profiles). */
   crowding?: boolean;
+  comfort?: Required<Omit<Comfort, "enabled">> & { enabled: boolean };
   seed: number;
 }
 
@@ -172,6 +174,7 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
     ...(shops ? { shoppers: DEFAULT_SHOPPERS } : {}),
     kinds: kindsFromPreset("typical"),
     crowding: true,
+    comfort: { ...DEFAULT_COMFORT, enabled: true },
     seed: 42,
   };
 }
@@ -265,6 +268,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       queueing: { maxWaitMin: Math.max(0, profile.maxQueueWaitMin ?? DEFAULT_MAX_QUEUE_WAIT_MIN) },
       ...(shoppers ? { shoppers } : {}),
       ...(profiles ? { profiles } : {}),
+      ...(profile.comfort?.enabled ? { comfort: { enabled: true as const, date: profile.comfort.date, sky: profile.comfort.sky } } : {}),
       ...(profile.crowding ? { crowding: { enabled: true as const } } : {}),
     },
     notes,

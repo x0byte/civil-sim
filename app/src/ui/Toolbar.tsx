@@ -16,6 +16,7 @@ export const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactN
   { tool: "window", label: "Window", key: "N", icon: I("M3 9h18M3 12h18M3 15h18") },
   { tool: "room", label: "Room", key: "R", icon: I("M4 4h16v16H4zM4 4l16 16") },
   { tool: "fixture", label: "Furniture", key: "F", icon: I("M4 9h16v4H4zM6 13v6M18 13v6") },
+  { tool: "noise", label: "Noise", key: "Q", icon: I("M4 9h4l6-5v16l-6-5H4zM17 8q6 4 0 8") },
   { tool: "connector", label: "Stairs", key: "T", icon: I("M3 20h5v-5h5v-5h5V5h3") },
 ];
 

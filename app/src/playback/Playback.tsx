@@ -9,9 +9,10 @@ import { ACTIVITY_STYLE, HEAT_GRADIENT, heatColor } from "./colors.ts";
 import { deskDisturbance } from "../sim/officeMeasures.ts";
 import { type Pose, clockAt, poseAt } from "./tracks.ts";
 import { onLevel } from "../model/planOps.ts";
+import { PersonDay } from "./ComfortResults.tsx";
 import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
 
-export type HeatMode = "off" | "footfall" | "dwell" | "crowd";
+export type HeatMode = "off" | "footfall" | "dwell" | "crowd" | "noise" | "light" | "glare";
 
 /**
  * Crowding is coloured on a fixed scale, so a calm building looks calm: from CROWD_FROM (below it people walk
@@ -29,6 +30,9 @@ const SPEEDS = [
 const HEAT_LABEL: Record<Exclude<HeatMode, "off">, { title: string; unit: string }> = {
   footfall: { title: "Foot traffic", unit: "walk-throughs" },
   dwell: { title: "Time spent", unit: "person-minutes" },
+  noise: { title: "Noise", unit: "dB(A)" },
+  light: { title: "Light", unit: "lux" },
+  glare: { title: "Glare", unit: "glare" },
   crowd: { title: "Crowding", unit: "people per m²" },
 };
 
@@ -36,6 +40,10 @@ const HEAT_LABEL: Record<Exclude<HeatMode, "off">, { title: string; unit: string
 export function heatValues(r: SimulationResult, mode: HeatMode, levelId?: string): number[] | null {
   if (mode === "off") return null;
   const floor = r.heatmaps.levels?.find((l) => l.levelId === levelId);
+  if (mode === "noise" || mode === "light" || mode === "glare") {
+    const values = (floor ?? r.heatmaps.levels?.[0])?.[mode === "noise" ? "noiseDbA" : mode === "light" ? "lightLux" : "glare"];
+    return values?.length ? values : null;
+  }
   if (mode === "crowd") return (floor ?? r.heatmaps.levels?.[0])?.peakDensity.map((v) => (v >= CROWD_FROM ? v : 0)) ?? null;
   if (floor) return mode === "footfall" ? floor.footfall : floor.dwellS;
   return mode === "footfall" ? r.heatmaps.footfall : r.heatmaps.dwellS;
@@ -45,6 +53,9 @@ export function heatValues(r: SimulationResult, mode: HeatMode, levelId?: string
 export function heatPeak(r: SimulationResult, mode: HeatMode): number {
   if (mode === "off") return 1;
   if (mode === "crowd") return CROWD_SCALE;
+  if (mode === "noise") return 80;
+  if (mode === "light") return 1000;
+  if (mode === "glare") return 1;
   const grids = r.heatmaps.levels?.length ? r.heatmaps.levels.map((l) => heatValues(r, mode, l.levelId)!) : [heatValues(r, mode)!];
   return Math.max(1, ...grids.map((g) => g.reduce((m, v) => (v > m ? v : m), 0)));
 }
@@ -58,10 +69,22 @@ export function useShownLevel(run: SimRun): string {
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
   const clock = usePlayClock(run.result.durationS, run.result);
-  const heat = useEditor((s) => s.heat);
+  const savedHeat = useEditor((s) => s.heat);
+  const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
+  const [personId, setPersonId] = useState<string | null>(null);
+  useEffect(() => setPersonId(null), [run]);
+  const track = run.result.tracks.find((tr) => tr.personId === personId);
   const ringed = useMemo(
-    () => deskDisturbance(run.plan, run.scenario, run.result).filter((d) => d.passBys > 0).slice(0, 3).map((d) => d.deskId),
+    () => [
+      ...new Set([
+        ...deskDisturbance(run.plan, run.scenario, run.result)
+          .filter((d) => d.passBys > 0)
+          .slice(0, 3)
+          .map((d) => d.deskId),
+        ...(run.result.metrics.comfort?.desks.map((d) => d.deskId) ?? []),
+      ]),
+    ],
     [run],
   );
   return (
@@ -74,11 +97,27 @@ export function Playback({ run }: { run: SimRun }) {
         heatMax={heatPeak(run.result, heat)}
         insets={{ top: 64, right: 32, bottom: 84, left: 220 }}
         legend
+        selectedPerson={personId}
+        onPickPerson={setPersonId}
       />
       <div className="view-controls">
-        <HeatToggle value={heat} onChange={setHeat} />
+        <HeatToggle value={heat} onChange={setHeat} comfort={!!run.result.metrics.comfort} />
       </div>
-      <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} />
+      <div className="playback-bottom">
+        <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} />
+        {track && (
+          <PersonDay
+            track={track}
+            durationS={run.result.durationS}
+            start={run.scenario.workday.start}
+            name={
+              run.scenario.profiles?.list.find((p) => p.id === track.profileId)?.name ??
+              (track.kind === "shopper" ? "Shopper" : track.kind === "visitor" ? "Visitor" : "Staff member")
+            }
+            onClose={() => setPersonId(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -143,10 +182,10 @@ export function usePlayClock(durationS: number, resetKey: unknown): PlayClock {
   return { t, setT, playing, toggle, speed, setSpeed, durationS };
 }
 
-export function HeatToggle({ value, onChange }: { value: HeatMode; onChange: (m: HeatMode) => void }) {
+export function HeatToggle({ value, onChange, comfort = false }: { value: HeatMode; onChange: (m: HeatMode) => void; comfort?: boolean }) {
   return (
     <div className="segmented">
-      {(["footfall", "dwell", "crowd", "off"] as HeatMode[]).map((m) => (
+      {(["footfall", "dwell", "crowd", ...(comfort ? ["noise", "light", "glare"] : []), "off"] as HeatMode[]).map((m) => (
         <button key={m} className={value === m ? "active" : ""} onClick={() => onChange(m)}>
           {m === "off" ? "No heatmap" : HEAT_LABEL[m].title}
         </button>
@@ -196,6 +235,8 @@ export function PlanPlayer({
   legend,
   title,
   ringDesks,
+  selectedPerson,
+  onPickPerson,
 }: {
   run: SimRun;
   t: number;
@@ -206,6 +247,8 @@ export function PlanPlayer({
   title?: string;
   /** Desks to circle, e.g. the most disturbed ones. */
   ringDesks?: string[];
+  selectedPerson?: string | null;
+  onPickPerson?: (id: string | null) => void;
 }) {
   const { plan, result, scenario } = run;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -265,7 +308,11 @@ export function PlanPlayer({
         x: e.clientX - r.left,
         y: e.clientY - r.top,
         text: [
-          (near.kind === "visitor" ? "Visitor" : near.kind === "shopper" ? "Shopper" : `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`) +
+          (near.kind === "visitor"
+            ? "Visitor"
+            : near.kind === "shopper"
+              ? "Shopper"
+              : `${person?.role === "manager" ? "Manager" : "Staff"} · ${teams.get(person?.teamId ?? "") ?? ""}`) +
             (near.profileId ? ` · ${kindNames.get(near.profileId) ?? near.profileId}` : ""),
           ACTIVITY_STYLE[near.pose.activity as keyof typeof ACTIVITY_STYLE]?.label ?? near.pose.activity,
         ],
@@ -276,11 +323,24 @@ export function PlanPlayer({
       const c = Math.floor((at.x - g.originX) / g.cellSize);
       const row = Math.floor((at.y - g.originY) / g.cellSize);
       const v = c >= 0 && row >= 0 && c < g.cols && row < g.rows ? values[row * g.cols + c] : 0;
-      if (v > 0) {
+      if (v > 0 || (heat === "light" && c >= 0 && row >= 0 && c < g.cols && row < g.rows)) {
         const label = HEAT_LABEL[heat as Exclude<HeatMode, "off">];
         const shown = heat === "dwell" ? Math.round(v / 60) : heat === "crowd" ? v.toFixed(1) : v;
         const when = heat === "crowd" ? "at the busiest moment" : "over the day";
-        setHover({ x: e.clientX - r.left, y: e.clientY - r.top, text: [label.title, `${shown} ${label.unit} ${when}`] });
+        setHover({
+          x: e.clientX - r.left,
+          y: e.clientY - r.top,
+          text: [
+            label.title,
+            heat === "noise"
+              ? `${Math.round(v)} dB(A) at its loudest (15-minute average)`
+              : heat === "light"
+                ? `${Math.round(v)} lux at its dimmest`
+                : heat === "glare"
+                  ? `${v.toFixed(2)} glare at its worst (0–1)`
+                  : `${shown} ${label.unit} ${when}`,
+          ],
+        });
         return;
       }
     }
@@ -296,7 +356,14 @@ export function PlanPlayer({
           svgRef.current!.setPointerCapture(e.pointerId);
           pan.current = { x: e.clientX, y: e.clientY, cam };
         }}
-        onPointerUp={() => (pan.current = null)}
+        onPointerUp={(e) => {
+          const p = pan.current;
+          if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 5) {
+            const picked = nearest(poses, toPlan(e), 12 / cam.s);
+            onPickPerson?.(picked?.id ?? null);
+          }
+          pan.current = null;
+        }}
         onPointerMove={onPointerMove}
         onPointerLeave={() => setHover(null)}
       >
@@ -312,14 +379,14 @@ export function PlanPlayer({
               values && (
                 <g style={{ pointerEvents: "none" }} opacity={0.85}>
                   {values.map((v, i) =>
-                    v > 0 ? (
+                    v > 0 || heat === "light" ? (
                       <rect
                         key={i}
                         x={g.originX + (i % g.cols) * g.cellSize}
                         y={g.originY + Math.floor(i / g.cols) * g.cellSize}
                         width={g.cellSize}
                         height={g.cellSize}
-                        fill={heatColor(v / heatMax)}
+                        fill={comfortHeatColor(heat, v, heatMax)}
                       />
                     ) : null,
                   )}
@@ -343,10 +410,23 @@ export function PlanPlayer({
               />
             ) : null;
           })}
+          {poses
+            .filter((p) => p.id === selectedPerson)
+            .map((p) => (
+              <circle
+                key={`follow-${p.id}`}
+                cx={p.pose.x}
+                cy={p.pose.y}
+                r={0.65}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={3 / cam.s}
+              />
+            ))}
           {poses.map(({ id, kind, profileId, pose }) => {
             const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
             // A picked-out kind is drawn larger; everyone else fades.
-            const opacity = focus && profileId !== focus ? 0.2 : 1;
+            const opacity = selectedPerson ? (id === selectedPerson ? 1 : 0.3) : focus && profileId !== focus ? 0.2 : 1;
             const big = focus && profileId === focus ? 1.6 : 1;
             // Visitors are diamonds and shoppers triangles, so they're told apart by shape as well as colour.
             if (kind === "shopper") {
@@ -376,7 +456,16 @@ export function PlanPlayer({
                 strokeWidth={1.5 / cam.s}
               />
             ) : (
-              <circle key={id} cx={pose.x} cy={pose.y} r={0.3 * big} fill={fill} opacity={opacity} stroke="var(--paper)" strokeWidth={2 / cam.s} />
+              <circle
+                key={id}
+                cx={pose.x}
+                cy={pose.y}
+                r={0.3 * big}
+                fill={fill}
+                opacity={opacity}
+                stroke="var(--paper)"
+                strokeWidth={2 / cam.s}
+              />
             );
           })}
         </g>
@@ -390,7 +479,10 @@ export function PlanPlayer({
       )}
 
       {hover && (
-        <div className="tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
+        <div className="tooltip" style={{
+          left: Math.max(8, Math.min(hover.x + 14, (wrapRef.current?.clientWidth ?? 1000) - 276)),
+          top: Math.max(8, Math.min(hover.y + 14, (wrapRef.current?.clientHeight ?? 800) - 80)),
+        }}>
           {hover.text.map((line, i) => (
             <div key={i} className={i === 0 ? "tooltip-title" : undefined}>
               {line}
@@ -411,13 +503,7 @@ export function PlanPlayer({
         </button>
       </div>
 
-      {floors && (
-        <FloorSwitcher
-          levels={plan.levels}
-          counts={new Map(plan.levels.map((l) => [l.id, perFloor.get(l.id) ?? 0]))}
-          right
-        />
-      )}
+      {floors && <FloorSwitcher levels={plan.levels} counts={new Map(plan.levels.map((l) => [l.id, perFloor.get(l.id) ?? 0]))} right />}
 
       {legend && (
         <Legend
@@ -513,11 +599,44 @@ export function Legend({
       )}
       {heat !== "off" && (
         <div className="legend-heat">
-          <div className="legend-title">{heat === "crowd" ? "Crowding at its worst" : `${HEAT_LABEL[heat].title} over the day`}</div>
-          <div className="heat-bar" style={{ background: HEAT_GRADIENT }} />
+          <div className="legend-title">
+            {heat === "crowd"
+              ? "Crowding at its worst"
+              : heat === "noise"
+                ? "Loudest 15-minute average"
+                : heat === "light"
+                  ? "Light at its dimmest"
+                  : heat === "glare"
+                    ? "Glare at its worst"
+                    : `${HEAT_LABEL[heat].title} over the day`}
+          </div>
+          <div
+            className="heat-bar"
+            style={{ background: heat === "light" ? "linear-gradient(to right, #352f65, #aaa8ce, #fff4c2)" : HEAT_GRADIENT }}
+          />
           <div className="heat-scale">
-            <span>{heat === "crowd" ? `${CROWD_FROM} per m²` : "less"}</span>
-            <span>{heat === "crowd" ? `${CROWD_SCALE}+` : "more"}</span>
+            <span>
+              {heat === "crowd"
+                ? `${CROWD_FROM} per m²`
+                : heat === "noise"
+                  ? "40 dB(A)"
+                  : heat === "light"
+                    ? "0 lux (dim)"
+                    : heat === "glare"
+                      ? "0 (none)"
+                      : "less"}
+            </span>
+            <span>
+              {heat === "crowd"
+                ? `${CROWD_SCALE}+`
+                : heat === "noise"
+                  ? "80+"
+                  : heat === "light"
+                    ? "1000+ lux"
+                    : heat === "glare"
+                      ? "1 (worst)"
+                      : "more"}
+            </span>
           </div>
         </div>
       )}
@@ -536,4 +655,13 @@ function nearest<T extends { pose: Pose }>(poses: T[], at: Vec2, maxDist: number
     }
   }
   return best;
+}
+
+export function comfortHeatColor(mode: HeatMode, value: number, max: number): string {
+  if (mode === "noise") return heatColor((value - 40) / 40);
+  if (mode === "light") {
+    const t = Math.min(1, Math.max(0, value / 1000));
+    return `rgb(${Math.round(53 + 202 * t)}, ${Math.round(47 + 197 * t)}, ${Math.round(101 + 93 * t)})`;
+  }
+  return heatColor(value / max);
 }

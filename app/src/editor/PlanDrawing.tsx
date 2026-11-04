@@ -171,7 +171,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         const c = polygonCentroid(s.polygon);
         const fs = px(12);
         return (
-          <g key={`label-${s.id}`} style={{ pointerEvents: "none" }}>
+          <g key={`label-${s.id}`} style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: px(2), strokeLinejoin: "round" }}>
             <text x={c.x} y={c.y} fontSize={fs} textAnchor="middle" fill="var(--ink)" style={{ fontWeight: 600 }}>
               {s.name}
             </text>
@@ -217,6 +217,11 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
             />
           ));
         })()}
+      {(plan.noiseSources ?? []).map((n) => <g key={n.id} data-kind="noise" data-id={n.id} transform={`translate(${n.position.x} ${n.position.y})`} style={{ cursor: "move" }}>
+        <circle r={px(13)} fill="var(--paper)" stroke={isSel("noise", n.id) ? "var(--accent)" : "var(--ink-3)"} strokeWidth={px(1.5)} />
+        <path d={`M ${px(-8)} ${px(-4)} h ${px(4)} l ${px(6)} ${px(-5)} v ${px(18)} l ${px(-6)} ${px(-5)} h ${px(-4)} Z M ${px(5)} ${px(-6)} q ${px(8)} ${px(6)} 0 ${px(12)}`} fill="none" stroke="var(--ink)" strokeWidth={px(1.5)} pointerEvents="none" />
+        <title>{n.name} · {n.dbA} dB(A) at 1 m</title>
+      </g>)}
     </>
   );
 }

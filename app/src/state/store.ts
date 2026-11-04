@@ -7,7 +7,7 @@ import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
-export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "connector" | "calibrate";
+export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "connector" | "noise" | "calibrate";
 export type ViewMode = "2d" | "3d" | "sim" | "compare";
 
 /** A saved copy of a layout, so design options can be compared. */
