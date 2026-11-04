@@ -41,6 +41,8 @@ export type IssueCode =
   | "noise_source"
   | "window"
   | "space_comfort"
+  | "neighbour"
+  | "road"
   // scenario
   | "seed"
   | "workday"
@@ -59,6 +61,7 @@ export type IssueCode =
   | "profiles"
   | "crowding"
   | "comfort"
+  | "weather"
   | "reserved_id";
 
 export interface ValidationIssue {
@@ -222,6 +225,29 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
   if (plan.site) {
     if (!(plan.site.northDeg >= 0 && plan.site.northDeg < 360)) err("site", "site northDeg must be 0 to under 360");
     if (plan.site.latitude !== undefined && !(plan.site.latitude >= -90 && plan.site.latitude <= 90)) err("site", "site latitude must be −90 to 90");
+    const loc = plan.site.location;
+    if (loc && !(loc.lat >= -90 && loc.lat <= 90 && loc.lon >= -180 && loc.lon <= 180)) err("site", "site location needs lat −90 to 90 and lon −180 to 180");
+    const utc = plan.site.utcOffsetHours;
+    if (utc !== undefined && !(utc >= -12 && utc <= 14)) err("site", "site utcOffsetHours must be −12 to 14");
+    // Neighbours and roads lie around the building, so they're exempt from the bounds check.
+    const pts = (ps: Vec2[] | undefined, n: number) => Array.isArray(ps) && ps.length >= n && ps.every((p) => isNum(p?.x) && isNum(p?.y));
+    for (const nb of plan.site.neighbours ?? []) {
+      claim(nb.id, "neighbour");
+      if (!pts(nb.polygon, 3)) err("neighbour", `neighbour ${nb.id} needs a footprint with at least 3 points`);
+      if (!(nb.heightM > 0 && nb.heightM <= 500)) err("neighbour", `neighbour ${nb.id} heightM must be above 0 and at most 500`);
+      if (!["data", "floors", "assumed", "user"].includes(nb.heightFrom)) err("neighbour", `neighbour ${nb.id} heightFrom must be "data", "floors", "assumed" or "user"`);
+    }
+    for (const r of plan.site.roads ?? []) {
+      claim(r.id, "road");
+      if (!pts(r.path, 2)) err("road", `road ${r.id} needs a path with at least 2 points`);
+      if (!["main", "secondary", "local", "service"].includes(r.kind)) err("road", `road ${r.id} kind must be "main", "secondary", "local" or "service"`);
+      if (r.dbA !== undefined && !(r.dbA >= 0 && r.dbA <= 140)) err("road", `road ${r.id} dbA must be 0–140`);
+      if (r.hours) {
+        const from = parseClock(r.hours.from);
+        const to = parseClock(r.hours.to);
+        if (from === null || to === null || to <= from) err("road", `road ${r.id} hours must be HH:MM, ending after they start`);
+      }
+    }
   }
   for (const n of plan.noiseSources ?? []) {
     claim(n.id, "noise source");
@@ -382,6 +408,19 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
     if (comfort.enabled !== true) err("comfort", "comfort must have enabled: true, or be left out");
     if (comfort.date !== undefined && !isDate(comfort.date)) err("comfort", "comfort date must be a real date, YYYY-MM-DD");
     if (comfort.sky !== undefined && comfort.sky !== "clear" && comfort.sky !== "overcast") err("comfort", 'comfort sky must be "clear" or "overcast"');
+    const w = comfort.weather;
+    if (w) {
+      if (w.kind !== "typical" && w.kind !== "day") err("weather", 'weather kind must be "typical" or "day"');
+      if (!w.source) err("weather", "weather needs a source");
+      const hourly = Array.isArray(w.hourly) ? w.hourly : [];
+      if (hourly.length !== 24 || hourly.some((h, i) => h.hour !== `${String(i).padStart(2, "0")}:00`)) err("weather", "weather needs 24 hourly entries, 00:00 to 23:00 in order");
+      for (const h of hourly) {
+        const range = (v: number, lo: number, hi: number) => isNum(v) && v >= lo && v <= hi;
+        if (!range(h.cloudPct, 0, 100) || !range(h.humidityPct, 0, 100) || !range(h.tempC, -50, 60) || !(isNum(h.rainMm) && h.rainMm >= 0)) {
+          err("weather", `weather at ${h.hour}: cloud and humidity 0–100, temperature −50–60, rain 0 or more`);
+        }
+      }
+    }
   }
 
   if (plan) {

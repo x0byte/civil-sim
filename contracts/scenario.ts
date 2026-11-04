@@ -1,9 +1,9 @@
-// Scenario contract, v0.7: who is in the building and what their day looks like.
+// Scenario contract, v0.8: who is in the building and what their day looks like.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.7";
+export const SCENARIO_VERSION = "0.8";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -53,6 +53,26 @@ export interface Comfort {
   date?: string;
   /** "clear": direct sun and glare; "overcast": soft daylight and no glare. Missing: "clear". */
   sky?: "clear" | "overcast";
+  /** Hourly weather for the simulated date. When given, its cloud replaces `sky` (contract v0.8). */
+  weather?: Weather;
+}
+
+export interface Weather {
+  /** "typical": averaged over past years for this date; "day": one real past day (`comfort.date`). */
+  kind: "typical" | "day";
+  /** e.g. "Open-Meteo, 2016–2025, fetched 2026-11-04". */
+  source: string;
+  /** 24 entries, one per clock hour from "00:00" to "23:00", in order. */
+  hourly: WeatherHour[];
+}
+
+export interface WeatherHour {
+  /** "HH:00". */
+  hour: string;
+  cloudPct: number;
+  tempC: number;
+  humidityPct: number;
+  rainMm: number;
 }
 
 /** A spread of values: each person gets their own, drawn from a bell curve (normal) and clipped to [min, max]. sd 0 means everyone gets `mean`. */

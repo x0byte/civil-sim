@@ -1,8 +1,8 @@
-// Floor plan contract, v0.4: a building of one or more floors, with what it looks and sounds like.
+// Floor plan contract, v0.5: a building of one or more floors, what it looks and sounds like, and what surrounds it.
 // The editor (app/) writes this; the engine (engine/) reads it.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const FLOORPLAN_VERSION = "0.4";
+export const FLOORPLAN_VERSION = "0.5";
 
 /**
  * A point in metres. Origin is the top-left of the plan,
@@ -41,8 +41,45 @@ export interface FloorPlan {
 export interface Site {
   /** Direction of north, degrees clockwise from "up the page" (−y), 0 to under 360. */
   northDeg: number;
-  /** Degrees, positive north. Missing: 6.9 (Colombo). */
+  /** Degrees, positive north. Missing: 6.9 (Colombo). Ignored when `location` is given. */
   latitude?: number;
+  /** Where the plan's origin (its top-left corner, x 0 y 0) is on the earth, degrees. */
+  location?: { lat: number; lon: number };
+  /** Hours ahead of UTC for clock times. Missing: 5.5 (Sri Lanka). */
+  utcOffsetHours?: number;
+  /** Buildings around this one that can shade it. In plan metres; may lie outside `bounds`. Missing: none. */
+  neighbours?: Neighbour[];
+  /** Roads around the building, as noise sources along their length. In plan metres; may lie outside `bounds`. Missing: none. */
+  roads?: Road[];
+  /** Where fetched data came from, shown with the results, e.g. "© OpenStreetMap contributors, fetched 2026-11-04". */
+  credits?: string[];
+}
+
+/** A building nearby that can block sun and sky. */
+export interface Neighbour {
+  id: string;
+  /** e.g. "Apartment block", from the data when it has one. */
+  name?: string;
+  /** Footprint, a simple polygon of at least 3 points. */
+  polygon: Vec2[];
+  /** Height above this building's ground floor, m. */
+  heightM: number;
+  /** "data": a height in the source; "floors": from its number of floors (3 m each); "assumed": nothing known (2 floors); "user": entered or corrected. */
+  heightFrom: "data" | "floors" | "assumed" | "user";
+}
+
+/** A road, heard along its whole length. */
+export interface Road {
+  id: string;
+  /** e.g. "Galle Road". */
+  name?: string;
+  /** Centre line, at least 2 points. */
+  path: Vec2[];
+  kind: "main" | "secondary" | "local" | "service";
+  /** Loudness 1 m from the kerb, dB(A). Missing: main 75, secondary 70, local 62, service 55. */
+  dbA?: number;
+  /** When traffic runs, "HH:MM". Missing: 06:00–22:00. */
+  hours?: { from: string; to: string };
 }
 
 export interface NoiseSource {

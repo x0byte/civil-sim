@@ -2,6 +2,12 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Contract v0.8 (site and weather)
+- **Approved: neighbours and roads from OpenStreetMap, weather from Open-Meteo, fetched once by the app and saved in the project; the engine never goes online.** No Google map data (its terms don't allow extracting it); Google imagery and Open Buildings heights wait for a server. Weather defaults to a typical day for the date. Unknown heights come from floors or are assumed 2 floors and highlighted. Floor plan v0.5, scenario and results v0.8. *(Product owner, as recommended)*
+
+## 2026-11-04: Site and weather before evacuation
+- **Site and weather (neighbours, their shadows, roads, real hourly cloud) becomes contract v0.8; evacuation moves to v0.9.** It builds straight on comfort, which already knows the sun's path. *(Product owner, agreeing with Claude)*
+
 ## 2026-11-04: v0.7.2 comfort calibration and desk labels
 - Typical focus tolerance remains 50 ± 3 dB(A) but clips to 46–58 in the engine and app; explicit profile spreads, including the supplied low-vision and sensory presets, retain their limits. Full task light applies to desks, meetings and shopping; eating/lunch, pantry and waiting use half, walking a quarter. Comfort-off results and movement stay unchanged.
 - Both app desk tables use one label helper matching comfort warnings (numeric suffix, otherwise the room name). The north arrow defaults above the plan, with reserved canvas space, and its local drag placement can stay outside the building. *(Codex, implementing the approved v0.7.2 review brief.)*

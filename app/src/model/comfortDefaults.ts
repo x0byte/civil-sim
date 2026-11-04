@@ -22,7 +22,7 @@ export const COMFORT_TOLERANCES = {
   taskLux: { mean: 300, sd: 50, min: 200, max: 450 },
   glareComfort: { mean: 0.4, sd: 0.05, min: 0.3, max: 0.5 },
 };
-export const DEFAULT_COMFORT: Required<Omit<Comfort, "enabled">> = { date: "2026-03-21", sky: "clear" };
+export const DEFAULT_COMFORT: Required<Omit<Comfort, "enabled" | "weather">> = { date: "2026-03-21", sky: "clear" };
 export const DEFAULT_SITE = { northDeg: 0, latitude: 6.9 };
 export const DEFAULT_GLASS = { sillM: 0.9, headM: 2.1, transmittance: 0.7, frosted: false, shaded: false };
 export const NOISE_PRESETS = [
