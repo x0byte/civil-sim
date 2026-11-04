@@ -25,7 +25,7 @@ export function sunPosition(plan: FloorPlan, scenario: Scenario, clockSeconds: n
 export class Environment {
   readonly plan: FloorPlan;
   readonly scenario: Scenario;
-  readonly windows: { opening: Opening; centre: Vec2; levelId: string; ux: number; uy: number; nx: number; ny: number; exposed: boolean }[];
+  readonly windows: { opening: Opening; centre: Vec2; levelId: string; ux: number; uy: number; nx: number; ny: number; exposed: boolean; sunExposed: boolean }[];
   constructor(plan: FloorPlan, scenario: Scenario) {
     this.plan = plan; this.scenario = scenario;
     this.windows = plan.openings.filter((o) => o.kind === "window").map((opening) => {
@@ -36,12 +36,13 @@ export class Environment {
       if (!inside) { nx = -nx; ny = -ny; }
       const reach = Math.hypot(plan.bounds.width, plan.bounds.height) + 1;
       const exposed = this.loss(centre, { x: centre.x - nx * reach, y: centre.y - ny * reach }, wall.levelId, wall.id, true) !== Infinity;
-      return { opening, centre, levelId: wall.levelId, ux, uy, nx, ny, exposed };
+      const sunExposed = this.loss(centre, { x: centre.x - nx * reach, y: centre.y - ny * reach }, wall.levelId, wall.id, "direct") !== Infinity;
+      return { opening, centre, levelId: wall.levelId, ux, uy, nx, ny, exposed, sunExposed };
     });
   }
   space(p: Vec2, levelId: string): Space | undefined { return this.plan.spaces.find((s) => s.levelId === levelId && pointInPolygon(p, s.polygon)); }
   /** Straight-line intersections, with openings replacing the crossed wall material. */
-  loss(a: Vec2, b: Vec2, levelId: string, ignoreWall?: string, light = false): number {
+  loss(a: Vec2, b: Vec2, levelId: string, ignoreWall?: string, light: boolean | "direct" = false): number {
     let loss = 0; const dx = b.x - a.x; const dy = b.y - a.y;
     for (const wall of this.plan.walls) {
       if (wall.levelId !== levelId || wall.id === ignoreWall) continue;
@@ -52,7 +53,7 @@ export class Environment {
       if (t <= 1e-7 || t >= 1 - 1e-7 || u < 0 || u > 1) continue;
       const at = u * Math.hypot(wx, wy);
       const opening = this.plan.openings.find((o) => o.wallId === wall.id && Math.abs(o.offset - at) <= o.width / 2 + 1e-9);
-      if (light) { if (!opening) return Infinity; continue; }
+      if (light) { if (!opening || (light === "direct" && opening.kind === "door")) return Infinity; continue; }
       const exterior = this.plan.openings.some((o) => o.wallId === wall.id && o.exterior)
         || !this.space({ x: wall.a.x + u * wx - wy / Math.hypot(wx, wy) * .3, y: wall.a.y + u * wy + wx / Math.hypot(wx, wy) * .3 }, levelId)
         || !this.space({ x: wall.a.x + u * wx + wy / Math.hypot(wx, wy) * .3, y: wall.a.y + u * wy - wx / Math.hypot(wx, wy) * .3 }, levelId);
@@ -71,7 +72,7 @@ export class Environment {
       const offset = Math.max(-w.opening.width / 2, Math.min(w.opening.width / 2, px * w.ux + py * w.uy));
       const glass = { x: w.centre.x + w.ux * offset, y: w.centre.y + w.uy * offset };
       if (this.loss(glass, p, level, w.opening.wallId, true) !== Infinity) lux += 8000 * sun.up * trans * (this.scenario.comfort?.sky === "overcast" ? .45 : 1) * Math.exp(-distance(glass, p) / 1.6);
-      if (w.opening.shaded || w.opening.frosted || this.scenario.comfort?.sky === "overcast") continue;
+      if (!w.sunExposed || w.opening.shaded || w.opening.frosted || this.scenario.comfort?.sky === "overcast") continue;
       const dot = sun.x * w.nx + sun.y * w.ny;
       if (dot >= -1e-8) continue;
       const amount = Math.min(1, trans * (.15 + (1 - sun.up)));
@@ -79,9 +80,9 @@ export class Environment {
       const along = (px + t * sun.x) * w.ux + (py + t * sun.y) * w.uy;
       const height = t * sun.up;
       if (t >= 0 && Math.abs(along) <= w.opening.width / 2 && height >= (w.opening.sillM ?? .9) && height <= (w.opening.headM ?? 2.1)
-        && this.loss({ x: p.x + t * sun.x, y: p.y + t * sun.y }, p, level, w.opening.wallId, true) !== Infinity) glare = Math.max(glare, amount);
+        && this.loss({ x: p.x + t * sun.x, y: p.y + t * sun.y }, p, level, w.opening.wallId, "direct") !== Infinity) glare = Math.max(glare, amount);
       if (rotation !== undefined && d > 0 && (-px * Math.cos(rotation * RAD) - py * Math.sin(rotation * RAD)) / d >= Math.SQRT1_2
-        && this.loss(w.centre, p, level, w.opening.wallId, true) !== Infinity) facing = Math.max(facing, amount * Math.min(1, w.opening.width / Math.max(.1, d * .35)));
+        && this.loss(w.centre, p, level, w.opening.wallId, "direct") !== Infinity) facing = Math.max(facing, amount * Math.min(1, w.opening.width / Math.max(.1, d * .35)));
     }
     return { lux, glare, facing };
   }

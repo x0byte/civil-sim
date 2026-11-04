@@ -23,6 +23,7 @@ export class Sound {
   readonly cols: number; readonly rows: number;
   readonly floors = new Map<string, SoundFloor>();
   readonly env: Environment;
+  private readonly own = new Map<string, { cells: Int32Array; levels: (string | undefined)[]; powers: Float64Array }>();
   constructor(env: Environment, tracks: Track[], duration: number) {
     this.env = env;
     this.cols = Math.ceil(env.plan.bounds.width); this.rows = Math.ceil(env.plan.bounds.height);
@@ -30,6 +31,8 @@ export class Sound {
       const points = Array.from({ length: this.cols * this.rows }, (_, i) => ({ x: (i % this.cols + Math.min(i % this.cols + 1, env.plan.bounds.width)) / 2, y: (Math.floor(i / this.cols) + Math.min(Math.floor(i / this.cols) + 1, env.plan.bounds.height)) / 2 }));
       this.floors.set(l.id, { points, gain: Float64Array.from(points, (p) => 10 ** ((env.space(p, l.id) ? roomAcoustics(env.space(p, l.id)!) : 0) / 10)), kernels: new Map(), minutes: [], peak: new Float32Array(points.length) });
     }
+    const minuteCount = Math.ceil(duration / 60);
+    for (const track of tracks) this.own.set(track.personId, { cells: new Int32Array(minuteCount), levels: Array(minuteCount), powers: new Float64Array(minuteCount) });
     const sampler = new TrackSampler(tracks); const start = clockSeconds(env.scenario.workday.start);
     const staticSources = [
       ...(env.plan.noiseSources ?? []).map((s) => ({ ...s, from: s.hours ? clockSeconds(s.hours.from) - start : 0, to: s.hours ? clockSeconds(s.hours.to) - start : duration })),
@@ -37,11 +40,22 @@ export class Sound {
     ];
     for (let t = 0; t < duration; t += 60) {
       const dt = Math.min(60, duration - t); const emissions = new Map<string, Map<number, number>>();
+      const present = tracks.map((_, j) => sampler.at(j, t + dt / 2));
+      const meetingGroup = (p: NonNullable<typeof present[number]>) => `${p.levelId}:${env.space(p, p.levelId)?.id ?? `cell:${this.index(p)}`}`;
+      const meetingCounts = new Map<string, number>();
+      for (const p of present) if (p?.activity === "in_meeting") {
+        const group = meetingGroup(p); meetingCounts.set(group, (meetingCounts.get(group) ?? 0) + 1);
+      }
       for (let j = 0; j < tracks.length; j++) {
-        const p = sampler.at(j, t + dt / 2); if (!p) continue;
+        const p = present[j]; if (!p) continue;
         const index = this.index(p); const values = emissions.get(p.levelId) ?? new Map<number, number>();
-        const db = p.activity === "at_desk" || p.activity === "toilet" ? 40 : p.activity === "walking" || p.activity === "in_lift" ? 45 : 55;
-        values.set(index, (values.get(index) ?? 0) + 10 ** (db / 10)); emissions.set(p.levelId, values);
+        // Meetings share one 60 dB talker, with half the minute for speech and half for pauses/note-taking. Other social activity has a one-third speech duty.
+        const power = p.activity === "in_meeting" ? .5 * 10 ** 6 / meetingCounts.get(meetingGroup(p))!
+          : p.activity === "at_desk" || p.activity === "toilet" ? 10 ** 4
+          : p.activity === "walking" || p.activity === "in_lift" ? 10 ** 4.5 : 10 ** 5.5 / 3;
+        const own = this.own.get(tracks[j].personId)!; const minute = t / 60;
+        own.cells[minute] = index; own.levels[minute] = p.levelId; own.powers[minute] = power;
+        values.set(index, (values.get(index) ?? 0) + power); emissions.set(p.levelId, values);
       }
       for (const [id, floor] of this.floors) {
         const energy = new Float64Array(floor.points.length).fill(10 ** 3.5);
@@ -64,7 +78,15 @@ export class Sound {
     }
   }
   index(p: Vec2): number { return Math.max(0, Math.min(this.rows - 1, Math.floor(p.y))) * this.cols + Math.max(0, Math.min(this.cols - 1, Math.floor(p.x))); }
-  at(p: Vec2, level: string, t: number): number { const minutes = this.floors.get(level)!.minutes; return minutes[Math.min(minutes.length - 1, Math.max(0, Math.floor(t / 60)))][this.index(p)]; }
+  /** Ambient levels include everyone; a listener's exposure removes only their own sampled emission, with the same propagation and room gain. */
+  at(p: Vec2, level: string, t: number, listenerId?: string): number {
+    const floor = this.floors.get(level)!;
+    const minute = Math.min(floor.minutes.length - 1, Math.max(0, Math.floor(t / 60))); const index = this.index(p);
+    const db = floor.minutes[minute][index]; const own = listenerId === undefined ? undefined : this.own.get(listenerId);
+    if (!own || own.levels[minute] !== level || !own.powers[minute]) return db;
+    const cell = own.cells[minute]; const contribution = own.powers[minute] * this.kernel(floor.points[cell], level, `cell:${cell}`)[index] * floor.gain[index];
+    return 10 * Math.log10(Math.max(10 ** 3.5 * floor.gain[index], 10 ** (db / 10) - contribution));
+  }
   private add(energy: Float64Array, kernel: Float32Array, power: number): void { for (let i = 0; i < energy.length; i++) energy[i] += power * kernel[i]; }
   private kernel(p: Vec2, level: string, key: string): Float32Array {
     const floor = this.floors.get(level)!; const cached = floor.kernels.get(key); if (cached) return cached;

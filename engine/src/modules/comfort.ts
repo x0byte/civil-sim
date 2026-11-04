@@ -1,4 +1,4 @@
-import type { FloorPlan } from "../../../contracts/floorplan.ts";
+import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
 import type { ComfortMetrics, DiscomfortCause, Heatmaps, ProfileComfort, Track, Warning } from "../../../contracts/results.ts";
 import type { PersonProfile, Scenario, Spread } from "../../../contracts/scenario.ts";
 import { Environment, contrast, roomLux, sunPosition } from "./environment.ts";
@@ -27,7 +27,8 @@ function append(list: Stretch[], from: number, to: number, cause: DiscomfortCaus
   if (last && Math.abs(last.to - from) < 1e-7) last.to = to;
   else list.push({ from, to, cause });
 }
-const focused = (activity: string) => activity === "at_desk" || activity === "in_meeting";
+const focusRooms = new Set<Space["type"]>(["open_office", "private_office", "meeting_room"]);
+const focused = (activity: string, room: Space | undefined) => activity === "in_meeting" || (activity === "at_desk" && !!room && focusRooms.has(room.type));
 const inPlace = new Set(["at_desk", "in_meeting", "shopping", "eating", "lunch", "pantry", "waiting"]);
 
 export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Track[], levels: Heatmaps["levels"],
@@ -101,8 +102,8 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
         if (traits.lowVision) for (const index of inside) lowVisionRooms.add(spaces[index].id);
         const sun = sunPosition(plan, scenario, start + Math.floor(t / 900) * 900);
         const light = env.light(p, a.levelId, sun, a.activity === "at_desk" ? desk?.rotation : undefined);
-        const db = sound.at(p, a.levelId, t); const causes: DiscomfortCause[] = [];
-        if (db > (focused(a.activity) ? traits.focusNoiseComfort : traits.noiseComfort)) causes.push("loud");
+        const db = sound.at(p, a.levelId, t, track.personId); const causes: DiscomfortCause[] = [];
+        if (db > (focused(a.activity, env.space(p, a.levelId)) ? traits.focusNoiseComfort : traits.noiseComfort)) causes.push("loud");
         if (light.lux < traits.taskLux * (inPlace.has(a.activity) ? 1 : .25)) causes.push("dim");
         if (Math.max(light.glare, light.facing) > traits.glareComfort) causes.push("glare");
         if (traits.lowVision && a.activity === "walking" && inside.some((index) => bySpace[index].contrast === "low")) causes.push("low_contrast");
@@ -135,7 +136,7 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
     for (let t = 0; t < duration; t += 60) {
       const dt = Math.min(60, duration - t); const light = env.light(desk.position, desk.levelId, sunPosition(plan, scenario, start + t + dt / 2), desk.rotation);
       if (Math.max(light.glare, light.facing) > traits.glareComfort) { glareMinutes += dt / 60; first = Math.min(first, t); last = t + dt; }
-      if (sound.at(desk.position, desk.levelId, t) > traits.focusNoiseComfort) loudMinutes += dt / 60;
+      if (sound.at(desk.position, desk.levelId, t, person?.id) > (focused("at_desk", env.space(desk.position, desk.levelId)) ? traits.focusNoiseComfort : traits.noiseComfort)) loudMinutes += dt / 60;
     }
     if (glareMinutes) deskTimes.set(desk.id, { first, last });
     return glareMinutes || loudMinutes ? [{ deskId: desk.id, glareMinutes, loudMinutes }] : [];
@@ -159,10 +160,10 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
 export const COMFORT_ASSUMPTIONS = [
   "Missing tolerances use means of 70 dB(A) for general noise, 50 for focused work, 300 lux for tasks and 0.4 for glare. People without a profile use those means exactly; missing low-vision settings mean false.",
   "Profile defaults vary in bell curves: general noise spread 4 with limits 60–80, focused noise 3 with limits 42–58, task light 50 with limits 200–450, glare 0.05 with limits 0.3–0.5. Drawn values stay within their limits and do not change movement traits.",
-  "Room lighting uses the stated level or the typical level for its use. Daylight follows the date, Sri Lankan clock time, north direction and sky, fades away from windows, and stops at solid walls. Light is sampled every 15 minutes.",
-  "Unshaded clear glass can cast direct sun onto the floor. Facing a sunlit window can add glare at a desk. Shading, frosting and overcast skies remove window glare. Desk summaries cover opening hours; each person's discomfort covers only their actual attendance.",
-  "Sound is sampled each minute on a one-metre grid. Talking is 55 dB(A) at one metre, walking 45, quiet desk work 40, escalators 60, lifts 50 and background air conditioning 35. Distance, walls, glass and doors reduce sound; hard rooms add 6 dB and mixed rooms 3. Sources on other floors do not count.",
+  "Room lighting uses the stated level or the typical level for its use. Daylight follows the date, Sri Lankan clock time, north direction and sky, fades away from windows, and stops at solid walls. Diffuse daylight can pass through door openings. Light is sampled every 15 minutes.",
+  "Unshaded clear glass can cast direct sun onto the floor; doors are treated as closed for direct sun and facing-window glare. Facing a sunlit window can add glare at a desk. Shading, frosting and overcast skies remove window glare. Desk summaries cover opening hours; each person's discomfort covers only their actual attendance.",
+  "Sound is sampled each minute on a one-metre grid. A meeting room shares one 60 dB(A) talker at one metre across its attendees, speaking for half of each minute with the rest for pauses and note-taking (57 dB(A) average source). Eating, shopping, queuing, pantry visits and waiting use 55 dB(A) speech with one in three talking; walking is 45, quiet desk work and toilet use 40, escalators 60, lifts 50 and background air conditioning 35. A person does not hear their own emission; assigned desk summaries also exclude their sitter. Distance, walls, glass and doors reduce sound; hard rooms add 6 dB and mixed rooms 3. Sources on other floors do not count.",
   "Floor-and-wall shades less than 30 points apart have low contrast. Missing shades are not checked. Only people with low vision gain discomfort from walking in low contrast.",
-  "Discomfort compares the environment at actual positions with personal tolerances, using stricter noise limits for focus and more light for tasks. Two simultaneous causes count as overload. Time outside or riding between floors is excluded. Crowd discomfort retains five-second observations, clipped to actual attendance.",
+  "Discomfort compares the environment at actual positions with personal tolerances, using stricter noise limits in meetings and at office/meeting-room desks, general noise limits at shop counters and other desks, and more light for tasks. Two simultaneous causes count as overload. Time outside or riding between floors is excluded. Crowd discomfort retains five-second observations, clipped to actual attendance.",
   "These light, glare, sound and comfort numbers are assumptions for comparing layouts, not lighting or acoustic engineering. They need measurements and calibration before being treated as predictions.",
 ];

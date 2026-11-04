@@ -1,4 +1,4 @@
-# Simulation engine v0.7
+# Simulation engine v0.7.1
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -35,7 +35,7 @@ clock time and longitude 80° E. The sun calculation follows the
 Direct floor glare uses glass sill/head heights and the sun's ray direction; desk
 glare additionally checks a 45° facing cone and window view width. The score grows
 as the sun lowers. Shading, frosting and overcast skies remove glare from that window.
-Daylight remains diffuse in those cases. There are no reflected-glare, thermal or
+Daylight remains diffuse in those cases. Door openings pass diffuse daylight but are treated as closed for direct sun and facing-window glare; wall-free open-plan areas still pass sun. There are no reflected-glare, thermal or
 three-dimensional sky/shadow calculations.
 
 Sound uses exact straight-line wall/opening intersections between source and target
@@ -44,8 +44,14 @@ energy by distance squared. Crossed materials cost 30 dB for an internal wall,
 35 for an exterior wall, 25 for glass and 10 for a doorway; target-room reflections
 add 6 dB for hard or 3 for mixed finishes. People are grouped at 1 m cell centres;
 fixed sources keep exact positions. Quiet desk/toilet activity is 40 dB(A) at 1 m,
-walking/lift waiting 45, other present activity 55, escalators 60, lifts 50, and
-background air conditioning 35. No sound crosses floors. Source hours are clipped
+walking 45, escalators 60, lifts 50, and background air conditioning 35.
+Eating, shopping, queuing, waiting, pantry and lunch activity uses 55 dB(A) speech
+with one in three talking. Each meeting room shares one 60 dB(A) talker, distributed
+among its attendees, speaking for half of each minute with the rest for pauses and
+note-taking (57 dB(A) average source energy), independent of group size.
+Person exposure subtracts only that listener's own sampled energy, propagated through
+the same grid and room gain; ambient grids and room peaks include everyone. Assigned
+desk summaries also omit their sitter, keeping other people and fixed sources audible. No sound crosses floors. Source hours are clipped
 to each minute. Source geometry is cached across the day.
 
 Light/glare grids store extrema of 15-minute observations. The sound grid stores the
@@ -53,8 +59,10 @@ loudest rolling 15-minute energy average; room sound peaks are one-minute values
 Room rows include every entered label in plan order. Overlapping labels each receive
 their actual discomfort time; the first matching label supplies environmental room
 defaults where labels overlap. Desk rows cover the whole opening period and show
-glare above the assigned sitter's comfort and sound above their focus limit (default
-means for an unassigned desk). This can reveal a hazard even when its sitter was away.
+glare above the assigned sitter's comfort and sound above the applicable noise limit:
+focus at open/private office and meeting-room desks; general noise at shop counters
+and other desks (default means for an unassigned desk). Meetings use the focus limit
+wherever they occur. This can reveal a hazard even when its sitter was away.
 
 Per-person intervals split at keyframes, room boundaries and minute observations;
 crowding reuses five-second samples. Absent time and travel between floors are excluded.
@@ -75,7 +83,8 @@ extracts `6503fc5` into a temporary directory, builds both versions with the sam
 bundler and verifies the baseline hashes. Comparison runs warm both equally and
 collect preceding garbage outside each timer. Full sample results and report data
 are written to ignored `engine/out/comfort-benchmark.json`. See
-[the v0.7 report](../docs/engine-v0.7-report.md) for results and limitations.
+[the v0.7.1 report](../docs/engine-v0.7.1-report.md) for corrected results and limitations;
+[the original v0.7 report](../docs/engine-v0.7-report.md) retains the pre-review figures.
 
 ## Profiles and crowds
 
