@@ -552,3 +552,108 @@ interface Weather {
 2. **Fetch once, save in the project; the engine stays offline.** Recommended.
 3. **Weather default:** typical for the date (10-year average), with a specific past day as an option. Recommended.
 4. **Unknown heights:** from floors when known, otherwise assumed 2 floors, highlighted for the user to check. Recommended.
+
+## v0.9: Evacuation and accessibility
+- Requested by: Claude, 2026-11-04
+- Status: **open**: needs the product owner's approval.
+
+**In plain words.** Two questions every client and approving authority asks: **can everyone get out, and how fast?** and **can everyone use the building in the first place?** This change adds both.
+
+*Evacuation:* at an alarm time you choose, everyone stops, takes a moment to react, and heads for an exit with the crowding rules from v0.6. Lifts stop unless they're marked as evacuation lifts. People who can't use stairs go to a refuge (a protected waiting spot by a stair) and wait for help. Results say:
+- "The building was empty of everyone who could leave in 4 min 50 s; First floor cleared in 3 min 40 s."
+- "62% of people used the main entrance; the side exit by the toilets was used by 9 people, because first-time visitors head back the way they came in."
+- "The stair down from First floor had a queue of up to 40 people for 2 minutes."
+- "11 people waited at the First floor refuge, the first from 1 min 10 s; with no refuge on Second floor, 3 wheelchair users had nowhere safe to wait."
+
+*Accessibility:* the building gains ramps, accessible toilets, evacuation lifts and refuges, and a plain-language check of common accessibility guidance, so results also say:
+- "There's no accessible toilet on First floor: wheelchair users walked 85 m on average to the one downstairs, and 2 couldn't get there in time."
+- "The ramp to the mezzanine is 1 in 8, steeper than the usual 1 in 12: wheelchair users can't use it."
+
+**Key choice 1: an evacuation is its own run.** The scenario sets an alarm time; the day runs normally until then, then everyone evacuates and the run ends when the last person is out or at a refuge. The app offers "Run an evacuation at…" next to the normal run, using the same people, so you see who was where when the alarm went off.
+
+**Key choice 2: people go to the exits they know.** A well-documented finding from real fires: people head for the way they came in rather than the nearest exit, especially in unfamiliar buildings. Here, people who know the building well (familiarity 0.7 and above) take the nearest usable exit; others mostly return to the entrance they used, and change their mind only if it's badly blocked. Staff know every exit.
+
+**Key choice 3: reaction time is drawn per person.** Nobody moves the instant an alarm sounds: people finish a sentence, gather things, look around. Each kind of person gets a spread (typical 30–120 s; staff trained to respond faster; shoppers in a shop, or people in a toilet, slower). These are assumptions, as before.
+
+**Key choice 4: assisted evacuation is counted, not simulated.** Step-free people without an evacuation lift go to the nearest refuge on their floor and wait. Results count who is waiting, where and from when. How staff or firefighters bring them down is left out; it depends on procedures we don't model.
+
+**Key choice 5: guidance, not compliance.** Accessibility checks follow common guidance (doors at least 0.8 m, ramps no steeper than 1 in 12, an accessible toilet on every floor people use, a refuge on every floor without an evacuation lift) and say so. They don't claim to certify against Sri Lanka's accessibility regulations or fire code; the results say to check those with the approving authority.
+
+**Change: `floorplan.ts` (version "0.5" → "0.6")**
+```ts
+type ConnectorKind = "stairs" | "escalator" | "lift" | "ramp";   // "ramp" is new
+
+interface Connector {
+  // … plus:
+  /** Lifts only: kept running during an alarm for people who can't use stairs. Missing: false. */
+  evacuationLift?: boolean;
+}
+// A ramp joins two floors next to each other, like stairs; step-free people can use it when it's
+// no steeper than 1 in 12 (rise between the floors over its footprint's longer side). Escalators stop
+// during an alarm and are used as stairs.
+
+interface Opening {
+  // … plus, exterior doors only:
+  /** Used only in an alarm, never to arrive or leave normally. Missing: false. */
+  fireExit?: boolean;
+}
+
+interface Space {
+  // … plus:
+  /** Toilets only: usable by wheelchair users (wide door, room to turn, grab rails). Missing: false. */
+  accessible?: boolean;
+  /** A protected spot to wait for help in an alarm, usually beside a stair. Missing: false. */
+  refuge?: boolean;
+}
+```
+
+**Change: `scenario.ts` (version "0.8" → "0.9")**
+```ts
+interface Scenario {
+  // … plus:
+  /** Sound an alarm and evacuate. Missing: an ordinary day (v0.8 behaviour). */
+  evacuation?: {
+    /** When the alarm sounds, "HH:MM", within the day. */
+    alarmAt: string;
+    /** Exits out of use for this run (a blocked door, a fire near it), opening ids. Missing: none. */
+    blockedExitIds?: string[];
+  };
+}
+
+interface PersonProfile {
+  // … plus:
+  /** Seconds from the alarm until they start moving. Missing: typical 30–120 s (stated in the assumptions). */
+  reactionS?: Spread;
+}
+```
+Toilet trips by `step_free` people go only to `accessible` toilets (or are `blocked`). A plan with no `accessible` toilets behaves as v0.8 (every toilet is usable) and warns.
+
+**Change: `results.ts` (version "0.8" → "0.9")**
+- `Activity` adds `"evacuating"` (moving to an exit or refuge after the alarm) and `"at_refuge"`.
+- `SimEventType` adds `"alarm"`, `"evacuated"` (with the exit's opening id) and `"reached_refuge"` (with the space id).
+- `Metrics` adds `evacuation: EvacuationMetrics | null` (null without an alarm):
+  - `outS`: seconds from the alarm until everyone who could leave was out; `refugeS`: until everyone else was at a refuge; `stranded`: people with neither (no usable exit or refuge).
+  - `byFloor`: `{ levelId; people; clearS }` (when the last person left that floor).
+  - `byProfile`: `{ profileId; people; meanOutS; slowestOutS; atRefuge; stranded }` (row `""` for people without a profile).
+  - `exits`: `{ openingId; people; firstS; lastS; peakQueue }`, one per exterior door, in plan order.
+  - `connectors`: `{ connectorId; people; peakQueue; queueS }`, stairs, escalators, ramps and lifts used.
+  - `refuges`: `{ spaceId; people; firstS; lastS }`.
+- `Metrics` adds `accessibility: AccessibilityCheck[]`, always filled: `{ code; ok; message; refIds }` for each guidance check (`door_width`, `ramp_gradient`, `accessible_toilet_per_floor`, `step_free_route_per_floor`, `refuge_or_evacuation_lift_per_floor`), in plain words.
+- `WarningCode` adds `"evacuation"` (e.g. "3 people on Second floor had no exit or refuge they could use") and `"accessibility"` (failed checks).
+
+**Change: `validate.ts`**
+- Ramps join exactly two adjacent floors; `evacuationLift` only on lifts; `fireExit` only on exterior doors and never with `arrivalShare`; `accessible` only on toilets; `alarmAt` a time within the workday; `blockedExitIds` are exterior doors; `reactionS` a valid spread with min ≥ 0.
+
+**Breaks**
+- Engine (Codex): ramps (gradient rule for step-free people), accessible-toilet routing, alarm handling (everyone switches at once), reaction time on its own random stream, exit choice by familiarity, lifts stopping except evacuation lifts, escalators as stairs, refuges, the new metrics, checks and warnings. Exactly v0.8 without an alarm, ramps or the new space flags. Deterministic; the people mall's evacuation in under 3 s.
+- App (Codex, Claude reviews): ramp tool; evacuation-lift, fire-exit, accessible-toilet and refuge settings in the inspector; "Run an evacuation at…" with alarm time and blocked exits; evacuation results (time to empty, by floor, by kind of person, exits, queues, refuges, stranded), playback from the alarm with an "everyone out at…" marker; an **Accessibility** results section with each check passed or failed; assistant tools for all of these.
+- Samples: `mall-2f` gains an accessible toilet, a refuge by the stairs on First floor and a side fire exit in a new copy `mall-2f-evac`; `mall-weekend-evac` sounds the alarm at 18:30 with the people mall's kinds; `office-a-evac` + `office-day-evac` for a single-floor office at 10:20 (during the morning meeting).
+
+**Left for later.** Fire and smoke spread; staff guiding people; assisted evacuation of refuges; phased evacuation by floor; voice alarms and wayfinding signs; heat comfort; school drills.
+
+**Decisions for the product owner**
+1. **An evacuation is a separate run** from a chosen alarm time, with the same people. Recommended.
+2. **Exit choice:** familiar people take the nearest exit; others mostly return the way they came in. Recommended.
+3. **Lifts stop in an alarm** unless marked as evacuation lifts; escalators are used as stairs. Recommended.
+4. **Refuges are counted, not emptied:** we report who waits where and from when, without simulating rescue. Recommended.
+5. **Accessibility checks are common guidance, not certification**, and say so. Recommended.
