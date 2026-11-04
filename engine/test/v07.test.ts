@@ -14,7 +14,7 @@ describe("v0.7 comfort off compatibility", () => {
   const captures = JSON.parse(readFileSync(new URL("data/v061-full-sha256.json", import.meta.url), "utf8")).sha256;
   it.each(Object.keys(captures))("preserves the complete captured v0.6.1 output: %s", (key) => {
     const [p, s] = key.split("/"); const r = simulate(plan(p), scenario(s));
-    expect(r.version).toBe("0.7"); expect(r.metrics.comfort).toBeNull(); expect(r.tracks.every((t) => t.discomfort === undefined)).toBe(true);
+    expect(r.version).toBe("0.8"); expect(r.metrics.comfort).toBeNull(); expect(r.tracks.every((t) => t.discomfort === undefined)).toBe(true);
     const old = JSON.parse(JSON.stringify(r)); old.version = "0.6"; delete old.metrics.comfort;
     old.heatmaps.levels.forEach((l: { noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => {
       expect([l.noiseDbA, l.lightLux, l.glare]).toEqual([[], [], []]); delete l.noiseDbA; delete l.lightLux; delete l.glare;

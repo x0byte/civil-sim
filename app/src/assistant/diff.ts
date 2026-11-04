@@ -37,6 +37,11 @@ export function diffPlans(before: FloorPlan, after: FloorPlan): PlanDiff {
     }
     for (const id of old.keys()) if (!now.has(id)) removed.push({ kind, id });
   }
+  for (const [kind, key] of [["neighbour", "neighbours"], ["road", "roads"]] as const) {
+    const old = new Map((before.site?.[key] ?? []).map((x) => [x.id, JSON.stringify(x)])); const now = after.site?.[key] ?? [];
+    for (const x of now) if (old.get(x.id) !== JSON.stringify(x)) changed.push({ kind, id: x.id });
+    for (const id of old.keys()) if (!now.some((x) => x.id === id)) removed.push({ kind, id });
+  }
   const levels = new Set(before.levels.map((l) => l.id));
   return { changed, removed, newLevels: after.levels.filter((l) => !levels.has(l.id)).map((l) => l.id) };
 }

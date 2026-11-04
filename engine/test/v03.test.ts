@@ -83,7 +83,7 @@ describe("v0.3 sample acceptance", () => {
     const start = performance.now();
     const result = simulate(p, s);
     expect(performance.now() - start).toBeLessThan(1000);
-    expect(result.version).toBe("0.7");
+    expect(result.version).toBe("0.8");
     expect(JSON.stringify(simulate(p, s))).toBe(JSON.stringify(result));
     expect(JSON.stringify([p, s])).toBe(before);
     expect(result.metrics.queues.map((metric) => metric.spaceId)).toEqual(p.spaces

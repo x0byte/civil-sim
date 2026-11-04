@@ -12,12 +12,15 @@ import {
   removeLevel,
   setBounds,
   setSite,
+  updateNeighbour,
   setConnectorKind,
   setWallLength,
   spaceTypeLabel,
   updateItem,
   updateLevel,
 } from "../model/planOps.ts";
+import { SitePanel } from "../site/SitePanel.tsx";
+import { ROAD_DB } from "../site/data.ts";
 import { DEFAULT_SITE } from "../model/comfortDefaults.ts";
 import { WindowGlass, RoomFinish, NoiseFields } from "./ComfortFields.tsx";
 import { FindWalls } from "../importers/FindWalls.tsx";
@@ -49,7 +52,7 @@ export function Inspector() {
     select(null);
   };
 
-  if (!selection) return <PlanPanel />;
+  if (!selection) return <><PlanPanel /><SitePanel /></>;
 
   if (selection.kind === "wall") {
     const w = getItem(plan, "wall", selection.id);
@@ -239,6 +242,23 @@ export function Inspector() {
     return c ? <ConnectorPanel connector={c} levels={plan.levels} onDelete={remove} /> : null;
   }
 
+  if (selection.kind === "neighbour") {
+    const n = getItem(plan, "neighbour", selection.id); if (!n) return null;
+    return <Panel title="Neighbouring building" sub={n.name ?? "Neighbour"} onDelete={remove}>
+      <TextField label="Name" value={n.name ?? "Neighbour"} onCommit={(name) => commit((p) => updateNeighbour(p, n.id, { name }))} />
+      <NumField label="Height" min={.1} max={500} step={1} value={n.heightM} onCommit={(heightM) => commit((p) => updateNeighbour(p, n.id, { heightM }))} />
+      <p className={n.heightFrom === "assumed" || n.heightFrom === "floors" ? "warn" : "muted"}>{n.heightFrom === "assumed" ? "Assumed two floors: check this height." : n.heightFrom === "floors" ? "Estimated from floors × 3 m: check this height." : n.heightFrom === "user" ? "Height entered by you." : "Height from the saved source data."}</p>
+    </Panel>;
+  }
+  if (selection.kind === "road") {
+    const r = getItem(plan, "road", selection.id); if (!r) return null;
+    return <Panel title="Road" sub={r.name ?? "Road"} onDelete={remove}>
+      <TextField label="Name" value={r.name ?? "Road"} onCommit={(name) => commit((p) => updateItem(p, "road", r.id, (r) => ({ ...r, name })))} />
+      <SelectField label="Kind" value={r.kind} options={Object.keys(ROAD_DB).map((k) => ({ value: k as typeof r.kind, label: k[0].toUpperCase() + k.slice(1) }))} onChange={(kind) => commit((p) => updateItem(p, "road", r.id, (r) => ({ ...r, kind })))} />
+      <NumField label="Loudness at 1 m" unit="dB(A)" min={0} max={140} step={1} value={r.dbA ?? ROAD_DB[r.kind]} onCommit={(dbA) => commit((p) => updateItem(p, "road", r.id, (r) => ({ ...r, dbA })))} />
+      <p className="muted">A line source along the whole road. Saved hours: {r.hours ? `${r.hours.from}–${r.hours.to}` : "06:00–22:00 (typical)"}. Sound defaults are assumptions for comparison.</p>
+    </Panel>;
+  }
   if (selection.kind === "noise") {
     const n = getItem(plan, "noise", selection.id);
     return n ? (
@@ -305,16 +325,7 @@ function PlanPanel() {
         value={plan.site?.northDeg ?? DEFAULT_SITE.northDeg}
         onCommit={(northDeg) => commit((p) => setSite(p, { northDeg }))}
       />
-      <NumField
-        label="Latitude"
-        unit="°"
-        step={0.1}
-        min={-90}
-        max={90}
-        value={plan.site?.latitude ?? DEFAULT_SITE.latitude}
-        onCommit={(latitude) => commit((p) => setSite(p, { latitude }))}
-      />
-      <p className="muted">North is clockwise from up the page. Latitude defaults to Colombo (6.9°).</p>
+      <p className="muted">North is clockwise from up the page. Site location is below.</p>
       <Floors levels={plan.levels} />
       {plan.underlay && (
         <>

@@ -1,5 +1,12 @@
 # Decision log
 
+
+## 2026-11-04 — v0.8 site/weather implementation
+
+Neighbour sun rays include floor elevation, with nine samples across each window for partial shade and 45 outward sky rays for diffuse daylight. Window minutes partition possible exposure into neighbour shade, cloud over the remaining area, then sun; they are equivalent minutes before blinds/frosting. Hourly cloud is held constant. New site/weather inputs use longitude 79.86/UTC+5:30 defaults; old inputs retain the old -10-minute solar correction so all eight pre-v0.8 complete hashes match. Roads integrate one-metre sections as energy with the existing attenuation, not point-source falloff. Saved site/weather source lines accompany results, including site credits with comfort off.
+
+The app uses explicit user fetches only: a single 200 m Overpass query, four visible OSM tiles at most, and ten sequential small Open-Meteo archive requests for a typical calendar date. Half-hour time zones interpolate archived GMT observations into 24 local hours. Typical means the preceding ten fully past years; 29 February uses 28 February in non-leap years. Overpass endpoint and tile template can be set with VITE_OVERPASS_URL and VITE_OSM_TILE_URL for deployment. No automatic retry or provider fallback. Public API failures leave saved data intact. Long OSM roads are clipped to 250 m each side of the plan origin, and footprints overlapping the plan bounds are omitted to avoid self-shading; this heuristic needs review near adjacent buildings. Location/north changes reproject saved surroundings to keep their earth positions fixed. Corrected heights survive refresh. History now snapshots People settings with the plan so weather edits and assistant changes undo correctly. Network failures prevented a successful recorded Overpass fixture; see the v0.8 report.
+
 Newest first. One entry per decision: what, why, who decided.
 
 ## 2026-11-04: Contract v0.8 (site and weather)
@@ -7,6 +14,10 @@ Newest first. One entry per decision: what, why, who decided.
 
 ## 2026-11-04: Site and weather before evacuation
 - **Site and weather (neighbours, their shadows, roads, real hourly cloud) becomes contract v0.8; evacuation moves to v0.9.** It builds straight on comfort, which already knows the sun's path. *(Product owner, agreeing with Claude)*
+
+## 2026-11-04: v0.7.2 comfort calibration and desk labels
+- Typical focus tolerance remains 50 ± 3 dB(A) but clips to 46–58 in the engine and app; explicit profile spreads, including the supplied low-vision and sensory presets, retain their limits. Full task light applies to desks, meetings and shopping; eating/lunch, pantry and waiting use half, walking a quarter. Comfort-off results and movement stay unchanged.
+- Both app desk tables use one label helper matching comfort warnings (numeric suffix, otherwise the room name). The north arrow defaults above the plan, with reserved canvas space, and its local drag placement can stay outside the building. *(Codex, implementing the approved v0.7.2 review brief.)*
 
 ## 2026-11-04: v0.7.1 sound exposure and doorway glare
 - Person sound exposure subtracts that listener's own minute-sampled emission with the same propagation and room gain; ambient grids retain all sources. Assigned desk summaries also exclude the sitter. Focus noise limits apply to meetings and desks in open/private offices or meeting rooms; shop counters and other desks use general noise limits.

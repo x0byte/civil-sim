@@ -94,6 +94,8 @@ function mark(plan: FloorPlan, kind: string, id: string, level: string, color: s
   const common = { stroke: color, strokeWidth: sx(3), strokeDasharray: dash, fill: "none" };
   const poly = (pts: Vec2[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
   switch (kind) {
+    case "neighbour": { const n = getItem(plan, "neighbour", id); return n ? <polygon key={id} points={poly(n.polygon)} {...common} /> : null; }
+    case "road": { const r = getItem(plan, "road", id); return r ? <polyline key={id} points={poly(r.path)} {...common} /> : null; }
     case "wall": {
       const w = getItem(plan, "wall", id);
       if (!w || w.levelId !== level) return null;

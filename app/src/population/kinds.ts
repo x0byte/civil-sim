@@ -118,7 +118,7 @@ export const KINDS: KindOfPerson[] = [
   {
     id: "low-vision", name: "Low vision", speed: spread(0.9, 0.15, 0.5, 1.3), access: "any", size: 1,
     prefers: { stairs: 0.5, escalator: 0.5, lift: 2 }, familiarity: spread(0.5, 0.2, 0, 1), crowdComfort: spread(1, 0.3, 0.5, 2),
-    noiseComfort: COMFORT_TOLERANCES.noiseComfort, focusNoiseComfort: COMFORT_TOLERANCES.focusNoiseComfort,
+    noiseComfort: COMFORT_TOLERANCES.noiseComfort, focusNoiseComfort: spread(50, 3, 42, 58), // Explicit sample profile; keep its own tolerance.
     taskLux: spread(500, 80, 350, 700), glareComfort: COMFORT_TOLERANCES.glareComfort, lowVision: true,
     why: "Needs stronger light to see edges and prefers the lift.",
   },

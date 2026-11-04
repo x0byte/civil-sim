@@ -16,6 +16,7 @@ import { RoomSpots } from "./modules/spots.ts";
 import { People, stepFreeWarnings } from "./modules/profiles.ts";
 import { AccessRoutes } from "./modules/access-routes.ts";
 import { onLevel } from "./modules/levels.ts";
+import { SITE_ASSUMPTIONS, siteWeather } from "./modules/site.ts";
 import { COMFORT_ASSUMPTIONS } from "./modules/comfort.ts";
 
 export class SimulationInputError extends Error {
@@ -146,7 +147,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   return {
     version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS, tracks,
     ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics, people, warn), events,
-    assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS] : assumptions(scenario), warnings,
+    assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS, ...(siteWeather(plan, scenario) ? SITE_ASSUMPTIONS : []), ...(plan.site?.credits ?? []), ...(scenario.comfort.weather ? [scenario.comfort.weather.source] : [])] : [...assumptions(scenario), ...(plan.site?.credits ?? [])], warnings,
   };
 }
 

@@ -1,3 +1,4 @@
+import { deskLabel } from "../model/deskLabel.ts";
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { useEditor } from "../state/store.ts";
@@ -31,8 +32,6 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const teamName = new Map(scenario.teams.map((t) => [t.id, t.name]));
   const roomUse = meetingRoomUse(plan, scenario);
   const demand = run.meetingDemand;
-  const deskRoom = new Map(plan.fixtures.map((f) => [f.id, spaces.get(f.spaceId)?.name ?? ""]));
-  const deskLabel = (id: string) => `${id.replace(/^desk-?0*/i, "Desk ")} · ${deskRoom.get(id)}`;
 
   // Smallest room on that floor containing a point, for naming hotspots.
   const roomAt = (x: number, y: number, levelId: string) => {
@@ -201,7 +200,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               <tbody>
                 {disturbance.slice(0, 3).map((d) => (
                   <tr key={d.deskId}>
-                    <td>{deskLabel(d.deskId)}</td>
+                    <td>{deskLabel(plan, d.deskId, true)}</td>
                     <td>{teamName.get(d.teamId) ?? d.teamId}</td>
                     <td>{d.passBys}</td>
                   </tr>

@@ -14,6 +14,9 @@ import {
   addConnector,
   addFixture,
   addNoiseSource,
+  addNeighbour,
+  updateNeighbour,
+  addRoad,
   updateNoiseSource,
   setSite,
   setWindowGlass,
@@ -33,6 +36,7 @@ import {
   updateLevel,
 } from "../model/planOps.ts";
 import { type Group, KINDS_PRESETS, type KindOfPerson, type KindsPreset, kindsFromPreset, withMean } from "../population/kinds.ts";
+import { mapsLocation, validLocation } from "../site/coordinates.ts";
 import { DEFAULT_COMFORT, DEFAULT_SITE, DEFAULT_GLASS, ROOM_COMFORT, COMFORT_TOLERANCES, validDate } from "../model/comfortDefaults.ts";
 import type { OfficeProfile } from "../population/officeProfile.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
@@ -94,6 +98,22 @@ const noiseProperties = {
 
 /** Tool definitions, in a fixed order so the request prefix stays cacheable. */
 export const TOOLS: Anthropic.Tool[] = [
+  comfortTool("set_location", "Set the site from supplied coordinates OR a pasted full Google Maps link. Never invent coordinates for a place name; ask for a link instead. Fetching surroundings is a separate user button.", {
+    lat: nullable("number", "Latitude -90 to 90; null keeps."), lon: nullable("number", "Longitude -180 to 180; null keeps. Supply both coordinates together."), maps_link: nullable("string", "Pasted full link with coordinates, or null."), utc_offset: nullable("number", "Clock hours ahead of UTC, -12 to 14; null keeps."),
+  }),
+  comfortTool("add_neighbour", "Add a neighbouring building by footprint in plan metres, possibly outside the plan bounds. Height above ground, not above the selected floor. State why the height is an assumption.", {
+    name: nullable("string", "Plain name, or null for Neighbour."), polygon, height: { type: "number", description: "Height above ground, >0 to 500 m." },
+  }),
+  comfortTool("update_neighbour", "Correct a neighbour's height (marks it user-entered) or name. Remove with remove(kind neighbour).", {
+    neighbour_id: { type: "string" }, height: nullable("number", "Height >0 to 500 m, or null keeps."), name: nullable("string", "Name or null keeps."),
+  }),
+  comfortTool("add_road", "Add a road as a line noise source in plan metres, including outside bounds. Defaults main 75, secondary 70, local 62, service 55 dB(A), 06:00–22:00. State assumptions.", {
+    name: nullable("string", "Plain name or null."), path: { type: "array", items: point, minItems: 2 }, kind: { type: "string", enum: ["main", "secondary", "local", "service"] }, dbA: nullable("number", "0–140 dB(A), null for kind default."),
+    hours: { anyOf: [{ type: "object", properties: { from: { type: "string" }, to: { type: "string" } }, required: ["from", "to"], additionalProperties: false }, { type: "null" }], description: "HH:MM from/to, null for typical hours." },
+  }),
+  comfortTool("set_weather", "Choose typical weather, a specific past day or clear/overcast. Does not fetch; tell the user to press Fetch/Refresh weather. Changing the choice/date clears stale weather.", {
+    kind: nullable("string", "Weather choice or null keeps.", { enum: ["typical", "day", "sky", null] }), date: nullable("string", "YYYY-MM-DD, or null keeps."),
+  }),
   comfortTool("set_site", "Set north (clockwise from up the page) and latitude; numbers need a one-line assumption.", {
     north: nullable("number", "Degrees, 0 to under 360; null to keep."),
     latitude: nullable("number", "Degrees north, -90 to 90; null to keep."),
@@ -280,7 +300,7 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        kind: { type: "string", enum: ["wall", "opening", "room", "furniture", "connector", "floor", "noise"] },
+        kind: { type: "string", enum: ["wall", "opening", "room", "furniture", "connector", "floor", "noise", "neighbour", "road"] },
         id: { type: "string" },
       },
       required: ["kind", "id"],
@@ -477,6 +497,47 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
   const edit = (next: FloorPlan) => ({ ...draft, plan: normalize(next) });
 
   switch (name) {
+    case "set_location": {
+      try {
+        if (input.maps_link != null && (input.lat != null || input.lon != null)) return fail(draft, "Use either a pasted link or a coordinate pair.");
+        const location = typeof input.maps_link === "string" ? mapsLocation(input.maps_link) : input.lat == null && input.lon == null ? plan.site?.location : { lat: input.lat as number, lon: input.lon as number };
+        if (location && !validLocation(location)) return fail(draft, "Supply a valid latitude and longitude together, or paste a full Maps link.");
+        if (input.utc_offset != null && !(typeof input.utc_offset === "number" && Number.isFinite(input.utc_offset) && input.utc_offset >= -12 && input.utc_offset <= 14)) return fail(draft, "UTC offset must be -12 to 14 hours.");
+        const updated = edit(setSite(plan, { ...(location ? { location } : {}), ...(typeof input.utc_offset === "number" ? { utcOffsetHours: input.utc_offset } : {}) }));
+        if (draft.profile.comfort?.weather && (JSON.stringify(plan.site?.location) !== JSON.stringify(updated.plan.site?.location) || plan.site?.utcOffsetHours !== updated.plan.site?.utcOffsetHours)) updated.profile = { ...draft.profile, comfort: { ...draft.profile.comfort, weather: undefined } };
+        return ok(updated, "Site location saved. Fetch surroundings with the app button.", { text: "Site location" });
+      } catch (e) { return fail(draft, (e as Error).message); }
+    }
+    case "add_neighbour": {
+      const polygon = input.polygon as Vec2[];
+      if (!Array.isArray(polygon) || polygon.length < 3 || polygon.some((p) => !Number.isFinite(p?.x) || !Number.isFinite(p?.y)) || polygonArea(polygon) < .5) return fail(draft, "Draw a footprint of at least three finite points and 0.5 m².");
+      if (!(typeof input.height === "number" && Number.isFinite(input.height) && input.height > 0 && input.height <= 500)) return fail(draft, "Height must be above 0 and at most 500 m.");
+      const r = addNeighbour(plan, polygon, input.height, typeof input.name === "string" ? input.name : "Neighbour");
+      return ok(edit(r.plan), "Neighbour added.", { text: "Add neighbouring building", id: r.id });
+    }
+    case "update_neighbour": {
+      const n = getItem(plan, "neighbour", input.neighbour_id as string); if (!n) return fail(draft, "Choose a neighbour in the saved surroundings.");
+      if (input.height != null && !(typeof input.height === "number" && Number.isFinite(input.height) && input.height > 0 && input.height <= 500)) return fail(draft, "Height must be above 0 and at most 500 m.");
+      return ok(edit(updateNeighbour(plan, n.id, { ...(typeof input.height === "number" ? { heightM: input.height } : {}), ...(typeof input.name === "string" ? { name: input.name } : {}) })), "Neighbour updated.", { text: `Correct ${n.name ?? "neighbour"}`, id: n.id });
+    }
+    case "add_road": {
+      const path = input.path as Vec2[];
+      if (!Array.isArray(path) || path.length < 2 || path.some((p) => !Number.isFinite(p?.x) || !Number.isFinite(p?.y)) || !path.slice(1).some((p, i) => Math.hypot(p.x - path[i].x, p.y - path[i].y) > 0)) return fail(draft, "Use a road path with at least two different finite points.");
+      if (!["main", "secondary", "local", "service"].includes(input.kind as string)) return fail(draft, "Choose Main, Secondary, Local or Service road.");
+      if (input.dbA != null && !(typeof input.dbA === "number" && Number.isFinite(input.dbA) && input.dbA >= 0 && input.dbA <= 140)) return fail(draft, "Road loudness must be 0–140 dB(A).");
+      const hours = input.hours as { from: string; to: string } | null;
+      if (hours != null && (!isClock(hours.from) || !isClock(hours.to) || hours.to <= hours.from)) return fail(draft, "Road hours must be HH:MM, off after on.");
+      const r = addRoad(plan, path, input.kind as "main" | "secondary" | "local" | "service", typeof input.name === "string" ? input.name : "Road", input.dbA == null ? undefined : input.dbA as number);
+      return ok(edit(hours ? updateItem(r.plan, "road", r.id, (r) => ({ ...r, hours })) : r.plan), "Road added.", { text: "Add road", id: r.id });
+    }
+    case "set_weather": {
+      if (input.kind != null && !["typical", "day", "sky"].includes(input.kind as string)) return fail(draft, "Choose Typical, Past day or Sky.");
+      if (input.date != null && (typeof input.date !== "string" || !validDate(input.date))) return fail(draft, "Use a valid YYYY-MM-DD date.");
+      const current = draft.profile.comfort ?? { ...DEFAULT_COMFORT, enabled: true };
+      const changed = input.kind != null || (typeof input.date === "string" && input.date !== current.date);
+      const comfort = { ...current, enabled: true, ...(typeof input.date === "string" ? { date: input.date } : {}), ...(changed ? { weather: undefined } : {}), ...(input.kind === "typical" || input.kind === "day" ? { weatherKind: input.kind } : {}) } as NonNullable<OfficeProfile["comfort"]>;
+      return ok({ ...draft, profile: { ...draft.profile, comfort } }, "Weather choice saved; use the app's fetch button to save hourly data.", { text: "Weather choice" });
+    }
     case "set_site": {
       if (
         input.north != null &&
@@ -745,8 +806,8 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
         return ok(edit(removeLevel(plan, id)), `Removed floor ${id} and everything on it.`, { text: `Remove ${floorName(id)}` });
       }
       const kind = (
-        { wall: "wall", opening: "opening", room: "space", furniture: "fixture", connector: "connector", noise: "noise" } as const
-      )[input.kind as "wall" | "opening" | "room" | "furniture" | "connector" | "noise"];
+        { wall: "wall", opening: "opening", room: "space", furniture: "fixture", connector: "connector", noise: "noise", neighbour: "neighbour", road: "road" } as const
+      )[input.kind as "wall" | "opening" | "room" | "furniture" | "connector" | "noise" | "neighbour" | "road"];
       const item = getItem(plan, kind, id);
       if (!item) return fail(draft, `No ${String(input.kind)} "${id}".`);
       const label = "name" in item ? item.name : id;
@@ -957,6 +1018,10 @@ export function describe(draft: Draft): string {
   lines.push(
     `COMFORT: ${profile.comfort?.enabled ? "on" : "off"}, date ${profile.comfort?.date ?? DEFAULT_COMFORT.date}, sky ${profile.comfort?.sky ?? DEFAULT_COMFORT.sky}.`,
   );
+  for (const n of plan.site?.neighbours ?? []) lines.push(`neighbour ${n.id} "${n.name ?? "Neighbour"}": ${n.heightM} m (${n.heightFrom}), footprint ${n.polygon.map(xy).join(" ")}`);
+  for (const r of plan.site?.roads ?? []) lines.push(`road ${r.id} "${r.name ?? "Road"}" ${r.kind}, ${r.dbA ?? "typical"} dB(A), path ${r.path.map(xy).join(" ")}, hours ${r.hours ? `${r.hours.from}–${r.hours.to}` : "06:00–22:00"}`);
+  lines.push(`Location: ${plan.site?.location ? `${plan.site.location.lat},${plan.site.location.lon}` : "not set (ask for coordinates or a Maps link)"}; UTC offset ${plan.site?.utcOffsetHours ?? 5.5}.`);
+  lines.push(`Weather: ${profile.comfort?.weather ? `${profile.comfort.weather.kind}, ${profile.comfort.weather.source}` : `not fetched, preference ${profile.comfort?.weatherKind ?? "typical"}`}.`);
   for (const n of plan.noiseSources ?? [])
     lines.push(
       `noise ${n.id} "${n.name}" on ${n.levelId} at ${xy(n.position)}, ${n.dbA} dB(A) at 1 m, ${n.hours ? `${n.hours.from}–${n.hours.to}` : "all day"}`,

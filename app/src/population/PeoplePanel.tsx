@@ -23,7 +23,7 @@ function useProfile(): [OfficeProfile, (p: OfficeProfile) => void, boolean] {
   const plan = useEditor((s) => s.plan);
   const saved = useEditor((s) => s.profiles[s.plan.id]);
   const fallback = useMemo(() => defaultProfile(plan), [plan]);
-  const set = (p: OfficeProfile) => useEditor.getState().setProfile(plan.id, p);
+  const set = (p: OfficeProfile) => useEditor.getState().setProfile(plan.id, p, true);
   return [saved ?? fallback, set, !saved];
 }
 

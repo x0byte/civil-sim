@@ -1,4 +1,5 @@
 import type { DiscomfortCause, Track } from "../../../contracts/results.ts";
+import { deskLabel } from "../model/deskLabel.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { clockAt } from "./tracks.ts";
 
@@ -18,12 +19,6 @@ export const CAUSE_COLOR: Record<DiscomfortCause, string> = {
 };
 export const COMFORT_CAUSES = Object.keys(CAUSE_LABEL) as DiscomfortCause[];
 const min = (n: number) => `${n.toFixed(1)} min`;
-export function deskName(run: SimRun, id: string): string {
-  const desks = run.plan.fixtures.filter((f) => f.type === "desk");
-  const fixture = desks.find((f) => f.id === id);
-  const room = run.plan.spaces.find((s) => s.id === fixture?.spaceId);
-  return `Desk ${desks.findIndex((f) => f.id === id) + 1}${room ? ` · ${room.name}` : ""}`;
-}
 
 export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: string) => string }) {
   const c = run.result.metrics.comfort;
@@ -41,7 +36,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
         <header>
           <div>
             <h2>How it felt</h2>
-            <span className="muted">People affected · minutes together</span>
+            <span className="muted">People affected · minutes together · Sky used: {c.weatherUsed === "sky" ? run.scenario.comfort?.sky === "overcast" ? "Overcast" : "Clear" : c.weatherUsed === "typical" ? "Typical weather" : "A specific past day"}</span>
           </div>
         </header>
         <div className="panel-body">
@@ -125,6 +120,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
           ))}
         </div>
       </section>
+      {c.windows.length > 0 && <section className="panel"><header><h2>Windows and sun</h2></header><div className="panel-body"><table className="table"><thead><tr><th>Window</th><th>Sun min</th><th>Neighbour shade min</th><th>Cloud min</th></tr></thead><tbody>{c.windows.map((w) => <tr key={w.openingId}><td>Window {run.plan.openings.filter((o) => o.kind === "window").findIndex((o) => o.id === w.openingId) + 1}</td><td>{w.sunMinutes.toFixed(1)}</td><td>{w.shadedByNeighboursMinutes.toFixed(1)}</td><td>{w.cloudedMinutes.toFixed(1)}</td></tr>)}</tbody></table><p className="muted">Equivalent minutes while open, before blinds or frosting. Cloud is counted over the part not shaded by neighbours.</p></div></section>}
       {c.desks.length > 0 && (
         <section className="panel">
           <header>
@@ -142,7 +138,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
               <tbody>
                 {c.desks.map((d) => (
                   <tr key={d.deskId}>
-                    <td>{deskName(run, d.deskId)}</td>
+                    <td>{deskLabel(run.plan, d.deskId, true)}</td>
                     <td>{min(d.glareMinutes)}</td>
                     <td>{min(d.loudMinutes)}</td>
                   </tr>

@@ -1,4 +1,4 @@
-import type { Vec2 } from "../../../contracts/floorplan.ts";
+import type { Vec2, Road } from "../../../contracts/floorplan.ts";
 import type { Track, Activity } from "../../../contracts/results.ts";
 import { Environment, roomAcoustics } from "./environment.ts";
 import { clockSeconds } from "./schedule.ts";
@@ -38,6 +38,11 @@ export class Sound {
       ...(env.plan.noiseSources ?? []).map((s) => ({ ...s, from: s.hours ? clockSeconds(s.hours.from) - start : 0, to: s.hours ? clockSeconds(s.hours.to) - start : duration })),
       ...env.plan.connectors.filter((c) => c.kind !== "stairs").flatMap((c) => c.levelIds.map((levelId) => ({ id: c.id, position: polygonCentroid(c.polygon), levelId, dbA: c.kind === "lift" ? 50 : 60, from: 0, to: duration }))),
     ];
+    const roads = (env.plan.site?.roads ?? []).map((road) => ({ road,
+      from: clockSeconds(road.hours?.from ?? "06:00") - start, to: clockSeconds(road.hours?.to ?? "22:00") - start,
+      power: 10 ** ((road.dbA ?? ROAD_DB[road.kind]) / 10),
+      kernels: new Map(env.plan.levels.map((l) => [l.id, this.roadKernel(road, l.id, l.elevation)])),
+    }));
     for (let t = 0; t < duration; t += 60) {
       const dt = Math.min(60, duration - t); const emissions = new Map<string, Map<number, number>>();
       const present = tracks.map((_, j) => sampler.at(j, t + dt / 2));
@@ -63,6 +68,10 @@ export class Sound {
         for (const s of staticSources) if (s.levelId === id) {
           const fraction = Math.max(0, Math.min(t + dt, s.to) - Math.max(t, s.from)) / dt;
           if (fraction) this.add(energy, this.kernel(s.position, id, `source:${s.id}`), fraction * 10 ** (s.dbA / 10));
+        }
+        for (const road of roads) {
+          const fraction = Math.max(0, Math.min(t + dt, road.to) - Math.max(t, road.from)) / dt;
+          if (fraction) this.add(energy, road.kernels.get(id)!, road.power * fraction);
         }
         floor.minutes.push(Float32Array.from(energy, (power, i) => 10 * Math.log10(power * floor.gain[i])));
       }
@@ -93,5 +102,22 @@ export class Sound {
     const result = Float32Array.from(floor.points, (q) => 10 ** (-this.env.loss(p, q, level) / 10) / Math.max(1, (p.x - q.x) ** 2 + (p.y - q.y) ** 2));
     floor.kernels.set(key, result); return result;
   }
+  private roadKernel(road: Road, level: string, elevation: number): Float32Array {
+    const floor = this.floors.get(level)!; const result = new Float32Array(floor.points.length);
+    for (let j = 1; j < road.path.length; j++) {
+      const a = road.path[j - 1]; const b = road.path[j]; const length = Math.hypot(b.x - a.x, b.y - a.y);
+      const count = Math.ceil(length); if (!count) continue;
+      for (let k = 0; k < count; k++) {
+        const f = (k + .5) / count; const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+        for (let i = 0; i < floor.points.length; i++) {
+          const q = floor.points[i]; result[i] += length / count / Math.PI * 10 ** (-this.env.loss(p, q, level) / 10)
+            / Math.max(1, (p.x - q.x) ** 2 + (p.y - q.y) ** 2 + elevation ** 2);
+        }
+      }
+    }
+    return result;
+  }
   peakAverage(level: string, p: Vec2): number { return this.floors.get(level)!.peak[this.index(p)]; }
 }
+
+export const ROAD_DB: Record<Road["kind"], number> = { main: 75, secondary: 70, local: 62, service: 55 };

@@ -7,7 +7,7 @@ import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
-export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "connector" | "noise" | "calibrate";
+export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "fixture" | "connector" | "neighbour" | "noise" | "calibrate";
 export type ViewMode = "2d" | "3d" | "sim" | "compare";
 
 /** A saved copy of a layout, so design options can be compared. */
@@ -23,10 +23,11 @@ const OPTIONS_KEY = "civil-sim:options";
 const PROFILES_KEY = "civil-sim:profiles";
 const HISTORY_LIMIT = 100;
 
+interface HistoryEntry { plan: FloorPlan; profiles: Record<string, OfficeProfile> }
 interface EditorState {
   plan: FloorPlan;
-  past: FloorPlan[];
-  future: FloorPlan[];
+  past: HistoryEntry[];
+  future: HistoryEntry[];
   tool: Tool;
   selection: ItemRef | null;
   view: ViewMode;
@@ -74,7 +75,7 @@ interface EditorState {
   saveOption: (name: string) => void;
   deleteOption: (id: string) => void;
   setHeat: (heat: HeatMode) => void;
-  setProfile: (planId: string, profile: OfficeProfile | null) => void;
+  setProfile: (planId: string, profile: OfficeProfile | null, undoable?: boolean) => void;
   setSidebarTab: (tab: EditorState["sidebarTab"]) => void;
   setWallSuggestions: (walls: ThickSegment[] | null) => void;
   /**
@@ -82,6 +83,10 @@ interface EditorState {
    * and its options are added to the saved list (existing options are kept).
    */
   openProject: (project: { plan: FloorPlan; options: LayoutOption[]; people: Record<string, OfficeProfile> }) => void;
+}
+
+function persistProfiles(profiles: Record<string, OfficeProfile>): void {
+  try { localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); } catch { /* session only */ }
 }
 
 function loadSaved(): FloorPlan | null {
@@ -164,11 +169,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   commit: (fn) => {
     const { plan, past } = get();
     const next = normalize(fn(plan));
-    set({ plan: next, past: [...past, plan].slice(-HISTORY_LIMIT), future: [], level: keepLevel(next, get().level) });
+    set({ plan: next, past: [...past, { plan, profiles: get().profiles }].slice(-HISTORY_LIMIT), future: [], level: keepLevel(next, get().level) });
   },
   beginDrag: () => {
     const { plan, past } = get();
-    set({ past: [...past, plan].slice(-HISTORY_LIMIT), future: [] });
+    set({ past: [...past, { plan, profiles: get().profiles }].slice(-HISTORY_LIMIT), future: [] });
   },
   drag: (fn) => set({ plan: normalize(fn(get().plan)) }),
   load: (raw) => {
@@ -189,12 +194,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { plan, past, future } = get();
     if (!past.length) return;
     const prev = past[past.length - 1];
-    set({ plan: prev, past: past.slice(0, -1), future: [plan, ...future], selection: null, level: keepLevel(prev, get().level) });
+    set({ ...prev, past: past.slice(0, -1), future: [{ plan, profiles: get().profiles }, ...future], selection: null, level: keepLevel(prev.plan, get().level) });
+    persistProfiles(prev.profiles);
   },
   redo: () => {
     const { plan, past, future } = get();
     if (!future.length) return;
-    set({ plan: future[0], past: [...past, plan], future: future.slice(1), selection: null, level: keepLevel(future[0], get().level) });
+    set({ ...future[0], past: [...past, { plan, profiles: get().profiles }], future: future.slice(1), selection: null, level: keepLevel(future[0].plan, get().level) });
+    persistProfiles(future[0].profiles);
   },
   setTool: (tool) => set({ tool, selection: tool === "select" ? get().selection : null }),
   select: (selection) => {
@@ -213,16 +220,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setRun: (run) => set({ run }),
   setComparison: (comparison) => set({ comparison }),
   setHeat: (heat) => set({ heat }),
-  setProfile: (planId, profile) => {
+  setProfile: (planId, profile, undoable = false) => {
     const profiles = { ...get().profiles };
     if (profile) profiles[planId] = profile;
     else delete profiles[planId];
-    set({ profiles });
-    try {
-      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
-    } catch {
-      /* storage unavailable: profile lasts for this session */
-    }
+    set({ profiles, ...(undoable ? { past: [...get().past, { plan: get().plan, profiles: get().profiles }].slice(-HISTORY_LIMIT), future: [] } : {}) });
+    persistProfiles(profiles);
   },
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
   setWallSuggestions: (wallSuggestions) => set({ wallSuggestions }),

@@ -1,4 +1,4 @@
-# Simulation engine v0.7.1
+# Simulation engine v0.7.2
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -22,7 +22,7 @@ Six full hashes captured from v0.6.1 (`6503fc5`) verify all other output fields 
 
 The room-type lighting/acoustics defaults and tolerance distributions match the brief.
 Each new tolerance uses an independent profile/trait seed, leaving the v0.6 traits
-unchanged. Unprofiled people use exact default means. Listed profiles appear in order;
+unchanged. The typical focus-noise spread is 50 ± 3 dB(A), clipped to 46–58; explicit profile spreads retain their own limits. Unprofiled people use exact default means. Listed profiles appear in order;
 an extra default row (`profileId: ""`) follows when there are unprofiled people, as
 approved by the product owner. Empty listed profiles still get zero rows.
 
@@ -63,6 +63,9 @@ glare above the assigned sitter's comfort and sound above the applicable noise l
 focus at open/private office and meeting-room desks; general noise at shop counters
 and other desks (default means for an unassigned desk). Meetings use the focus limit
 wherever they occur. This can reveal a hazard even when its sitter was away.
+
+Full task light applies to desk work, meetings and shopping. Eating, lunch, pantry
+visits and waiting use half the person's task-light tolerance; walking uses a quarter.
 
 Per-person intervals split at keyframes, room boundaries and minute observations;
 crowding reuses five-second samples. Absent time and travel between floors are excluded.
@@ -534,3 +537,15 @@ unbounded grids or schedules. Contracts remain unchanged.
 
 Results carry short, plain-language behaviour assumptions for architects and office
 managers. Algorithm names, numerical tie rules and grid resolutions are documented here.
+
+### v0.8 site and weather
+
+Optional `site.location`, `utcOffsetHours`, solid-prism `neighbours` and line
+`roads` affect comfort only. Saved hourly cloud overrides `sky`; temperature,
+humidity and rain remain context. The engine never fetches data. Window results
+report equivalent sun, neighbour-shaded and clouded minutes before glass shading.
+Assumptions explain the nine window samples, 45 sky directions, hourly cloud
+steps and one-metre road integration. Older input pairs preserve v0.7.2 output
+apart from version and the added window/weather result fields.
+
+Run `node scripts/benchmark-site.ts` for the site/comfort sample comparison.

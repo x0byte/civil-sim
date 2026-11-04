@@ -31,7 +31,7 @@ describe("v0.2 sample acceptance", () => {
     const p = plan(id);
     const s = scenario();
     const result = simulate(p, s);
-    expect(result.version).toBe("0.7");
+    expect(result.version).toBe("0.8");
     expect(result.warnings).toEqual([]);
     expect(result.tracks.filter((t) => t.kind === "staff")).toHaveLength(13);
     expect(result.tracks.filter((t) => t.kind === "visitor")).toHaveLength(2);

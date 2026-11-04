@@ -6,6 +6,7 @@ import {
   addConnector,
   addFixture,
   addNoiseSource,
+  addNeighbour,
   updateNoiseSource,
   setSite,
   addOpening,
@@ -43,6 +44,7 @@ const HINTS: Record<Tool, string> = {
   door: "Click on a wall to add a door. Doors on the outside walls are marked as entrances.",
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
+  neighbour: "Draw a neighbouring building outside the plan: drag a rectangle or click its corners. Edit its height on the right.",
   noise: "Click to place a noise source. Edit its name, loudness and hours on the right.",
   fixture: "Click to place. Pick the type in the toolbar.",
   connector:
@@ -76,9 +78,11 @@ export function Canvas2D() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan);
+  const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan, { top: 80, right: 48, bottom: 48, left: 48 });
   const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean } | null>(null);
-  const [northAt, setNorthAt] = useState<Vec2>({ x: 2, y: 2 });
+  const [northPosition, setNorthAt] = useState<Vec2 | null>(null);
+  const northAt = northPosition ?? { x: plan.bounds.width - 80 / cam.s, y: -36 / cam.s };
+  useEffect(() => setNorthAt(null), [plan.id]);
   const [draft, setDraft] = useState<Vec2[]>([]);
   const [rect, setRect] = useState<{ a: Vec2; b: Vec2 } | null>(null);
   const [calib, setCalib] = useState<{ a: Vec2; b: Vec2 } | null>(null);
@@ -95,6 +99,7 @@ export function Canvas2D() {
   }, [tool, plan.id, level]);
 
   const snap = (raw: Vec2, shift: boolean, opts: { walls?: boolean; ignore?: Set<string> } = {}) => {
+    if (tool === "neighbour") return { point: { x: snapToGrid ? Math.round(raw.x / gridSize) * gridSize : raw.x, y: snapToGrid ? Math.round(raw.y / gridSize) * gridSize : raw.y }, kind: snapToGrid ? "grid" as const : "free" as const };
     const p: FloorPlan = opts.ignore ? { ...view, walls: view.walls.filter((w) => !opts.ignore!.has(w.id)) } : view;
     return snapPoint(raw, p, {
       scale: cam.s,
@@ -130,11 +135,11 @@ export function Canvas2D() {
     const connector = tool === "connector";
     let id = "";
     commit((p) => {
-      const r = connector ? addConnector(p, clean, connectorKind, level) : addSpace(p, clean, "other", level);
+      const r = tool === "neighbour" ? addNeighbour(p, clean) : connector ? addConnector(p, clean, connectorKind, level) : addSpace(p, clean, "other", level);
       id = r.id;
       return r.plan;
     });
-    select({ kind: connector ? "connector" : "space", id });
+    select({ kind: tool === "neighbour" ? "neighbour" : connector ? "connector" : "space", id });
     setDraft([]);
   };
 
@@ -170,7 +175,7 @@ export function Canvas2D() {
         } else if (kind === "opening") {
           select({ kind: "opening", id });
           dragRef.current = { type: "opening", id, started: false };
-        } else if (kind === "wall" || kind === "space" || kind === "connector") {
+        } else if (kind === "wall" || kind === "space" || kind === "connector" || kind === "neighbour" || kind === "road") {
           select({ kind, id });
         } else {
           select(null);
@@ -203,6 +208,7 @@ export function Canvas2D() {
         return;
       }
       case "room":
+      case "neighbour":
       case "connector": {
         const p = snap(raw, e.shiftKey).point;
         if (draft.length >= 3 && dist(p, draft[0]) < 10 / cam.s) return closeRoom(draft);
@@ -261,7 +267,14 @@ export function Canvas2D() {
         return;
       }
       case "north": {
-        if (!d.rotate) { setNorthAt({ x: Math.max(0, Math.min(plan.bounds.width, raw.x - d.grab.x)), y: Math.max(0, Math.min(plan.bounds.height, raw.y - d.grab.y)) }); return; }
+        if (!d.rotate) {
+          const width = svgRef.current!.clientWidth; const height = svgRef.current!.clientHeight;
+          setNorthAt({
+            x: Math.max((34 - cam.x) / cam.s, Math.min((width - 34 - cam.x) / cam.s, raw.x - d.grab.x)),
+            y: Math.max((34 - cam.y) / cam.s, Math.min((height - 34 - cam.y) / cam.s, raw.y - d.grab.y)),
+          });
+          return;
+        }
         if (!d.started) { beginDrag(); d.started = true; }
         const northDeg = Math.atan2(raw.x - northAt.x, northAt.y - raw.y) * 180 / Math.PI;
         dragPlan((p) => setSite(p, { northDeg }));
@@ -320,7 +333,7 @@ export function Canvas2D() {
 
   const onDoubleClick = () => {
     if (tool === "wall") finishChain();
-    if ((tool === "room" || tool === "connector") && draft.length >= 3) closeRoom(draft);
+    if ((tool === "room" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
   };
 
   useEffect(() => {
@@ -340,7 +353,7 @@ export function Canvas2D() {
           setTool("select");
         }
       } else if (e.key === "Enter") {
-        if ((tool === "room" || tool === "connector") && draft.length >= 3) closeRoom(draft);
+        if ((tool === "room" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
         else if (tool === "wall") finishChain();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selection) {
         e.preventDefault();
@@ -385,7 +398,7 @@ export function Canvas2D() {
 
   const sx = (n: number) => n / cam.s;
   const anchor = draft[draft.length - 1];
-  const outlining = tool === "room" || tool === "connector";
+  const outlining = tool === "room" || tool === "connector" || tool === "neighbour";
   const drawing = tool === "wall" || outlining || tool === "calibrate";
   const cursorStyle =
     tool === "pan" || dragRef.current?.type === "pan" ? "grabbing" : tool === "select" ? "default" : "crosshair";
@@ -518,6 +531,14 @@ export function Canvas2D() {
         <button onClick={() => zoomBy(0.8)} title="Zoom out">
           −
         </button>
+        {!!(plan.site?.neighbours?.length || plan.site?.roads?.length) && <button onClick={() => {
+          const points = [{ x: 0, y: 0 }, { x: plan.bounds.width, y: plan.bounds.height }, ...(plan.site?.neighbours ?? []).flatMap((n) => n.polygon), ...(plan.site?.roads ?? []).flatMap((r) => r.path)];
+          const x = Math.min(...points.map((p) => p.x)); const y = Math.min(...points.map((p) => p.y));
+          const w = Math.max(...points.map((p) => p.x)) - x; const h = Math.max(...points.map((p) => p.y)) - y;
+          const width = wrapRef.current!.clientWidth; const height = wrapRef.current!.clientHeight;
+          const scale = Math.max(.25, Math.min((width - 96) / Math.max(1, w), (height - 128) / Math.max(1, h)));
+          setCam({ s: scale, x: (width - w * scale) / 2 - x * scale, y: (height - h * scale) / 2 - y * scale });
+        }}>Surroundings</button>}
         <button onClick={fit} title="Fit plan to screen">
           Fit
         </button>

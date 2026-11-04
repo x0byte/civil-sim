@@ -1,6 +1,6 @@
 {
   "name": "@civil-sim/engine",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
@@ -10,6 +10,7 @@
     "samples": "node scripts/run-sample.ts",
     "benchmark:shoppers": "node scripts/benchmark-shoppers.ts",
     "benchmark:people": "node scripts/benchmark-people.ts",
+    "benchmark:site": "node scripts/benchmark-site.ts",
     "benchmark:comfort": "node --expose-gc scripts/benchmark-comfort.ts"
   },
   "devDependencies": {
