@@ -58,7 +58,14 @@ export function PeoplePanel() {
     upd({
       departments: [
         ...profile.departments,
-        { id: `dept-${n}`, name: `Department ${n}`, headcount: 5, managers: 1, roomIds: deskRooms[0] ? [deskRooms[0].id] : [], teamMeetingsPerDay: 1 },
+        {
+          id: `dept-${n}`,
+          name: `Department ${n}`,
+          headcount: 5,
+          managers: 1,
+          roomIds: deskRooms[0] ? [deskRooms[0].id] : [],
+          teamMeetingsPerDay: 1,
+        },
       ],
     });
   };
@@ -170,9 +177,26 @@ export function PeoplePanel() {
                     ×
                   </button>
                 </div>
-                <NumField estimated label="Headcount" unit="people" step={1} min={0} value={d.headcount} onCommit={(v) => updDept(d.id, { headcount: Math.round(v) })} />
-                <NumField estimated label="Managers" unit="incl." step={1} min={0} value={d.managers} onCommit={(v) => updDept(d.id, { managers: Math.round(v) })} />
-                <NumField estimated
+                <NumField
+                  estimated
+                  label="Headcount"
+                  unit="people"
+                  step={1}
+                  min={0}
+                  value={d.headcount}
+                  onCommit={(v) => updDept(d.id, { headcount: Math.round(v) })}
+                />
+                <NumField
+                  estimated
+                  label="Managers"
+                  unit="incl."
+                  step={1}
+                  min={0}
+                  value={d.managers}
+                  onCommit={(v) => updDept(d.id, { managers: Math.round(v) })}
+                />
+                <NumField
+                  estimated
                   label="Team meetings"
                   unit="/ day"
                   step={1}
@@ -189,9 +213,7 @@ export function PeoplePanel() {
                         <button
                           key={r.id}
                           className={on ? "chip active" : "chip"}
-                          onClick={() =>
-                            updDept(d.id, { roomIds: on ? d.roomIds.filter((id) => id !== r.id) : [...d.roomIds, r.id] })
-                          }
+                          onClick={() => updDept(d.id, { roomIds: on ? d.roomIds.filter((id) => id !== r.id) : [...d.roomIds, r.id] })}
                         >
                           {r.name}
                         </button>
@@ -222,7 +244,8 @@ export function PeoplePanel() {
           </div>
         </header>
         <div className="panel-body">
-          <NumField estimated
+          <NumField
+            estimated
             label="Toilet visits"
             unit="/ day"
             step={1}
@@ -230,7 +253,8 @@ export function PeoplePanel() {
             value={profile.rates.toiletVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, toiletVisitsPerDay: v } })}
           />
-          <NumField estimated
+          <NumField
+            estimated
             label="Pantry visits"
             unit="/ day"
             step={1}
@@ -238,7 +262,8 @@ export function PeoplePanel() {
             value={profile.rates.pantryVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, pantryVisitsPerDay: v } })}
           />
-          <NumField estimated
+          <NumField
+            estimated
             label="Give up after"
             unit="min"
             step={1}
@@ -267,18 +292,13 @@ function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile
           <h2>Who works with whom</h2>
           <span className="muted">Joint meetings between departments</span>
         </div>
-        <button
-          disabled={depts.length < 2}
-          onClick={() => set([...profile.collaborations, { a: depts[0].id, b: depts[1].id, meetingsPerDay: 1 }])}
-        >
+        <button disabled={depts.length < 2} onClick={() => set([...profile.collaborations, { a: depts[0].id, b: depts[1].id, meetingsPerDay: 1 }])}>
           + Add
         </button>
       </header>
       <div className="panel-body">
         {!profile.collaborations.length && (
-          <p className="muted">
-            {depts.length < 2 ? "Add a second department first." : "None yet. Add pairs of departments that meet regularly."}
-          </p>
+          <p className="muted">{depts.length < 2 ? "Add a second department first." : "None yet. Add pairs of departments that meet regularly."}</p>
         )}
         {profile.collaborations.map((c, i) => {
           const upd = (patch: Partial<typeof c>) => set(profile.collaborations.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -292,7 +312,15 @@ function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile
                   ×
                 </button>
               </div>
-              <NumField estimated label="Meetings" unit="/ day" step={1} min={0} value={c.meetingsPerDay} onCommit={(v) => upd({ meetingsPerDay: Math.round(v) })} />
+              <NumField
+                estimated
+                label="Meetings"
+                unit="/ day"
+                step={1}
+                min={0}
+                value={c.meetingsPerDay}
+                onCommit={(v) => upd({ meetingsPerDay: Math.round(v) })}
+              />
             </div>
           );
         })}
@@ -335,7 +363,15 @@ function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProf
             <TimeField label="Lunch from" value={lunch.windowStart} onChange={(windowStart) => upd({ windowStart })} />
             <TimeField label="Last start" value={lunch.windowEnd} onChange={(windowEnd) => upd({ windowEnd })} />
           </div>
-          <NumField estimated label="Lasts" unit="min" step={5} min={5} value={lunch.durationMin} onCommit={(v) => upd({ durationMin: Math.round(v) })} />
+          <NumField
+            estimated
+            label="Lasts"
+            unit="min"
+            step={5}
+            min={5}
+            value={lunch.durationMin}
+            onCommit={(v) => upd({ durationMin: Math.round(v) })}
+          />
           <Share label="In the pantry" value={lunch.pantryShare} onChange={(v) => upd({ pantryShare: Math.min(v, 1 - lunch.outShare) })} />
           <Share label="Go out" value={lunch.outShare} onChange={(v) => upd({ outShare: Math.min(v, 1 - lunch.pantryShare) })} />
           <p className="muted">The other {Math.round(atDesk * 100)}% eat at their desk.</p>
@@ -345,15 +381,7 @@ function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProf
   );
 }
 
-function ShoppersSection({
-  profile,
-  setProfile,
-  expected,
-}: {
-  profile: OfficeProfile;
-  setProfile: (p: OfficeProfile) => void;
-  expected: number;
-}) {
+function ShoppersSection({ profile, setProfile, expected }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void; expected: number }) {
   const sh = profile.shoppers ?? { ...DEFAULT_SHOPPERS, enabled: false };
   const upd = (patch: Partial<typeof sh>) => setProfile({ ...profile, shoppers: { ...sh, ...patch } });
   const days = Object.entries(SHOPPER_DAYS).map(([value, d]) => ({ value, label: d.label }));
@@ -421,7 +449,8 @@ function ShoppersSection({
             </tbody>
           </table>
           <Share label="Pop into shops passed" value={sh.impulse} onChange={(impulse) => upd({ impulse })} />
-          <NumField estimated
+          <NumField
+            estimated
             label="Toilet visits"
             unit="/ hour"
             step={0.05}
@@ -439,15 +468,7 @@ function ShoppersSection({
   );
 }
 
-function VisitorsSection({
-  profile,
-  setProfile,
-  booked,
-}: {
-  profile: OfficeProfile;
-  setProfile: (p: OfficeProfile) => void;
-  booked: number;
-}) {
+function VisitorsSection({ profile, setProfile, booked }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void; booked: number }) {
   const v = profile.visitors ?? { ...DEFAULT_VISITORS, perDay: 0 };
   const upd = (patch: Partial<typeof v>) => setProfile({ ...profile, visitors: { ...v, ...patch } });
   return (
@@ -460,7 +481,15 @@ function VisitorsSection({
       </header>
       <div className="panel-body">
         <NumField estimated label="Visitors" unit="/ day" step={1} min={0} value={v.perDay} onCommit={(n) => upd({ perDay: Math.round(n) })} />
-        <NumField estimated label="Wait at reception" unit="min" step={1} min={0} value={v.waitMin} onCommit={(n) => upd({ waitMin: Math.round(n) })} />
+        <NumField
+          estimated
+          label="Wait at reception"
+          unit="min"
+          step={1}
+          min={0}
+          value={v.waitMin}
+          onCommit={(n) => upd({ waitMin: Math.round(n) })}
+        />
         {v.perDay > 0 && (
           <p className="muted">
             Visitors join booked meetings first, then visit a manager's office. {booked} of {v.perDay} have somewhere to go.

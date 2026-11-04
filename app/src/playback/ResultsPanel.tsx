@@ -1,5 +1,5 @@
-import {plainText} from "../experience/wording.ts";
-import {DetailSections} from "../experience/common.tsx";
+import { plainText } from "../experience/wording.ts";
+import { DetailSections } from "../experience/common.tsx";
 import { AccessibilityResults, EvacuationResults } from "./EvacuationResults.tsx";
 import { deskLabel } from "../model/deskLabel.ts";
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
@@ -76,10 +76,15 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
     .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
     .sort((a, b) => b.peak - a.peak);
 
-  if(result.metrics.evacuation) return <DetailSections><EvacuationResults run={run}/></DetailSections>;
+  if (result.metrics.evacuation)
+    return (
+      <DetailSections>
+        <EvacuationResults run={run} />
+      </DetailSections>
+    );
   return (
     <DetailSections>
-      <AccessibilityResults run={run}/>
+      <AccessibilityResults run={run} />
       {stale && (
         <div className="stale-banner">
           The plan has changed since this run.
@@ -169,10 +174,10 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               </tbody>
             </table>
             <p className="muted">
-              {byVisits.length > 1 &&
-                `${byVisits[0].name} drew the most visits and ${byVisits[byVisits.length - 1].name} the fewest. `}
+              {byVisits.length > 1 && `${byVisits[0].name} drew the most visits and ${byVisits[byVisits.length - 1].name} the fewest. `}
               "Passed" counts shoppers coming within 2 m of a shop's door, whether or not they went in; "Rate" is the share who went in.
-              {doorless.length > 0 && ` ${doorless.join(", ")} ${doorless.length === 1 ? "has" : "have"} no door drawn, so passers-by can't be counted there.`}
+              {doorless.length > 0 &&
+                ` ${doorless.join(", ")} ${doorless.length === 1 ? "has" : "have"} no door drawn, so passers-by can't be counted there.`}
             </p>
           </div>
         </section>
@@ -242,12 +247,8 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
                 ))}
               </tbody>
             </table>
-            {unreachablePairs > 0 && (
-              <p className="warn">{unreachablePairs} pair(s) of desks have no walking route between them and are left out.</p>
-            )}
-            {partners.length === 0 && (
-              <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>
-            )}
+            {unreachablePairs > 0 && <p className="warn">{unreachablePairs} pair(s) of desks have no walking route between them and are left out.</p>}
+            {partners.length === 0 && <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>}
           </div>
         </section>
       )}
@@ -468,7 +469,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               ))}
               {result.warnings.map((w, i) => (
                 <li key={i} className="warning">
-                  {plainText(run.plan,w.message)}
+                  {plainText(run.plan, w.message)}
                 </li>
               ))}
             </ul>

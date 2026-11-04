@@ -18,8 +18,10 @@ export function View3D() {
   const { width, height } = plan.bounds;
   const [surroundings, setSurroundings] = useState(false);
   const points = surroundings ? [...(plan.site?.neighbours ?? []).flatMap((n) => n.polygon), ...(plan.site?.roads ?? []).flatMap((r) => r.path)] : [];
-  const minX = Math.min(0, ...points.map((p) => p.x)); const minY = Math.min(0, ...points.map((p) => p.y));
-  const maxX = Math.max(width, ...points.map((p) => p.x)); const maxY = Math.max(height, ...points.map((p) => p.y));
+  const minX = Math.min(0, ...points.map((p) => p.x));
+  const minY = Math.min(0, ...points.map((p) => p.y));
+  const maxX = Math.max(width, ...points.map((p) => p.x));
+  const maxY = Math.max(height, ...points.map((p) => p.y));
   const span = Math.max(maxX - minX, maxY - minY, ...(surroundings ? (plan.site?.neighbours ?? []).map((n) => n.heightM) : []));
   const centre: [number, number, number] = [(minX + maxX) / 2, 0, (minY + maxY) / 2];
   const [cut, setCut] = useState(true);
@@ -39,7 +41,9 @@ export function View3D() {
       </Canvas>
       <FloorSwitcher levels={plan.levels} />
       <div className="canvas-zoom">
-        {(plan.site?.neighbours?.length || plan.site?.roads?.length) ? <button onClick={() => setSurroundings((v) => !v)}>{surroundings ? "Building" : "Surroundings"}</button> : null}
+        {plan.site?.neighbours?.length || plan.site?.roads?.length ? (
+          <button onClick={() => setSurroundings((v) => !v)}>{surroundings ? "Building" : "Surroundings"}</button>
+        ) : null}
         <div className="segmented">
           <button className={cut ? "active" : ""} onClick={() => setCut(true)} title="Cut walls at 1.2 m to see inside rooms">
             Cut walls
@@ -87,10 +91,27 @@ function Sun({ centre, span }: { centre: [number, number, number]; span: number 
 const CUT_HEIGHT = 1.2;
 
 /** Every floor from the ground up to `level`, each at its elevation, plus the stairs, escalators and lifts between them. */
-export function Building({ plan, level, cutHeight, visibleLevels, peel = 0, labels = true }: { plan: FloorPlan; level: string; cutHeight: number | null; visibleLevels?: string[]; peel?: number; labels?: boolean }) {
+export function Building({
+  plan,
+  level,
+  cutHeight,
+  visibleLevels,
+  peel = 0,
+  labels = true,
+}: {
+  plan: FloorPlan;
+  level: string;
+  cutHeight: number | null;
+  visibleLevels?: string[];
+  peel?: number;
+  labels?: boolean;
+}) {
   const { width, height } = plan.bounds;
-  const top = Math.max(0, plan.levels.findIndex((l) => l.id === level));
-  const shown = visibleLevels ? plan.levels.filter(l => visibleLevels.includes(l.id)) : plan.levels.slice(0, top + 1);
+  const top = Math.max(
+    0,
+    plan.levels.findIndex((l) => l.id === level),
+  );
+  const shown = visibleLevels ? plan.levels.filter((l) => visibleLevels.includes(l.id)) : plan.levels.slice(0, top + 1);
   const index = new Map(plan.levels.map((l, i) => [l.id, i]));
   const holes = useMemo(() => new Map(plan.levels.map((l) => [l.id, wells(plan, l.id)])), [plan]);
   return (
@@ -99,13 +120,30 @@ export function Building({ plan, level, cutHeight, visibleLevels, peel = 0, labe
         <planeGeometry args={[width + 4, height + 4]} />
         <meshStandardMaterial color="#dfe3e8" />
       </mesh>
-      {(plan.site?.neighbours ?? []).map((n) => <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />)}
-      {(plan.site?.roads ?? []).flatMap((r) => r.path.slice(1).map((b, i) => { const a = r.path[i]; return <mesh key={`${r.id}-${i}`} position={[(a.x + b.x) / 2, -.02, (a.y + b.y) / 2]} rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}><boxGeometry args={[Math.hypot(b.x - a.x, b.y - a.y), .04, r.kind === "main" ? 6 : 4]} /><meshStandardMaterial color="#9298a0" /></mesh>; }))}
+      {(plan.site?.neighbours ?? []).map((n) => (
+        <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />
+      ))}
+      {(plan.site?.roads ?? []).flatMap((r) =>
+        r.path.slice(1).map((b, i) => {
+          const a = r.path[i];
+          return (
+            <mesh key={`${r.id}-${i}`} position={[(a.x + b.x) / 2, -0.02, (a.y + b.y) / 2]} rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}>
+              <boxGeometry args={[Math.hypot(b.x - a.x, b.y - a.y), 0.04, r.kind === "main" ? 6 : 4]} />
+              <meshStandardMaterial color="#9298a0" />
+            </mesh>
+          );
+        }),
+      )}
       {shown.map((l) => (
         <group key={l.id} position={[0, l.elevation + index.get(l.id)! * peel, 0]}>
           {index.get(l.id)! > 0 && <Slab plan={plan} holes={holes.get(l.id)!} />}
           {/* Only the floor on top is cut open; the ones below keep their full walls up to its slab. */}
-          <Scene plan={onLevel(plan, l.id)} cutHeight={visibleLevels || index.get(l.id) === top ? cutHeight : null} labels={labels && (Boolean(visibleLevels) || index.get(l.id) === top)} holes={holes.get(l.id)} />
+          <Scene
+            plan={onLevel(plan, l.id)}
+            cutHeight={visibleLevels || index.get(l.id) === top ? cutHeight : null}
+            labels={labels && (Boolean(visibleLevels) || index.get(l.id) === top)}
+            holes={holes.get(l.id)}
+          />
         </group>
       ))}
       {plan.connectors.flatMap((c) => {
@@ -113,7 +151,15 @@ export function Building({ plan, level, cutHeight, visibleLevels, peel = 0, labe
         const lowest = served.length ? index.get(served[0])! : Infinity;
         if (served.length < 2 || lowest > top) return [];
         const highest = Math.min(top, index.get(served[served.length - 1])!);
-        return [<ConnectorMesh key={c.id} connector={c} from={plan.levels[lowest].elevation + lowest * peel} to={plan.levels[highest].elevation + highest * peel} reaches={highest > lowest} />];
+        return [
+          <ConnectorMesh
+            key={c.id}
+            connector={c}
+            from={plan.levels[lowest].elevation + lowest * peel}
+            to={plan.levels[highest].elevation + highest * peel}
+            reaches={highest > lowest}
+          />,
+        ];
       })}
     </group>
   );
@@ -169,12 +215,7 @@ function ConnectorMesh({ connector: c, from, to, reaches }: { connector: Connect
   const tilt = Math.atan2(rise, run);
   const color = c.kind === "escalator" ? "#7a8494" : "#c9b79c";
   return (
-    <mesh
-      position={[(x0 + x1) / 2, from + rise / 2, (y0 + y1) / 2]}
-      rotation={alongX ? [0, 0, tilt] : [-tilt, 0, 0]}
-      castShadow
-      receiveShadow
-    >
+    <mesh position={[(x0 + x1) / 2, from + rise / 2, (y0 + y1) / 2]} rotation={alongX ? [0, 0, tilt] : [-tilt, 0, 0]} castShadow receiveShadow>
       <boxGeometry args={alongX ? [slope, 0.15, d] : [w, 0.15, slope]} />
       <meshStandardMaterial color={color} />
     </mesh>
@@ -254,8 +295,7 @@ function WallMesh({ wall, plan, cutHeight }: { wall: Wall; plan: FloorPlan; cutH
   const pieces = wallPieces(wall, plan.openings)
     .map((p) => (cutHeight === null ? p : { ...p, top: Math.min(p.top, cutHeight) }))
     .filter((p) => p.top > p.bottom);
-  const windows =
-    cutHeight === null ? plan.openings.filter((o) => o.wallId === wall.id && o.kind === "window") : [];
+  const windows = cutHeight === null ? plan.openings.filter((o) => o.wallId === wall.id && o.kind === "window") : [];
   return (
     <group>
       {pieces.map((p, i) => {
@@ -263,13 +303,7 @@ function WallMesh({ wall, plan, cutHeight }: { wall: Wall; plan: FloorPlan; cutH
         const to = p.to + (p.to >= len - 1e-9 ? half : 0);
         const mid = pointAlong(wall, (from + to) / 2);
         return (
-          <mesh
-            key={i}
-            position={[mid.x, (p.bottom + p.top) / 2, mid.y]}
-            rotation={[0, angle, 0]}
-            castShadow
-            receiveShadow
-          >
+          <mesh key={i} position={[mid.x, (p.bottom + p.top) / 2, mid.y]} rotation={[0, angle, 0]} castShadow receiveShadow>
             <boxGeometry args={[to - from, p.top - p.bottom, wall.thickness]} />
             <meshStandardMaterial color="#f7f7f5" />
           </mesh>
@@ -291,8 +325,14 @@ function WallMesh({ wall, plan, cutHeight }: { wall: Wall; plan: FloorPlan; cutH
 
 function NeighbourBlock({ polygon, height }: { polygon: Vec2[]; height: number }) {
   const geometry = useMemo(() => {
-    const shape = new THREE.Shape(); polygon.forEach((p, i) => i ? shape.lineTo(p.x, -p.y) : shape.moveTo(p.x, -p.y)); shape.closePath();
+    const shape = new THREE.Shape();
+    polygon.forEach((p, i) => (i ? shape.lineTo(p.x, -p.y) : shape.moveTo(p.x, -p.y)));
+    shape.closePath();
     return new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
   }, [polygon, height]);
-  return <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow><meshStandardMaterial color="#9a9fa7" /></mesh>;
+  return (
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      <meshStandardMaterial color="#9a9fa7" />
+    </mesh>
+  );
 }

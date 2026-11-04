@@ -1,4 +1,4 @@
-import {soundWord,lightWord} from "../experience/wording.ts";
+import { soundWord, lightWord } from "../experience/wording.ts";
 import type { DiscomfortCause, Track } from "../../../contracts/results.ts";
 import { deskLabel } from "../model/deskLabel.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -28,16 +28,23 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
   const names = new Map(run.scenario.profiles?.list.map((p) => [p.id, p.name]));
   const kind = (id: string) => names.get(id) ?? "Average person";
   const order = new Map(run.plan.spaces.map((s, i) => [s.id, i]));
-  const rooms = [...c.bySpace].sort(
-    (a, b) => b.discomfortMinutes - a.discomfortMinutes || (order.get(a.spaceId) ?? 0) - (order.get(b.spaceId) ?? 0),
-  );
+  const rooms = [...c.bySpace].sort((a, b) => b.discomfortMinutes - a.discomfortMinutes || (order.get(a.spaceId) ?? 0) - (order.get(b.spaceId) ?? 0));
   return (
     <>
       <section className="panel">
         <header>
           <div>
             <h2>How it felt</h2>
-            <span className="muted">People affected · minutes together · Sky used: {c.weatherUsed === "sky" ? run.scenario.comfort?.sky === "overcast" ? "Overcast" : "Clear" : c.weatherUsed === "typical" ? "Typical weather" : "A specific past day"}</span>
+            <span className="muted">
+              People affected · minutes together · Sky used:{" "}
+              {c.weatherUsed === "sky"
+                ? run.scenario.comfort?.sky === "overcast"
+                  ? "Overcast"
+                  : "Clear"
+                : c.weatherUsed === "typical"
+                  ? "Typical weather"
+                  : "A specific past day"}
+            </span>
           </div>
         </header>
         <div className="panel-body">
@@ -106,7 +113,9 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
                   {soundWord(r.loudestDbA)} · {r.loudestDbA.toFixed(0)} dB(A) · {clockAt(run.scenario.workday.start, r.loudestT)}
                 </dd>
                 <dt>Dimmest</dt>
-                <dd>{lightWord(r.dimmestLux)} · {Math.round(r.dimmestLux)} lux</dd>
+                <dd>
+                  {lightWord(r.dimmestLux)} · {Math.round(r.dimmestLux)} lux
+                </dd>
                 <dt>Worst glare</dt>
                 <dd>
                   {r.worstGlare.toFixed(2)}
@@ -121,7 +130,38 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
           ))}
         </div>
       </section>
-      {c.windows.length > 0 && <section className="panel"><header><h2>Windows and sun</h2></header><div className="panel-body"><table className="table"><thead><tr><th>Window</th><th>Sun min</th><th>Neighbour shade min</th><th>Cloud min</th></tr></thead><tbody>{c.windows.map((w) => <tr key={w.openingId}><td>Window {run.plan.openings.filter((o) => o.kind === "window").findIndex((o) => o.id === w.openingId) + 1}</td><td>{w.sunMinutes.toFixed(1)}</td><td>{w.shadedByNeighboursMinutes.toFixed(1)}</td><td>{w.cloudedMinutes.toFixed(1)}</td></tr>)}</tbody></table><p className="muted">Equivalent minutes while open, before blinds or frosting. Cloud is counted over the part not shaded by neighbours.</p></div></section>}
+      {c.windows.length > 0 && (
+        <section className="panel">
+          <header>
+            <h2>Windows and sun</h2>
+          </header>
+          <div className="panel-body">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Window</th>
+                  <th>Sun min</th>
+                  <th>Neighbour shade min</th>
+                  <th>Cloud min</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.windows.map((w) => (
+                  <tr key={w.openingId}>
+                    <td>Window {run.plan.openings.filter((o) => o.kind === "window").findIndex((o) => o.id === w.openingId) + 1}</td>
+                    <td>{w.sunMinutes.toFixed(1)}</td>
+                    <td>{w.shadedByNeighboursMinutes.toFixed(1)}</td>
+                    <td>{w.cloudedMinutes.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              Equivalent minutes while open, before blinds or frosting. Cloud is counted over the part not shaded by neighbours.
+            </p>
+          </div>
+        </section>
+      )}
       {c.desks.length > 0 && (
         <section className="panel">
           <header>

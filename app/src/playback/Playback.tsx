@@ -71,8 +71,8 @@ export function useShownLevel(run: SimRun): string {
 
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
-  const alarm = run.result.events.find(e=>e.type==="alarm")?.t;
-  const clock = usePlayClock(run.result.durationS, run.result,alarm===undefined?0:Math.max(0,alarm-60));
+  const alarm = run.result.events.find((e) => e.type === "alarm")?.t;
+  const clock = usePlayClock(run.result.durationS, run.result, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
@@ -102,13 +102,23 @@ export function Playback({ run }: { run: SimRun }) {
         insets={{ top: 64, right: 32, bottom: 84, left: 220 }}
         legend
         selectedPerson={personId}
-        onPickPerson={id => { setPersonId(id); if(id) useExperience.getState().follow(id, clock.t); }}
+        onPickPerson={(id) => {
+          setPersonId(id);
+          if (id) useExperience.getState().follow(id, clock.t);
+        }}
       />
       <div className="view-controls">
         <HeatToggle value={heat} onChange={setHeat} comfort={!!run.result.metrics.comfort} />
       </div>
       <div className="playback-bottom">
-        <Timeline clock={clock} start={run.scenario.workday.start} end={run.scenario.workday.end} alarm={alarm} out={alarm===undefined||!run.result.metrics.evacuation?undefined:alarm+run.result.metrics.evacuation.outS} refuges={!!(run.result.metrics.evacuation?.refuges.length || run.result.metrics.evacuation?.stranded)} />
+        <Timeline
+          clock={clock}
+          start={run.scenario.workday.start}
+          end={run.scenario.workday.end}
+          alarm={alarm}
+          out={alarm === undefined || !run.result.metrics.evacuation ? undefined : alarm + run.result.metrics.evacuation.outS}
+          refuges={!!(run.result.metrics.evacuation?.refuges.length || run.result.metrics.evacuation?.stranded)}
+        />
         {track && (
           <PersonDay
             track={track}
@@ -198,7 +208,21 @@ export function HeatToggle({ value, onChange, comfort = false }: { value: HeatMo
   );
 }
 
-export function Timeline({ clock, start, end, alarm, out, refuges }: { clock: PlayClock; start: string; end: string; alarm?:number;out?:number;refuges?:boolean }) {
+export function Timeline({
+  clock,
+  start,
+  end,
+  alarm,
+  out,
+  refuges,
+}: {
+  clock: PlayClock;
+  start: string;
+  end: string;
+  alarm?: number;
+  out?: number;
+  refuges?: boolean;
+}) {
   return (
     <div className="timeline">
       <button className="play" onClick={clock.toggle} title="Play / pause (Space)">
@@ -207,14 +231,14 @@ export function Timeline({ clock, start, end, alarm, out, refuges }: { clock: Pl
       <span className="clock">{clockAt(start, clock.t)}</span>
       <input
         type="range"
-        min={alarm===undefined?0:Math.max(0,alarm-60)}
+        min={alarm === undefined ? 0 : Math.max(0, alarm - 60)}
         max={clock.durationS}
-        step={alarm===undefined?30:1}
+        step={alarm === undefined ? 30 : 1}
         value={clock.t}
         onChange={(e) => clock.setT(Number(e.target.value))}
         aria-label="Time of day"
       />
-      <span className="clock muted">{alarm===undefined?end:clockAt(start,clock.durationS)}</span>
+      <span className="clock muted">{alarm === undefined ? end : clockAt(start, clock.durationS)}</span>
       <select value={clock.speed} onChange={(e) => clock.setSpeed(Number(e.target.value))} aria-label="Playback speed">
         {SPEEDS.map((s) => (
           <option key={s.value} value={s.value}>
@@ -222,7 +246,16 @@ export function Timeline({ clock, start, end, alarm, out, refuges }: { clock: Pl
           </option>
         ))}
       </select>
-      {alarm!==undefined&&<span className="evac-timeline"><button onClick={()=>clock.setT(alarm)}>Alarm {clockAt(start,alarm)}</button>{out!==undefined&&<button onClick={()=>clock.setT(out)}>{refuges?"Last exit":"Everyone out"} {clockAt(start,out)}</button>}</span>}
+      {alarm !== undefined && (
+        <span className="evac-timeline">
+          <button onClick={() => clock.setT(alarm)}>Alarm {clockAt(start, alarm)}</button>
+          {out !== undefined && (
+            <button onClick={() => clock.setT(out)}>
+              {refuges ? "Last exit" : "Everyone out"} {clockAt(start, out)}
+            </button>
+          )}
+        </span>
+      )}
     </div>
   );
 }
@@ -418,15 +451,7 @@ export function PlanPlayer({
           {poses
             .filter((p) => p.id === selectedPerson)
             .map((p) => (
-              <circle
-                key={`follow-${p.id}`}
-                cx={p.pose.x}
-                cy={p.pose.y}
-                r={0.65}
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth={3 / cam.s}
-              />
+              <circle key={`follow-${p.id}`} cx={p.pose.x} cy={p.pose.y} r={0.65} fill="none" stroke="var(--accent)" strokeWidth={3 / cam.s} />
             ))}
           {poses.map(({ id, kind, profileId, pose }) => {
             const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
@@ -461,16 +486,7 @@ export function PlanPlayer({
                 strokeWidth={1.5 / cam.s}
               />
             ) : (
-              <circle
-                key={id}
-                cx={pose.x}
-                cy={pose.y}
-                r={0.3 * big}
-                fill={fill}
-                opacity={opacity}
-                stroke="var(--paper)"
-                strokeWidth={2 / cam.s}
-              />
+              <circle key={id} cx={pose.x} cy={pose.y} r={0.3 * big} fill={fill} opacity={opacity} stroke="var(--paper)" strokeWidth={2 / cam.s} />
             );
           })}
         </g>
@@ -484,10 +500,13 @@ export function PlanPlayer({
       )}
 
       {hover && (
-        <div className="tooltip" style={{
-          left: Math.max(8, Math.min(hover.x + 14, (wrapRef.current?.clientWidth ?? 1000) - 276)),
-          top: Math.max(8, Math.min(hover.y + 14, (wrapRef.current?.clientHeight ?? 800) - 80)),
-        }}>
+        <div
+          className="tooltip"
+          style={{
+            left: Math.max(8, Math.min(hover.x + 14, (wrapRef.current?.clientWidth ?? 1000) - 276)),
+            top: Math.max(8, Math.min(hover.y + 14, (wrapRef.current?.clientHeight ?? 800) - 80)),
+          }}
+        >
           {hover.text.map((line, i) => (
             <div key={i} className={i === 0 ? "tooltip-title" : undefined}>
               {line}
@@ -514,7 +533,7 @@ export function PlanPlayer({
         <Legend
           counts={counts}
           present={everyone.length}
-          total={result.metrics.evacuation?.byFloor.reduce((n,f)=>n+f.people,0) ?? result.tracks.length}
+          total={result.metrics.evacuation?.byFloor.reduce((n, f) => n + f.people, 0) ?? result.tracks.length}
           heat={heat}
           seen={seen}
           kinds={kindRows?.length ? { rows: kindRows, focus, onFocus: setFocus } : undefined}

@@ -35,8 +35,7 @@ export function KindsSection({
 
   const set = (next: KindsSettings) => setProfile({ ...profile, kinds: next });
   const edit = (next: Partial<KindsSettings>) => set({ ...kinds, ...next, preset: "custom" });
-  const editKind = (id: string, patch: Partial<KindOfPerson>) =>
-    edit({ list: kinds.list.map((k) => (k.id === id ? { ...k, ...patch } : k)) });
+  const editKind = (id: string, patch: Partial<KindOfPerson>) => edit({ list: kinds.list.map((k) => (k.id === id ? { ...k, ...patch } : k)) });
   const shares = kinds.shares[group] ?? {};
   const total = kinds.list.reduce((s, k) => s + (shares[k.id] ?? 0), 0);
   const presets = [
@@ -119,8 +118,8 @@ export function KindsSection({
             <p className="warn">No kinds chosen for {GROUP_LABEL[group].toLowerCase()}: they'll all be average adults.</p>
           )}
           <p className="muted">
-            Each person's speed, how well they know the building and how much crowding they put up with are drawn around these averages, so
-            no two are the same. All numbers are assumptions until checked against real counts.
+            Each person's speed, how well they know the building and how much crowding they put up with are drawn around these averages, so no two are
+            the same. All numbers are assumptions until checked against real counts.
           </p>
         </div>
       )}
@@ -149,7 +148,8 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         options={access}
         onChange={(a) => onChange({ access: a, prefers: usablePrefers(kind.prefers, a) })}
       />
-      <NumField estimated
+      <NumField
+        estimated
         label="Walking speed"
         unit="m/s"
         step={0.05}
@@ -157,7 +157,8 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         value={kind.speed.mean}
         onCommit={(v) => onChange({ speed: withMean(kind.speed, v) })}
       />
-      <NumField estimated
+      <NumField
+        estimated
         label="Knows the building"
         unit="%"
         step={5}
@@ -165,7 +166,8 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         value={Math.round(kind.familiarity.mean * 100)}
         onCommit={(v) => onChange({ familiarity: withMean(kind.familiarity, Math.min(100, v) / 100, 0, 1) })}
       />
-      <NumField estimated
+      <NumField
+        estimated
         label="Uncomfortable above"
         unit="people/m²"
         step={0.1}
@@ -174,18 +176,15 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         onCommit={(v) => onChange({ crowdComfort: withMean(kind.crowdComfort, v) })}
       />
       {(["noiseComfort", "focusNoiseComfort", "taskLux"] as const).map((key) => (
-        <NumField estimated
+        <NumField
+          estimated
           key={key}
-          label={
-            key === "noiseComfort" ? "Too loud above" : key === "focusNoiseComfort" ? "Too loud for focused work above" : "Needs at least"
-          }
+          label={key === "noiseComfort" ? "Too loud above" : key === "focusNoiseComfort" ? "Too loud for focused work above" : "Needs at least"}
           unit={key === "taskLux" ? "lux" : "dB(A)"}
           step={key === "taskLux" ? 25 : 1}
           min={0}
           value={(kind[key] ?? COMFORT_TOLERANCES[key]).mean}
-          onCommit={(v) =>
-            onChange({ [key]: withMean(kind[key] ?? COMFORT_TOLERANCES[key], Math.min(key === "taskLux" ? 100000 : 150, v)) })
-          }
+          onCommit={(v) => onChange({ [key]: withMean(kind[key] ?? COMFORT_TOLERANCES[key], Math.min(key === "taskLux" ? 100000 : 150, v)) })}
         />
       ))}
       <SelectField
@@ -205,7 +204,8 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         <input type="checkbox" checked={!!kind.lowVision} onChange={(e) => onChange({ lowVision: e.target.checked })} />
         Low vision
       </label>
-      <NumField estimated
+      <NumField
+        estimated
         label="Room taken in a crowd"
         unit="× adult"
         step={0.1}

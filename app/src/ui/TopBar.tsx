@@ -1,4 +1,4 @@
-import {useExperience} from "../experience/state.ts";
+import { useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
@@ -39,10 +39,16 @@ export function TopBar() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [dxf, setDxf] = useState<{ drawing: DxfDrawing; name: string } | null>(null);
 
-  useEffect(()=>{
-    const bring=(e:Event)=>{const action=(e as CustomEvent<string>).detail;if(action==="image")imageRef.current?.click();else if(action==="dxf")importRef.current?.click();else if(action==="draw")setNewOpen(true);};
-    window.addEventListener("civil-sim:bring",bring);return()=>window.removeEventListener("civil-sim:bring",bring);
-  },[]);
+  useEffect(() => {
+    const bring = (e: Event) => {
+      const action = (e as CustomEvent<string>).detail;
+      if (action === "image") imageRef.current?.click();
+      else if (action === "dxf") importRef.current?.click();
+      else if (action === "draw") setNewOpen(true);
+    };
+    window.addEventListener("civil-sim:bring", bring);
+    return () => window.removeEventListener("civil-sim:bring", bring);
+  }, []);
   const saveProject = () => {
     const { options, profiles } = useEditor.getState();
     const file = buildProject(plan, options, profiles);
@@ -69,9 +75,7 @@ export function TopBar() {
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
         const n = opened.project.options.length;
-        notify(
-          [`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "),
-        );
+        notify([`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "));
       } else {
         load(opened.plan);
         notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
@@ -99,18 +103,28 @@ export function TopBar() {
   };
 
   return (
-    <header className={`topbar ${ux.home?"home-topbar":""} ${ux.step!==1?"compact-topbar":""}`}>
+    <header className={`topbar ${ux.home ? "home-topbar" : ""} ${ux.step !== 1 ? "compact-topbar" : ""}`}>
       <div className="brand">
         <span className="logo">◧</span> civil-sim
       </div>
 
       <div className="group project-actions">
-        <button onClick={() => {ux.newBuilding();setNewOpen(true);}}>New</button>
+        <button
+          onClick={() => {
+            ux.newBuilding();
+            setNewOpen(true);
+          }}
+        >
+          New
+        </button>
         <select
           value=""
           onChange={(e) => {
             const s = SAMPLE_PLANS.find((x) => x.id === e.target.value);
-            if (s) {load(s.plan); ux.newBuilding();}
+            if (s) {
+              load(s.plan);
+              ux.newBuilding();
+            }
           }}
         >
           <option value="" disabled>
@@ -172,7 +186,16 @@ export function TopBar() {
       <button onClick={() => setCompareOpen(true)} title="Run the same people through two layouts side by side">
         Compare
       </button>
-      {ux.step===1&&!ux.home&&<div className="segmented"><button className={view==="2d"?"active":""} onClick={()=>setView("2d")}>Plan</button><button className={view==="3d"?"active":""} onClick={()=>setView("3d")}>Building in 3D</button></div>}
+      {ux.step === 1 && !ux.home && (
+        <div className="segmented">
+          <button className={view === "2d" ? "active" : ""} onClick={() => setView("2d")}>
+            Plan
+          </button>
+          <button className={view === "3d" ? "active" : ""} onClick={() => setView("3d")}>
+            Building in 3D
+          </button>
+        </div>
+      )}
 
       <button onClick={() => setDark((value) => !value)} aria-label={dark ? "Use light theme" : "Use dark theme"}>
         {dark ? "Light" : "Dark"}

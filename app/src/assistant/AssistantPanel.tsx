@@ -28,12 +28,19 @@ function KeyForm() {
       </header>
       <div className="panel-body">
         <p>
-          The assistant uses Claude and needs your Anthropic API key. Requests go straight from this browser to Anthropic, and you pay for what
-          you use.
+          The assistant uses Claude and needs your Anthropic API key. Requests go straight from this browser to Anthropic, and you pay for what you
+          use.
         </p>
         <label className="field stacked">
           <span>API key</span>
-          <input type="password" autoComplete="off" spellCheck={false} placeholder="sk-ant-…" value={value} onChange={(e) => setValue(e.target.value)} />
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="sk-ant-…"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
         </label>
         <label className="check">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -58,8 +65,11 @@ function Chat() {
   const { send, reset, forgetKey, apply, discard } = useAssistant.getState();
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
-  const prompt = useExperience(s=>s.prompt), promptKey = useExperience(s=>s.promptKey);
-  useEffect(()=>{ if(prompt) setText(prompt); },[prompt,promptKey]);
+  const prompt = useExperience((s) => s.prompt),
+    promptKey = useExperience((s) => s.promptKey);
+  useEffect(() => {
+    if (prompt) setText(prompt);
+  }, [prompt, promptKey]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [lines.length, busy]);
