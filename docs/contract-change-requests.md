@@ -445,7 +445,8 @@ interface PersonProfile {
 
 ## v0.8: Site and weather — neighbours, shadows, roads and real skies
 - Requested by: Claude, 2026-11-04
-- Status: **open**. The order is settled (site and weather before evacuation, which becomes v0.9; product owner 2026-11-04); the details below need approval.
+- Status: **approved** by the product owner, 2026-11-04, with the four recommended decisions (OpenStreetMap and Open-Meteo, no Google map data; fetch once and save in the project; typical day by default; unknown heights from floors or assumed 2 floors, highlighted)
+- Implemented as proposed, with these details settled while writing the types: validation codes `neighbour`, `road` and `weather`; neighbours and roads share the plan's id space; one new sample pair, `office-a-site` + `office-day-site`, with made-up fixed data.
 
 **In plain words.** Comfort (v0.7) knows the sun's path but treats the building as standing alone under a sky that's either clear or overcast all day. Real Sri Lankan sites have a tall block next door, a main road along one side and afternoon cloud. This change lets you drop a pin on the site and fetch, once, what surrounds it and what the weather is like, so results can say:
 - "From 15:10 the apartment block to the west shades the office windows: desks 8–12 have no afternoon glare."

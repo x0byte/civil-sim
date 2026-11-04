@@ -50,7 +50,7 @@ export interface OfficeProfile {
   kinds?: KindsSettings;
   /** People slow down in crowds, and doors and escalators let only so many through. Missing means off (older saved profiles). */
   crowding?: boolean;
-  comfort?: Required<Omit<Comfort, "enabled">> & { enabled: boolean };
+  comfort?: Required<Omit<Comfort, "enabled" | "weather">> & { enabled: boolean };
   seed: number;
 }
 
@@ -254,7 +254,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
 
   return {
     scenario: {
-      version: "0.7",
+      version: "0.8",
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,

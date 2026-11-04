@@ -17,6 +17,7 @@ const pairs: [plan: string, scenario: string][] = [
   ["mall-2f.floorplan.json", "mall-weekend-people.scenario.json"],
   ["office-a-comfort.floorplan.json", "office-day-comfort.scenario.json"],
   ["mall-2f-comfort.floorplan.json", "mall-weekend-comfort.scenario.json"],
+  ["office-a-site.floorplan.json", "office-day-site.scenario.json"],
 ];
 
 let failed = false;

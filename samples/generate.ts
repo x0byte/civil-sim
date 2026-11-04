@@ -25,7 +25,7 @@ interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "w
 const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
 const singleFloor = (d: Draft): FloorPlan => ({
   ...d,
-  version: "0.4",
+  version: "0.5",
   levels: [GROUND],
   walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
   spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
@@ -214,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.7",
+  version: "0.8",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -241,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.7",
+  version: "0.8",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -382,7 +382,7 @@ const connectors: Connector[] = [
   { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
 ];
 const mall: FloorPlan = {
-  version: "0.4",
+  version: "0.5",
   id: "mall-2f",
   name: "Small mall: two floors",
   units: "m",
@@ -398,7 +398,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.7",
+  version: "0.8",
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -422,7 +422,7 @@ const mallScenario: Scenario = {
 // A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
 // Arrival rates and shopper types are assumptions until calibrated against door counts.
 const mallWeekend: Scenario = {
-  version: "0.7",
+  version: "0.8",
   id: "mall-weekend",
   name: "Saturday: shop staff and about 850 shoppers",
   seed: 21,
@@ -592,6 +592,50 @@ const mallWeekendComfort: Scenario = {
   comfort: { enabled: true, date: "2026-04-11", sky: "clear" },
 };
 
+// ---------- site and weather samples (contract v0.8) ----------
+// Office A with a location in Colombo, Galle Road along its west side and a 10-storey block across
+// the road. Fixed, made-up data: nothing is fetched. Weather is an illustrative typical 15 November.
+const officeASite: FloorPlan = {
+  ...officeAComfort,
+  id: "office-a-site",
+  name: "Office A: on Galle Road, with a tower across the street",
+  noiseSources: [],
+  site: {
+    northDeg: 270,
+    location: { lat: 6.9, lon: 79.853 },
+    utcOffsetHours: 5.5,
+    roads: [{ id: "galle-road", name: "Galle Road", kind: "main", path: [{ x: -60, y: 19 }, { x: 90, y: 19 }] }],
+    neighbours: [
+      { id: "tower", name: "Apartment tower", polygon: rect(-4, 30, 28, 46), heightM: 30, heightFrom: "data" },
+      { id: "shops", name: "Row of shops", polygon: rect(30, -2, 44, 12), heightM: 6, heightFrom: "assumed" },
+    ],
+    credits: ["Sample data for testing, not fetched"],
+  },
+};
+
+const novemberCloud = [40, 40, 40, 35, 35, 35, 30, 30, 35, 40, 45, 50, 55, 65, 75, 80, 80, 75, 70, 60, 55, 50, 45, 40];
+const novemberTemp = [25, 25, 24.5, 24.5, 24, 24, 24.5, 25.5, 27, 28, 29, 29.5, 30, 30, 29.5, 29, 28, 27.5, 27, 26.5, 26, 26, 25.5, 25];
+const officeDaySite: Scenario = {
+  ...officeDayComfort,
+  id: "office-day-site",
+  name: "Workday on Galle Road: a typical 15 November, cloud building after lunch",
+  comfort: {
+    enabled: true,
+    date: "2026-11-15",
+    weather: {
+      kind: "typical",
+      source: "Illustrative values for testing, not fetched",
+      hourly: novemberCloud.map((cloudPct, h) => ({
+        hour: `${String(h).padStart(2, "0")}:00`,
+        cloudPct,
+        tempC: novemberTemp[h],
+        humidityPct: h >= 10 && h <= 16 ? 72 : 85,
+        rainMm: h >= 15 && h <= 17 ? 2 : 0,
+      })),
+    },
+  },
+};
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
@@ -606,6 +650,8 @@ const out: Record<string, unknown> = {
   "office-day-comfort.scenario.json": officeDayComfort,
   "mall-2f-comfort.floorplan.json": mallComfort,
   "mall-weekend-comfort.scenario.json": mallWeekendComfort,
+  "office-a-site.floorplan.json": officeASite,
+  "office-day-site.scenario.json": officeDaySite,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

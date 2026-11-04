@@ -34,7 +34,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 2. **Shops and visitors:** shops and food courts that attract visitors; arrivals through the day (weekday/weekend, peaks); browsing; foot traffic past each shop front (contract v0.5, done).
 3. **People who differ, and crowding:** wheelchair users, older adults, children, first-time visitors and lift-lovers drawn from bell curves; crowds slow people down; "who struggled" results (contract v0.6; engine and app done).
 4. **Comfort:** what each spot sounds and looks like (noise, daylight, lighting, glare, floor and wall contrast) against each kind of person's tolerances; "how it felt" results and one person's day (contract v0.7, approved; engine in progress).
-5. **Site and weather:** drop a pin to fetch neighbouring buildings (their shadows) and roads (their noise) from OpenStreetMap, and a typical day's weather from Open-Meteo (contract v0.8, proposed).
+5. **Site and weather:** drop a pin to fetch neighbouring buildings (their shadows) and roads (their noise) from OpenStreetMap, and a typical day's weather from Open-Meteo (contract v0.8, approved; build in progress).
 6. **Evacuation:** alarm, exits, refuge points for step-free people; how fast the building empties (contract v0.9).
 7. **Calibration:** compare against mall door counters and Wi-Fi data.
 

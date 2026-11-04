@@ -86,7 +86,7 @@ describe("lunch and visitors", () => {
 
   it("adds a lunch break and seats visitors in meetings, then the manager's office", () => {
     const x = expandProfile(withExtras, officeA);
-    expect(x.scenario.version).toBe("0.7");
+    expect(x.scenario.version).toBe("0.8");
     expect(x.scenario.queueing).toEqual({ maxWaitMin: 10 });
     expect(x.scenario.lunch).toMatchObject({ windowStart: "12:00", pantryShare: 0.5, outShare: 0.2 });
     const visitors = x.scenario.visitors!;

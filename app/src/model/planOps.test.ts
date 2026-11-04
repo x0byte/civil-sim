@@ -125,7 +125,7 @@ describe("floors", () => {
     const { levels: _l, connectors: _c, ...rest } = officeA;
     const old = { ...rest, version: "0.1", walls: strip(officeA.walls), spaces: strip(officeA.spaces), fixtures: strip(officeA.fixtures) };
     const up = upgradePlan(old as unknown as FloorPlan);
-    expect(up.version).toBe("0.4");
+    expect(up.version).toBe("0.5");
     expect(up.levels).toEqual([{ id: "ground", name: "Ground floor", elevation: 0 }]);
     expect(up.connectors).toEqual([]);
     expect(validateFloorPlan(up)).toEqual([]);

@@ -1,8 +1,8 @@
-// Simulation results contract, v0.7.
+// Simulation results contract, v0.8.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.7";
+export const RESULTS_VERSION = "0.8";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -164,6 +164,13 @@ export interface ComfortMetrics {
   bySpace: SpaceComfort[];
   /** Desks that were glary, or louder than the sitter's focus comfort, at some point; in plan order. */
   desks: { deskId: string; glareMinutes: number; loudMinutes: number }[];
+  /**
+   * Windows that would get direct sun at some point while open, in plan order: minutes it did get sun,
+   * minutes neighbouring buildings shaded it, and minutes cloud hid the sun (contract v0.8).
+   */
+  windows: { openingId: string; sunMinutes: number; shadedByNeighboursMinutes: number; cloudedMinutes: number }[];
+  /** Which sky was used: the scenario's `sky`, or a saved typical or real day of weather. */
+  weatherUsed: "sky" | "typical" | "day";
 }
 
 export interface ProfileComfort {
