@@ -1,5 +1,12 @@
 # Decision log
 
+
+## 2026-11-04 — v0.8 site/weather implementation
+
+Neighbour sun rays include floor elevation, with nine samples across each window for partial shade and 45 outward sky rays for diffuse daylight. Window minutes partition possible exposure into neighbour shade, cloud over the remaining area, then sun; they are equivalent minutes before blinds/frosting. Hourly cloud is held constant. New site/weather inputs use longitude 79.86/UTC+5:30 defaults; old inputs retain the old -10-minute solar correction so all eight pre-v0.8 complete hashes match. Roads integrate one-metre sections as energy with the existing attenuation, not point-source falloff. Saved site/weather source lines accompany results, including site credits with comfort off.
+
+The app uses explicit user fetches only: a single 200 m Overpass query, four visible OSM tiles at most, and ten sequential small Open-Meteo archive requests for a typical calendar date. Half-hour time zones interpolate archived GMT observations into 24 local hours. Typical means the preceding ten fully past years; 29 February uses 28 February in non-leap years. Overpass endpoint and tile template can be set with VITE_OVERPASS_URL and VITE_OSM_TILE_URL for deployment. No automatic retry or provider fallback. Public API failures leave saved data intact. Long OSM roads are clipped to 250 m each side of the plan origin, and footprints overlapping the plan bounds are omitted to avoid self-shading; this heuristic needs review near adjacent buildings. Location/north changes reproject saved surroundings to keep their earth positions fixed. Corrected heights survive refresh. History now snapshots People settings with the plan so weather edits and assistant changes undo correctly. Network failures prevented a successful recorded Overpass fixture; see the v0.8 report.
+
 Newest first. One entry per decision: what, why, who decided.
 
 ## 2026-11-04: Contract v0.8 (site and weather)

@@ -1,3 +1,4 @@
+import { WeatherFields } from "../site/WeatherFields.tsx";
 import { DEFAULT_COMFORT, validDate } from "../model/comfortDefaults.ts";
 import type { OfficeProfile } from "./officeProfile.ts";
 import { SelectField } from "../ui/fields.tsx";
@@ -22,9 +23,9 @@ export function ComfortSection({ profile, setProfile }: { profile: OfficeProfile
           <>
             <label className="field">
               <span>Date</span>
-              <input type="date" value={comfort.date} onChange={(e) => validDate(e.target.value) && set({ date: e.target.value })} />
+              <input type="date" value={comfort.date} onChange={(e) => validDate(e.target.value) && set({ date: e.target.value, weather: undefined })} onBlur={(e) => validDate(e.target.value) && e.target.value !== comfort.date && set({ date: e.target.value, weather: undefined })} />
             </label>
-            <SelectField
+            {!comfort.weather && <SelectField
               label="Sky"
               value={comfort.sky}
               options={[
@@ -32,7 +33,8 @@ export function ComfortSection({ profile, setProfile }: { profile: OfficeProfile
                 { value: "overcast", label: "Overcast" },
               ]}
               onChange={(sky) => set({ sky })}
-            />
+            />}
+            <WeatherFields profile={profile} setProfile={setProfile} />
             <p className="muted">
               Assumptions for comparing layouts: typical room lighting and surfaces are used until you describe them. These are not lighting
               or acoustic engineering predictions.

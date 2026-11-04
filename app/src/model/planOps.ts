@@ -9,6 +9,8 @@ import type {
   FloorPlan,
   Level,
   NoiseSource,
+  Neighbour,
+  Road,
   Site,
   Opening,
   Privacy,
@@ -17,6 +19,7 @@ import type {
   Vec2,
   Wall,
 } from "../../../contracts/floorplan.ts";
+import { reprojectSite, validLocation } from "../site/coordinates.ts";
 import { DEFAULT_SITE, DEFAULT_GLASS, NOISE_PRESETS } from "./comfortDefaults.ts";
 import {
   DOOR_ON_EDGE_TOLERANCE,
@@ -29,7 +32,7 @@ import {
   wallLength,
 } from "./geometry.ts";
 
-export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector" | "noise";
+export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector" | "noise" | "neighbour" | "road";
 export interface ItemRef {
   kind: ItemKind;
   id: string;
@@ -123,6 +126,8 @@ function allIds(plan: FloorPlan): Set<string> {
       ...plan.fixtures,
       ...plan.connectors,
       ...(plan.noiseSources ?? []),
+      ...(plan.site?.neighbours ?? []),
+      ...(plan.site?.roads ?? []),
     ].map((x) => x.id),
   );
 }
@@ -210,6 +215,7 @@ export function onLevel(plan: FloorPlan, levelId: string): FloorPlan {
 /** The floor an item is on. Connectors report the first floor they serve. */
 export function levelOf(plan: FloorPlan, ref: ItemRef): string | undefined {
   switch (ref.kind) {
+    case "neighbour": case "road": return undefined;
     case "opening": {
       const o = plan.openings.find((x) => x.id === ref.id);
       return o && plan.walls.find((w) => w.id === o.wallId)?.levelId;
@@ -392,6 +398,8 @@ export function addFixture(
 
 export function removeItem(plan: FloorPlan, ref: ItemRef): FloorPlan {
   switch (ref.kind) {
+    case "neighbour": return { ...plan, site: { northDeg: 0, ...plan.site, neighbours: plan.site?.neighbours?.filter((n) => n.id !== ref.id) } };
+    case "road": return { ...plan, site: { northDeg: 0, ...plan.site, roads: plan.site?.roads?.filter((n) => n.id !== ref.id) } };
     case "wall":
       return {
         ...plan,
@@ -411,7 +419,7 @@ export function removeItem(plan: FloorPlan, ref: ItemRef): FloorPlan {
   }
 }
 
-type ItemOf<K extends ItemKind> = K extends "wall"
+type ItemOf<K extends ItemKind> = K extends "neighbour" ? Neighbour : K extends "road" ? Road : K extends "wall"
   ? Wall
   : K extends "opening"
     ? Opening
@@ -433,11 +441,16 @@ const listKey = {
 } as const;
 
 export function getItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string): ItemOf<K> | undefined {
-  return ((plan[listKey[kind]] ?? []) as { id: string }[]).find((x) => x.id === id) as ItemOf<K> | undefined;
+  const items = kind === "neighbour" ? plan.site?.neighbours : kind === "road" ? plan.site?.roads : plan[listKey[kind as keyof typeof listKey]];
+  return ((items ?? []) as { id: string }[]).find((x) => x.id === id) as ItemOf<K> | undefined;
 }
 
 export function updateItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string, fn: (item: ItemOf<K>) => ItemOf<K>): FloorPlan {
-  const key = listKey[kind];
+  if (kind === "neighbour" || kind === "road") {
+    const key = kind === "neighbour" ? "neighbours" : "roads";
+    return { ...plan, site: { northDeg: 0, ...plan.site, [key]: ((plan.site?.[key] ?? []) as ItemOf<K>[]).map((x) => x.id === id ? fn(x) : x) } };
+  }
+  const key = listKey[kind as keyof typeof listKey];
   return { ...plan, [key]: ((plan[key] ?? []) as ItemOf<K>[]).map((x) => (x.id === id ? fn(x) : x)) };
 }
 
@@ -530,7 +543,10 @@ export function setSite(plan: FloorPlan, patch: Partial<Site>): FloorPlan {
   const site = { ...DEFAULT_SITE, ...plan.site, ...patch };
   if (!Number.isFinite(site.northDeg) || (site.latitude !== undefined && (!Number.isFinite(site.latitude) || Math.abs(site.latitude) > 90)))
     return plan;
-  return { ...plan, site: { ...site, northDeg: ((site.northDeg % 360) + 360) % 360 } };
+  if (site.location && !validLocation(site.location)) return plan;
+  if (site.utcOffsetHours !== undefined && (!Number.isFinite(site.utcOffsetHours) || site.utcOffsetHours < -12 || site.utcOffsetHours > 14)) return plan;
+  const next = { ...site, northDeg: ((site.northDeg % 360) + 360) % 360 };
+  return { ...plan, site: plan.site ? reprojectSite(plan.site, next) : next };
 }
 
 export function setWindowGlass(
@@ -585,4 +601,25 @@ export function updateNoiseSource(plan: FloorPlan, id: string, patch: Partial<Om
     ...patch,
     ...(patch.position ? { position: clampToBounds(plan, patch.position) } : {}),
   }));
+}
+
+export function addNeighbour(plan: FloorPlan, polygon: Vec2[], heightM = 6, name = "Neighbour"): { plan: FloorPlan; id: string } {
+  const id = nextId(plan, "neighbour");
+  return { id, plan: { ...plan, site: { northDeg: 0, ...plan.site, neighbours: [...(plan.site?.neighbours ?? []), { id, name, polygon, heightM, heightFrom: "user" }] } } };
+}
+export function updateNeighbour(plan: FloorPlan, id: string, patch: Partial<Omit<Neighbour, "id" | "heightFrom">>): FloorPlan {
+  if (patch.heightM !== undefined && (!Number.isFinite(patch.heightM) || patch.heightM <= 0 || patch.heightM > 500)) return plan;
+  return updateItem(plan, "neighbour", id, (n) => ({ ...n, ...patch, ...(patch.heightM !== undefined ? { heightFrom: "user" as const } : {}) }));
+}
+export function addRoad(plan: FloorPlan, path: Vec2[], kind: Road["kind"], name = "Road", dbA?: number): { plan: FloorPlan; id: string } {
+  const id = nextId(plan, "road");
+  return { id, plan: { ...plan, site: { northDeg: 0, ...plan.site, roads: [...(plan.site?.roads ?? []), { id, name, path, kind, ...(dbA !== undefined ? { dbA } : {}) }] } } };
+}
+export function setSurroundings(plan: FloorPlan, neighbours: Neighbour[], roads: Road[], credits: string[]): FloorPlan {
+  const old = new Map(plan.site?.neighbours?.map((n) => [n.id, n]));
+  return { ...plan, site: { northDeg: 0, ...plan.site,
+    neighbours: [...(plan.site?.neighbours ?? []).filter((n) => !n.id.startsWith("osm-way-")), ...neighbours.map((n) => old.get(n.id)?.heightFrom === "user" ? { ...n, heightM: old.get(n.id)!.heightM, heightFrom: "user" as const } : n)],
+    roads: [...(plan.site?.roads ?? []).filter((r) => !r.id.startsWith("osm-way-")), ...roads],
+    credits: [...new Set([...(plan.site?.credits ?? []).filter((c) => !c.startsWith("© OpenStreetMap contributors")), ...credits])],
+  } };
 }

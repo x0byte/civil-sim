@@ -1332,3 +1332,16 @@ button.legend-kind.active {
 
 .tooltip { max-width: min(260px, calc(100% - 16px)); white-space: normal; overflow-wrap: anywhere; }
 :root[data-theme="dark"] { --room-muted: #283442; }
+
+.site-map { position: relative; width: 256px; max-width: 100%; height: 184px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); }
+.site-map-tiles { position: absolute; inset: 0; cursor: crosshair; }
+.site-map img { position: absolute; width: 256px; height: 256px; max-width: none; }
+.map-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 28px; font-weight: 700; color: #b52020; text-shadow: 0 0 3px white; pointer-events: none; }
+.map-credit { position: absolute; bottom: 0; right: 0; padding: 2px 4px; font-size: 10px; background: white; color: #24344e; }
+.site-items { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+.site-items button { text-align: left; overflow-wrap: anywhere; }
+.weather-fields { display: flex; flex-direction: column; gap: 10px; }
+.weather-strip { display: grid; grid-template-columns: repeat(24, 1fr); height: 60px; gap: 1px; margin-bottom: 18px; background: var(--bg); }
+.weather-strip > div { position: relative; }
+.weather-strip span { display: block; position: absolute; bottom: 0; width: 100%; background: var(--ink-3); }
+.weather-strip small { position: absolute; top: 62px; color: var(--ink-2); font-size: 10px; }

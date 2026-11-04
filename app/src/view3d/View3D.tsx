@@ -16,16 +16,20 @@ export function View3D() {
   const plan = useEditor((s) => s.plan);
   const level = useEditor((s) => s.level);
   const { width, height } = plan.bounds;
-  const span = Math.max(width, height);
-  const centre: [number, number, number] = [width / 2, 0, height / 2];
+  const [surroundings, setSurroundings] = useState(false);
+  const points = surroundings ? [...(plan.site?.neighbours ?? []).flatMap((n) => n.polygon), ...(plan.site?.roads ?? []).flatMap((r) => r.path)] : [];
+  const minX = Math.min(0, ...points.map((p) => p.x)); const minY = Math.min(0, ...points.map((p) => p.y));
+  const maxX = Math.max(width, ...points.map((p) => p.x)); const maxY = Math.max(height, ...points.map((p) => p.y));
+  const span = Math.max(maxX - minX, maxY - minY, ...(surroundings ? (plan.site?.neighbours ?? []).map((n) => n.heightM) : []));
+  const centre: [number, number, number] = [(minX + maxX) / 2, 0, (minY + maxY) / 2];
   const [cut, setCut] = useState(true);
 
   return (
     <div className="canvas-wrap view3d">
       <Canvas
-        key={plan.id}
+        key={`${plan.id}:${surroundings}`}
         shadows
-        camera={{ position: [width / 2 + span * 0.45, span * 0.85, height / 2 + span * 0.95], fov: 40, near: 0.1, far: 1000 }}
+        camera={{ position: [centre[0] + span * 0.45, span * 0.85, centre[2] + span * 0.95], fov: 40, near: 0.1, far: 1000 }}
       >
         <color attach="background" args={["#eef1f5"]} />
         <hemisphereLight args={["#ffffff", "#c4cbd6", 1.3]} />
@@ -35,6 +39,7 @@ export function View3D() {
       </Canvas>
       <FloorSwitcher levels={plan.levels} />
       <div className="canvas-zoom">
+        {(plan.site?.neighbours?.length || plan.site?.roads?.length) ? <button onClick={() => setSurroundings((v) => !v)}>{surroundings ? "Building" : "Surroundings"}</button> : null}
         <div className="segmented">
           <button className={cut ? "active" : ""} onClick={() => setCut(true)} title="Cut walls at 1.2 m to see inside rooms">
             Cut walls
@@ -94,6 +99,8 @@ function Building({ plan, level, cutHeight }: { plan: FloorPlan; level: string; 
         <planeGeometry args={[width + 4, height + 4]} />
         <meshStandardMaterial color="#dfe3e8" />
       </mesh>
+      {(plan.site?.neighbours ?? []).map((n) => <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />)}
+      {(plan.site?.roads ?? []).flatMap((r) => r.path.slice(1).map((b, i) => { const a = r.path[i]; return <mesh key={`${r.id}-${i}`} position={[(a.x + b.x) / 2, -.02, (a.y + b.y) / 2]} rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}><boxGeometry args={[Math.hypot(b.x - a.x, b.y - a.y), .04, r.kind === "main" ? 6 : 4]} /><meshStandardMaterial color="#9298a0" /></mesh>; }))}
       {shown.map((l, i) => (
         <group key={l.id} position={[0, l.elevation, 0]}>
           {i > 0 && <Slab plan={plan} holes={holes.get(l.id)!} />}
@@ -280,4 +287,12 @@ function WallMesh({ wall, plan, cutHeight }: { wall: Wall; plan: FloorPlan; cutH
       })}
     </group>
   );
+}
+
+function NeighbourBlock({ polygon, height }: { polygon: Vec2[]; height: number }) {
+  const geometry = useMemo(() => {
+    const shape = new THREE.Shape(); polygon.forEach((p, i) => i ? shape.lineTo(p.x, -p.y) : shape.moveTo(p.x, -p.y)); shape.closePath();
+    return new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+  }, [polygon, height]);
+  return <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow><meshStandardMaterial color="#9a9fa7" /></mesh>;
 }

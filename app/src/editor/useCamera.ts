@@ -8,7 +8,7 @@ export interface Camera {
   s: number;
 }
 
-const MIN_SCALE = 4;
+const MIN_SCALE = .25;
 const MAX_SCALE = 400;
 const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 

@@ -155,7 +155,16 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
   if (noisy) warn({ code: "comfort", message: `${spaces[spaceIndex.get(noisy.spaceId)!].name} reaches ${Math.round(noisy.loudestDbA)} dB(A); check the sound level and time people spend there.`, refIds: [noisy.spaceId] });
   const low = spaces.find((s) => lowVisionRooms.has(s.id) && contrast(s) === "low");
   if (low) warn({ code: "comfort", message: `${low.name} has low floor-and-wall contrast and was used by someone with low vision.`, refIds: [low.id] });
-  return { byProfile, bySpace, desks };
+  const windows = env.windows.flatMap((w) => {
+    let sunMinutes = 0; let shadedByNeighboursMinutes = 0; let cloudedMinutes = 0;
+    for (let t = 0; t < duration; t += 60) {
+      const dt = Math.min(60, duration - t) / 60; const value = env.windowSun(w, sunPosition(plan, scenario, start + t + dt * 30));
+      if (!value.eligible) continue;
+      shadedByNeighboursMinutes += dt * (1 - value.clear); cloudedMinutes += dt * value.clear * value.cloud; sunMinutes += dt * value.clear * (1 - value.cloud);
+    }
+    return sunMinutes + shadedByNeighboursMinutes + cloudedMinutes > 0 ? [{ openingId: w.opening.id, sunMinutes, shadedByNeighboursMinutes, cloudedMinutes }] : [];
+  });
+  return { byProfile, bySpace, desks, windows, weatherUsed: scenario.comfort?.weather?.kind ?? "sky" };
 }
 
 export const COMFORT_ASSUMPTIONS = [

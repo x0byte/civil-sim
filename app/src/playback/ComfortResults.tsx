@@ -36,7 +36,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
         <header>
           <div>
             <h2>How it felt</h2>
-            <span className="muted">People affected · minutes together</span>
+            <span className="muted">People affected · minutes together · Sky used: {c.weatherUsed === "sky" ? run.scenario.comfort?.sky === "overcast" ? "Overcast" : "Clear" : c.weatherUsed === "typical" ? "Typical weather" : "A specific past day"}</span>
           </div>
         </header>
         <div className="panel-body">
@@ -120,6 +120,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
           ))}
         </div>
       </section>
+      {c.windows.length > 0 && <section className="panel"><header><h2>Windows and sun</h2></header><div className="panel-body"><table className="table"><thead><tr><th>Window</th><th>Sun min</th><th>Neighbour shade min</th><th>Cloud min</th></tr></thead><tbody>{c.windows.map((w) => <tr key={w.openingId}><td>Window {run.plan.openings.filter((o) => o.kind === "window").findIndex((o) => o.id === w.openingId) + 1}</td><td>{w.sunMinutes.toFixed(1)}</td><td>{w.shadedByNeighboursMinutes.toFixed(1)}</td><td>{w.cloudedMinutes.toFixed(1)}</td></tr>)}</tbody></table><p className="muted">Equivalent minutes while open, before blinds or frosting. Cloud is counted over the part not shaded by neighbours.</p></div></section>}
       {c.desks.length > 0 && (
         <section className="panel">
           <header>

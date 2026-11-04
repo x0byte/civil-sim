@@ -1,12 +1,14 @@
 import type { FloorPlan, Space, Vec2, Opening } from "../../../contracts/floorplan.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
+import { siteWeather, cloudFraction, neighbourBlocks, skyVisibility } from "./site.ts";
+import { clockSeconds } from "./schedule.ts";
 import { distance, openingCentre, pointInPolygon } from "./geometry.ts";
 
 export const roomLux = (s: Space): number => s.lightingLux ?? ({ open_office: 500, private_office: 500, meeting_room: 500, shop: 750, reception: 300, other: 300, food_court: 300, toilet: 200, pantry: 200, atrium: 200, corridor: 150, service: 150, storage: 100 }[s.type]);
 export const roomAcoustics = (s: Space): number => ({ hard: 6, mixed: 3, soft: 0 }[s.acoustics ?? (s.type === "meeting_room" ? "soft" : ["open_office", "private_office", "shop", "other"].includes(s.type) ? "mixed" : "hard")]);
 export const contrast = (s: Space): "low" | "ok" | "not_checked" => s.floorLRV === undefined || s.wallLRV === undefined ? "not_checked" : Math.abs(s.floorLRV - s.wallLRV) < 30 ? "low" : "ok";
 const RAD = Math.PI / 180;
-export interface Sun { x: number; y: number; up: number }
+export interface Sun { x: number; y: number; up: number; clock?: number }
 /** Solar declination and equation of time, following NOAA's published approximation. */
 export function sunPosition(plan: FloorPlan, scenario: Scenario, clockSeconds: number): Sun {
   const date = scenario.comfort?.date ?? "2026-03-21";
@@ -16,16 +18,18 @@ export function sunPosition(plan: FloorPlan, scenario: Scenario, clockSeconds: n
   const g = 2 * Math.PI / (leap ? 366 : 365) * (days - 1 + (clockSeconds / 3600 - 12) / 24);
   const dec = .006918 - .399912 * Math.cos(g) + .070257 * Math.sin(g) - .006758 * Math.cos(2 * g) + .000907 * Math.sin(2 * g) - .002697 * Math.cos(3 * g) + .00148 * Math.sin(3 * g);
   const eq = 229.18 * (.000075 + .001868 * Math.cos(g) - .032077 * Math.sin(g) - .014615 * Math.cos(2 * g) - .040849 * Math.sin(2 * g));
-  const h = ((clockSeconds / 60 + eq - 10) / 4 - 180) * RAD;
-  const lat = (plan.site?.latitude ?? 6.9) * RAD; const north = (plan.site?.northDeg ?? 0) * RAD;
+  const correction = siteWeather(plan, scenario) ? 4 * (plan.site?.location?.lon ?? 79.86) - 60 * (plan.site?.utcOffsetHours ?? 5.5) : -10;
+  const h = ((clockSeconds / 60 + eq + correction) / 4 - 180) * RAD;
+  const lat = (plan.site?.location?.lat ?? plan.site?.latitude ?? 6.9) * RAD; const north = (plan.site?.northDeg ?? 0) * RAD;
   const east = -Math.cos(dec) * Math.sin(h); const n = Math.cos(lat) * Math.sin(dec) - Math.sin(lat) * Math.cos(dec) * Math.cos(h);
-  return { x: east * Math.cos(north) + n * Math.sin(north), y: east * Math.sin(north) - n * Math.cos(north), up: Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(h) };
+  return { clock: clockSeconds, x: east * Math.cos(north) + n * Math.sin(north), y: east * Math.sin(north) - n * Math.cos(north), up: Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(h) };
 }
 
 export class Environment {
   readonly plan: FloorPlan;
   readonly scenario: Scenario;
-  readonly windows: { opening: Opening; centre: Vec2; levelId: string; ux: number; uy: number; nx: number; ny: number; exposed: boolean; sunExposed: boolean }[];
+  private readonly sunCache = new Map<string, { eligible: boolean; clear: number; cloud: number }>();
+  readonly windows: { opening: Opening; centre: Vec2; levelId: string; ux: number; uy: number; nx: number; ny: number; exposed: boolean; sunExposed: boolean; elevation: number; skyVisible: number }[];
   constructor(plan: FloorPlan, scenario: Scenario) {
     this.plan = plan; this.scenario = scenario;
     this.windows = plan.openings.filter((o) => o.kind === "window").map((opening) => {
@@ -37,7 +41,9 @@ export class Environment {
       const reach = Math.hypot(plan.bounds.width, plan.bounds.height) + 1;
       const exposed = this.loss(centre, { x: centre.x - nx * reach, y: centre.y - ny * reach }, wall.levelId, wall.id, true) !== Infinity;
       const sunExposed = this.loss(centre, { x: centre.x - nx * reach, y: centre.y - ny * reach }, wall.levelId, wall.id, "direct") !== Infinity;
-      return { opening, centre, levelId: wall.levelId, ux, uy, nx, ny, exposed, sunExposed };
+      const elevation = plan.levels.find((l) => l.id === wall.levelId)!.elevation;
+      const skyVisible = skyVisibility(plan, centre, elevation + ((opening.sillM ?? .9) + (opening.headM ?? 2.1)) / 2, nx, ny);
+      return { opening, centre, levelId: wall.levelId, ux, uy, nx, ny, exposed, sunExposed, elevation, skyVisible };
     });
   }
   space(p: Vec2, levelId: string): Space | undefined { return this.plan.spaces.find((s) => s.levelId === levelId && pointInPolygon(p, s.polygon)); }
@@ -61,9 +67,24 @@ export class Environment {
     }
     return loss;
   }
+  windowSun(w: typeof this.windows[number], sun: Sun): { eligible: boolean; clear: number; cloud: number } {
+    const key = `${w.opening.id}:${sun.clock ?? `${sun.x},${sun.y},${sun.up}`}`;
+    const cached = this.sunCache.get(key); if (cached) return cached;
+    const eligible = w.sunExposed && sun.up > 0 && sun.x * w.nx + sun.y * w.ny < -1e-8;
+    if (!eligible) { const result = { eligible: false, clear: 0, cloud: 0 }; this.sunCache.set(key, result); return result; }
+    let clear = this.plan.site?.neighbours?.length ? 0 : 9;
+    if (this.plan.site?.neighbours?.length) for (const offset of [-.4, 0, .4]) for (const part of [.1, .5, .9]) {
+      const p = { x: w.centre.x + w.ux * w.opening.width * offset, y: w.centre.y + w.uy * w.opening.width * offset };
+      const sill = w.opening.sillM ?? .9; const head = w.opening.headM ?? 2.1;
+      if (!neighbourBlocks(this.plan, p, w.elevation + sill + (head - sill) * part, sun)) clear++;
+    }
+    const result = { eligible, clear: clear / 9, cloud: cloudFraction(this.scenario, sun.clock ?? clockSeconds(this.scenario.workday.start)) };
+    this.sunCache.set(key, result); return result;
+  }
   light(p: Vec2, level: string, sun: Sun, rotation?: number): { lux: number; glare: number; facing: number } {
     let lux = this.space(p, level) ? roomLux(this.space(p, level)!) : 0; let glare = 0; let facing = 0;
     if (sun.up <= 0) return { lux, glare, facing };
+    const extended = siteWeather(this.plan, this.scenario);
     for (const w of this.windows) {
       if (!w.exposed || w.levelId !== level) continue;
       const px = p.x - w.centre.x; const py = p.y - w.centre.y;
@@ -71,18 +92,21 @@ export class Environment {
       const d = Math.hypot(px, py); const trans = w.opening.transmittance ?? .7;
       const offset = Math.max(-w.opening.width / 2, Math.min(w.opening.width / 2, px * w.ux + py * w.uy));
       const glass = { x: w.centre.x + w.ux * offset, y: w.centre.y + w.uy * offset };
-      if (this.loss(glass, p, level, w.opening.wallId, true) !== Infinity) lux += 8000 * sun.up * trans * (this.scenario.comfort?.sky === "overcast" ? .45 : 1) * Math.exp(-distance(glass, p) / 1.6);
-      if (!w.sunExposed || w.opening.shaded || w.opening.frosted || this.scenario.comfort?.sky === "overcast") continue;
+      const exposure = extended ? this.windowSun(w, sun) : undefined;
+      const skyFactor = exposure ? w.skyVisible * (.45 + .55 * (1 - exposure.cloud) * exposure.clear) : this.scenario.comfort?.sky === "overcast" ? .45 : 1;
+      if (this.loss(glass, p, level, w.opening.wallId, true) !== Infinity) lux += 8000 * sun.up * trans * skyFactor * Math.exp(-distance(glass, p) / 1.6);
+      if (!w.sunExposed || w.opening.shaded || w.opening.frosted || (exposure ? exposure.cloud >= 1 : this.scenario.comfort?.sky === "overcast")) continue;
       const dot = sun.x * w.nx + sun.y * w.ny;
       if (dot >= -1e-8) continue;
-      const amount = Math.min(1, trans * (.15 + (1 - sun.up)));
+      const amount = Math.min(1, trans * (.15 + (1 - sun.up))) * (exposure ? 1 - exposure.cloud : 1);
       const t = -(px * w.nx + py * w.ny) / dot;
       const along = (px + t * sun.x) * w.ux + (py + t * sun.y) * w.uy;
       const height = t * sun.up;
       if (t >= 0 && Math.abs(along) <= w.opening.width / 2 && height >= (w.opening.sillM ?? .9) && height <= (w.opening.headM ?? 2.1)
+        && !neighbourBlocks(this.plan, { x: p.x + t * sun.x, y: p.y + t * sun.y }, w.elevation + height, sun)
         && this.loss({ x: p.x + t * sun.x, y: p.y + t * sun.y }, p, level, w.opening.wallId, "direct") !== Infinity) glare = Math.max(glare, amount);
       if (rotation !== undefined && d > 0 && (-px * Math.cos(rotation * RAD) - py * Math.sin(rotation * RAD)) / d >= Math.SQRT1_2
-        && this.loss(w.centre, p, level, w.opening.wallId, "direct") !== Infinity) facing = Math.max(facing, amount * Math.min(1, w.opening.width / Math.max(.1, d * .35)));
+        && this.loss(w.centre, p, level, w.opening.wallId, "direct") !== Infinity) facing = Math.max(facing, amount * (exposure?.clear ?? 1) * Math.min(1, w.opening.width / Math.max(.1, d * .35)));
     }
     return { lux, glare, facing };
   }

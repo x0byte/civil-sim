@@ -57,6 +57,11 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
       <rect x={0} y={0} width={width} height={height} fill="var(--paper)" />
       <rect x={0} y={0} width={width} height={height} fill="url(#grid-major)" />
 
+      {(plan.site?.roads ?? []).map((r) => <polyline key={r.id} data-kind="road" data-id={r.id} points={pts(r.path)} fill="none" stroke={isSel("road", r.id) ? "var(--accent)" : "var(--bounds)"} strokeWidth={Math.max(px(8), r.kind === "main" ? 6 : 4)} strokeOpacity={.45}><title>{r.name ?? "Road"}</title></polyline>)}
+      {(plan.site?.neighbours ?? []).map((n) => { const c = polygonCentroid(n.polygon); const check = n.heightFrom === "assumed" || n.heightFrom === "floors"; return <g key={n.id} data-kind="neighbour" data-id={n.id}>
+        <polygon points={pts(n.polygon)} fill="var(--ink-3)" fillOpacity={.18} stroke={isSel("neighbour", n.id) ? "var(--accent)" : check ? "var(--warn)" : "var(--bounds)"} strokeWidth={px(2)} />
+        <text x={c.x} y={c.y} textAnchor="middle" fontSize={px(11)} fill="var(--ink-2)" pointerEvents="none">{n.name ?? "Neighbour"} · {n.heightM} m{check ? " · check this height" : ""}</text>
+      </g>; })}
       {plan.underlay && underlaySize && !muted && (
         <image
           href={plan.underlay.image}

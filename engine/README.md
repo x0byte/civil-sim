@@ -537,3 +537,15 @@ unbounded grids or schedules. Contracts remain unchanged.
 
 Results carry short, plain-language behaviour assumptions for architects and office
 managers. Algorithm names, numerical tie rules and grid resolutions are documented here.
+
+### v0.8 site and weather
+
+Optional `site.location`, `utcOffsetHours`, solid-prism `neighbours` and line
+`roads` affect comfort only. Saved hourly cloud overrides `sky`; temperature,
+humidity and rain remain context. The engine never fetches data. Window results
+report equivalent sun, neighbour-shaded and clouded minutes before glass shading.
+Assumptions explain the nine window samples, 45 sky directions, hourly cloud
+steps and one-metre road integration. Older input pairs preserve v0.7.2 output
+apart from version and the added window/weather result fields.
+
+Run `node scripts/benchmark-site.ts` for the site/comfort sample comparison.
