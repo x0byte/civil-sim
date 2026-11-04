@@ -67,7 +67,8 @@ const point = {
   required: ["x", "y"],
   additionalProperties: false,
 };
-const polygon = { type: "array", items: point, minItems: 3, description: "Corners in order, in metres." };
+// Strict tools only allow minItems 0 or 1, so point counts are stated here and checked when the tool runs.
+const polygon = { type: "array", items: point, description: "At least 3 corners in order, in metres." };
 const nullable = (t: string, description: string, extra: object = {}) => ({ type: [t, "null"], description, ...extra });
 const spaceTypes = SPACE_TYPES.map((s) => s.type);
 
@@ -115,7 +116,7 @@ export const TOOLS: Anthropic.Tool[] = [
     neighbour_id: { type: "string" }, height: nullable("number", "Height >0 to 500 m, or null keeps."), name: nullable("string", "Name or null keeps."),
   }),
   comfortTool("add_road", "Add a road as a line noise source in plan metres, including outside bounds. Defaults main 75, secondary 70, local 62, service 55 dB(A), 06:00–22:00. State assumptions.", {
-    name: nullable("string", "Plain name or null."), path: { type: "array", items: point, minItems: 2 }, kind: { type: "string", enum: ["main", "secondary", "local", "service"] }, dbA: nullable("number", "0–140 dB(A), null for kind default."),
+    name: nullable("string", "Plain name or null."), path: { type: "array", items: point, description: "At least 2 points along the road, in metres." }, kind: { type: "string", enum: ["main", "secondary", "local", "service"] }, dbA: nullable("number", "0–140 dB(A), null for kind default."),
     hours: { anyOf: [{ type: "object", properties: { from: { type: "string" }, to: { type: "string" } }, required: ["from", "to"], additionalProperties: false }, { type: "null" }], description: "HH:MM from/to, null for typical hours." },
   }),
   comfortTool("set_weather", "Choose typical weather, a specific past day or clear/overcast. Does not fetch; tell the user to press Fetch/Refresh weather. Changing the choice/date clears stale weather.", {
@@ -775,6 +776,7 @@ export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
     case "update_room": {
       const s = getItem(plan, "space", input.room_id as string);
       if (!s) return fail(draft, `No room "${String(input.room_id)}".`);
+      if (Array.isArray(input.polygon) && polygonArea(pts(input.polygon)) < 0.5) return fail(draft, "A room outline needs at least three corners and 0.5 m².");
       const next = updateItem(plan, "space", s.id, (x) => {
         const y = { ...x };
         if (typeof input.name === "string") y.name = input.name;

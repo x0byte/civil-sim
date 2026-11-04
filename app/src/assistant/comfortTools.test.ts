@@ -51,6 +51,8 @@ suite("comfort assistant tools", () => {
     const check = (schema: unknown): void => {
       if (!schema || typeof schema !== "object") return;
       const s = schema as Record<string, unknown>;
+      // The API rejects strict tools with array lengths other than 0 or 1 at the low end.
+      if (s.minItems !== undefined) expect([0, 1]).toContain(s.minItems);
       if (s.properties) {
         expect(s.additionalProperties).toBe(false);
         expect([...(s.required as string[])].sort()).toEqual(Object.keys(s.properties).sort());
