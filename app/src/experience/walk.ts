@@ -14,9 +14,24 @@ function segmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
 }
 /** A 22 cm camera body. Only door gaps are passable; windows remain solid. */
 export function canStand(plan: FloorPlan, p: Vec2, levelId: string, radius = 0.22): boolean {
-  const ground = levelId === plan.levels[0].id,
-    pad = ground ? 3 : -radius;
-  if (p.x < -pad || p.y < -pad || p.x > plan.bounds.width + pad || p.y > plan.bounds.height + pad) return false;
+  const ground = levelId === plan.levels[0].id;
+  const points = ground
+    ? [...(plan.site?.neighbours ?? []).flatMap((n) => n.polygon), ...(plan.site?.roads ?? []).flatMap((r) => r.path)]
+    : [];
+  const pad = ground ? 3 : -radius;
+  if (
+    p.x < Math.min(0, ...points.map((p) => p.x)) - pad ||
+    p.y < Math.min(0, ...points.map((p) => p.y)) - pad ||
+    p.x > Math.max(plan.bounds.width, ...points.map((p) => p.x)) + pad ||
+    p.y > Math.max(plan.bounds.height, ...points.map((p) => p.y)) + pad
+  )
+    return false;
+  if (ground)
+    for (const building of plan.site?.neighbours ?? []) {
+      if (pointInPolygon(p, building.polygon)) return false;
+      for (let i = 0; i < building.polygon.length; i++)
+        if (segmentDistance(p, building.polygon[i], building.polygon[(i + 1) % building.polygon.length]) < radius) return false;
+    }
   for (const w of plan.walls.filter((w) => w.levelId === levelId)) {
     const length = Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y);
     for (const s of solidSpans(

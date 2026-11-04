@@ -63,9 +63,9 @@ export function Figures({
     [],
   );
   const frame = useRef(0);
-  useFrame(({ clock }) => {
+  useFrame(() => {
     let visible = 0;
-    const elapsed = clock.elapsedTime;
+    const elapsed = time.current;
     const draw = (f: Figure) => {
       if (!levels.includes(f.levelId)) return;
       const index = visible++;
@@ -160,6 +160,8 @@ export function Figures({
     <group>
       {PARTS.map((name) => (
         <instancedMesh
+          castShadow
+          receiveShadow
           key={name}
           ref={(mesh) => {
             if (mesh) {

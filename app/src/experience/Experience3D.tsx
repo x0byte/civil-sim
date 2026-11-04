@@ -1,5 +1,8 @@
+import { SunLight } from "../view3d/SunLight.tsx";
+import { sceneBounds, runSunScenario, clockSeconds, sunDate } from "../view3d/sun.ts";
+import { SceneCamera, MiniMap } from "../view3d/SceneCamera.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -10,7 +13,7 @@ import { ACTIVITY_STYLE } from "../playback/colors.ts";
 import { useExperience } from "./state.ts";
 import { Figures } from "./Figures.tsx";
 import { figureAt } from "./figures.ts";
-import { safeWalker, walkMove, connectorHere, connectorDestination, type Walker } from "./walk.ts";
+import { safeWalker, connectorHere } from "./walk.ts";
 import { PersonDay } from "../playback/ComfortResults.tsx";
 
 export function Experience3D({ run }: { run: SimRun }) {
@@ -27,6 +30,12 @@ export function Experience3D({ run }: { run: SimRun }) {
     [fps, setFps] = useState(0),
     [count, setCount] = useState(0),
     [stress, setStress] = useState(false);
+  const [surroundings, setSurroundings] = useState(true),
+    [shadows, setShadows] = useState(true),
+    [cut, setCut] = useState(true),
+    [fitContext, setFitContext] = useState(false);
+  const lightingScenario = useMemo(() => runSunScenario(run), [run]);
+  const framing = useMemo(() => sceneBounds(plan, fitContext && surroundings), [plan, fitContext, surroundings]);
   const [dark, setDark] = useState(document.documentElement.dataset.theme === "dark");
   useEffect(() => {
     const o = new MutationObserver(() => setDark(document.documentElement.dataset.theme === "dark"));
@@ -114,12 +123,39 @@ export function Experience3D({ run }: { run: SimRun }) {
           <option value="noise">Loudest average · quiet → loud</option>
           <option value="light">Dimmest light · dim → bright</option>
         </select>
+        <label>
+          <input
+            type="checkbox"
+            checked={surroundings}
+            onChange={(e) => setSurroundings(e.target.checked)}
+            disabled={!plan.site?.neighbours?.length && !plan.site?.roads?.length}
+          />
+          Neighbours
+        </label>
+        <label>
+          <input type="checkbox" checked={shadows} onChange={(e) => setShadows(e.target.checked)} />
+          Shadows
+        </label>
+        {ux.camera === "overview" && (
+          <label>
+            <input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} />
+            Cut walls away
+          </label>
+        )}
+        {ux.camera === "overview" && (plan.site?.neighbours?.length || plan.site?.roads?.length) ? (
+          <button onClick={() => setFitContext((v) => !v)}>{fitContext ? "Fit building" : "Fit surroundings"}</button>
+        ) : null}
       </div>
+      <p className="sim-sun-note">
+        Sun, shadows and people share the playback clock · {clockAt(run.scenario.workday.start, clock.t)} · {sunDate(lightingScenario)}
+        {peel ? " · Peeled view is illustrative" : ""}
+      </p>
       <p className="overlap-note">
         In very crowded spots people may overlap: crowds are modelled as density and flow, not as bodies stepping around each other.
       </p>
       <div className="walk-canvas">
         <Canvas
+          shadows
           fallback={
             <div className="panel-body">
               <h2>3D isn’t available in this browser.</h2>
@@ -135,15 +171,20 @@ export function Experience3D({ run }: { run: SimRun }) {
             far: 500,
           }}
         >
-          <color attach="background" args={[dark ? "#202b35" : "#e9eff1"]} />
-          <hemisphereLight args={["#ffffff", "#98a4ad", 2]} />
-          <directionalLight position={[10, 30, 15]} intensity={1.6} />
+          <SunLight
+            plan={plan}
+            scenario={lightingScenario}
+            clock={clockSeconds(run.scenario.workday.start, clock.t)}
+            shadows={shadows}
+            dark={dark}
+          />
           <Building
             plan={plan}
             level={plan.levels.at(-1)!.id}
             visibleLevels={levels}
             peel={peel}
-            cutHeight={ux.camera === "overview" ? 1.2 : null}
+            cutHeight={cut && ux.camera === "overview" ? 1.2 : null}
+            surroundings={surroundings}
             labels={ux.camera === "overview"}
           />
           <Figures
@@ -187,8 +228,10 @@ export function Experience3D({ run }: { run: SimRun }) {
                   </mesh>
                 );
               })}
-          <CameraController
+          <SceneCamera
+            plan={plan}
             run={run}
+            framing={framing}
             time={time}
             walker={walker}
             setWalker={setWalker}
@@ -201,9 +244,9 @@ export function Experience3D({ run }: { run: SimRun }) {
             <OrbitControls
               key={`${active}:${floors}`}
               target={[
-                plan.bounds.width / 2,
+                framing.cx,
                 (plan.levels.find((l) => l.id === active)?.elevation ?? 0) + plan.levels.findIndex((l) => l.id === active) * peel,
-                plan.bounds.height / 2,
+                framing.cy,
               ]}
               maxPolarAngle={Math.PI / 2.04}
               makeDefault
@@ -225,7 +268,7 @@ export function Experience3D({ run }: { run: SimRun }) {
         </div>
         {ux.camera !== "overview" && (
           <MiniMap
-            run={run}
+            plan={plan}
             walker={ux.camera === "follow" && follow ? { ...walker, x: follow.x, y: follow.y, levelId: follow.levelId } : walker}
           />
         )}
@@ -329,168 +372,6 @@ function FrameRate({ onMeasure }: { onMeasure: (n: number) => void }) {
     }
   });
   return null;
-}
-function CameraController({
-  run,
-  time,
-  walker,
-  setWalker,
-  mode,
-  followId,
-  floor,
-  peel,
-}: {
-  run: SimRun;
-  time: React.MutableRefObject<number>;
-  walker: Walker;
-  setWalker: (p: Walker) => void;
-  mode: string;
-  followId: string | null;
-  floor: string;
-  peel: number;
-}) {
-  const { camera, gl } = useThree(),
-    pos = useRef(walker),
-    keys = useRef(new Set<string>()),
-    drag = useRef(false),
-    lastConnector = useRef(""),
-    eyeHeight = useRef((run.plan.levels.find((l) => l.id === walker.levelId)?.elevation ?? 0) + 1.6);
-  useEffect(() => {
-    pos.current = walker;
-  }, [walker]);
-  useEffect(() => {
-    if (mode !== "overview") return;
-    const p = run.plan;
-    camera.position.set(
-      p.bounds.width,
-      Math.max(p.bounds.width, p.bounds.height) + (p.levels.find((l) => l.id === floor)?.elevation ?? 0) + peel * p.levels.length,
-      p.bounds.height * 1.5,
-    );
-  }, [mode, floor, peel, run]);
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest("input,select,textarea,[contenteditable=true]") || mode !== "walk") return;
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) {
-        keys.current.add(e.key.toLowerCase());
-        e.preventDefault();
-      }
-    };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    const blur = () => {
-      keys.current.clear();
-      drag.current = false;
-    };
-    const press = () => {
-      gl.domElement.focus({ preventScroll: true });
-      drag.current = true;
-    };
-    const release = () => {
-      drag.current = false;
-    };
-    const move = (e: PointerEvent) => {
-      if (!drag.current || mode !== "walk") return;
-      pos.current.yaw -= e.movementX * 0.004;
-      pos.current.pitch = THREE.MathUtils.clamp(pos.current.pitch - e.movementY * 0.004, -1.3, 1.3);
-    };
-    gl.domElement.tabIndex = 0;
-    gl.domElement.setAttribute("aria-label", "3D building. In Walk mode use WASD or arrow keys; drag to look.");
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", blur);
-    gl.domElement.addEventListener("pointerdown", press);
-    window.addEventListener("pointerup", release);
-    gl.domElement.addEventListener("pointermove", move);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", blur);
-      gl.domElement.removeEventListener("pointerdown", press);
-      window.removeEventListener("pointerup", release);
-      gl.domElement.removeEventListener("pointermove", move);
-      keys.current.clear();
-    };
-  }, [mode, gl]);
-  const lastPublish = useRef(0),
-    v = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ clock }, dt) => {
-    if (mode === "overview") return;
-    if (mode === "follow") {
-      const tr = run.result.tracks.find((t) => t.personId === followId),
-        p = tr ? figureAt(run, tr, time.current) : null;
-      if (!p) return;
-      const behind = walkMove(
-        run.plan,
-        { x: p.x, y: p.y, levelId: p.levelId, yaw: p.yaw, pitch: 0 },
-        -Math.sin(p.yaw) * 2.8,
-        -Math.cos(p.yaw) * 2.8,
-      );
-      const target = v.set(behind.x, p.elevation + 1.8, behind.y);
-      camera.position.lerp(target, 1 - Math.exp(-dt * 7));
-      camera.lookAt(p.x, p.elevation + 1.1, p.y);
-      return;
-    }
-    const k = keys.current,
-      forward = Number(k.has("w") || k.has("arrowup")) - Number(k.has("s") || k.has("arrowdown")),
-      side = Number(k.has("d") || k.has("arrowright")) - Number(k.has("a") || k.has("arrowleft")),
-      n = Math.max(1, Math.hypot(forward, side)),
-      p = pos.current,
-      d = (2.1 * Math.min(dt, 0.08)) / n;
-    pos.current = walkMove(
-      run.plan,
-      p,
-      (-Math.sin(p.yaw) * forward + Math.cos(p.yaw) * side) * d,
-      (-Math.cos(p.yaw) * forward - Math.sin(p.yaw) * side) * d,
-    );
-    const c = connectorHere(run.plan, pos.current, p.levelId);
-    if (!c) lastConnector.current = "";
-    if (c && c.kind !== "lift" && lastConnector.current !== c.id && Math.hypot(pos.current.x - p.x, pos.current.y - p.y) > 0.001) {
-      const xs = c.polygon.map((p) => p.x),
-        ys = c.polygon.map((p) => p.y);
-      const alongX = Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys);
-      const delta = alongX ? pos.current.x - p.x : pos.current.y - p.y;
-      const to = connectorDestination(run.plan, c, p.levelId, delta >= 0 ? "up" : "down");
-      if (to) {
-        pos.current = { ...pos.current, levelId: to };
-        lastConnector.current = c.id;
-      }
-    }
-    const targetEye = (run.plan.levels.find((l) => l.id === pos.current.levelId)?.elevation ?? 0) + 1.6;
-    eyeHeight.current += THREE.MathUtils.clamp(targetEye - eyeHeight.current, -1.5 * dt, 1.5 * dt);
-    camera.position.set(pos.current.x, eyeHeight.current, pos.current.y);
-    camera.rotation.order = "YXZ";
-    camera.rotation.set(pos.current.pitch, pos.current.yaw, 0);
-    if (clock.elapsedTime - lastPublish.current > 0.1) {
-      lastPublish.current = clock.elapsedTime;
-      setWalker({ ...pos.current });
-    }
-  });
-  return null;
-}
-function MiniMap({ run, walker }: { run: SimRun; walker: Walker }) {
-  return (
-    <div className="walk-minimap">
-      <svg viewBox={`-1 -1 ${run.plan.bounds.width + 2} ${run.plan.bounds.height + 2}`} aria-label="You are here mini-map">
-        {run.plan.spaces
-          .filter((s) => s.levelId === walker.levelId)
-          .map((s) => (
-            <polygon
-              key={s.id}
-              points={s.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill="#cbdcd7"
-              stroke="#718d87"
-              strokeWidth=".08"
-            />
-          ))}
-        {run.plan.walls
-          .filter((w) => w.levelId === walker.levelId)
-          .map((w) => (
-            <line key={w.id} x1={w.a.x} y1={w.a.y} x2={w.b.x} y2={w.b.y} stroke="#42615a" strokeWidth=".12" />
-          ))}
-        <circle cx={walker.x} cy={walker.y} r=".5" fill="#ef604d" />
-      </svg>
-      <small>You are here · {run.plan.levels.find((l) => l.id === walker.levelId)?.name}</small>
-    </div>
-  );
 }
 function Heat({ run, levels, peel, mode }: { run: SimRun; levels: string[]; peel: number; mode: HeatMode }) {
   const mesh = useRef<THREE.InstancedMesh>(null);

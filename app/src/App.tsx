@@ -22,7 +22,7 @@ import { Inspector } from "./ui/Inspector.tsx";
 import { Problems } from "./ui/Problems.tsx";
 import { TOOLS, Toolbar } from "./ui/Toolbar.tsx";
 import { TopBar } from "./ui/TopBar.tsx";
-import { View3D } from "./view3d/View3D.tsx";
+import { BuildingWorkspace } from "./view3d/BuildingWorkspace.tsx";
 
 export function App() {
   const view = useEditor((s) => s.view);
@@ -52,7 +52,7 @@ export function App() {
         return;
       }
       if (mod || e.altKey) return;
-      if (useExperience.getState().step !== 1 || useExperience.getState().home) return;
+      if (useExperience.getState().step !== 1 || useExperience.getState().home || s.view === "3d") return;
       const t = TOOLS.find((x) => x.key === e.key.toUpperCase());
       if (t) {
         s.setView("2d");
@@ -82,8 +82,8 @@ export function App() {
               ) : (
                 <Playback run={run} />
               )
-            ) : view === "3d" ? (
-              <View3D />
+            ) : ux.step === 1 ? (
+              <BuildingWorkspace />
             ) : (
               <Canvas2D />
             )}

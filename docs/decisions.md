@@ -1,5 +1,9 @@
 # Decision log
 
+## 2026-11-05 — 3D before simulation and a shared solar clock
+
+Building previews need no simulation or people: 2D, Overview and Walk use shared building geometry and wall/connector controls. Date, sky and site edits use the existing undoable plan/profile operations; the preview time changes only the view. Choosing 3D carries that view into Step 3. Solar lighting imports the engine’s existing sun-position and cloud functions without changing engine code. Simulation lighting uses the run’s saved plan/date/weather and absolute playback time; figure walk cycles use that same clock, including pause. A sized orthographic shadow camera covers neighbouring buildings, and an extended ground receives their long shadows. Outdoor walking includes the saved context extent and blocks neighbour footprints. Cutaway/peeled views are illustrative geometry, not recalculated comfort results. Full-height views are appropriate for comparing the building’s intact shadows.
+
 ## 2026-11-04 — attached toolbar flyouts
 
 The drawing tools use a compact icon rail. Furniture and floor connections open attached choice flyouts; choosing an item closes the flyout and keeps that tool active for placement. Group icons remember the selected subtype. Flyouts render in a portal so the scrolling toolbar cannot clip them, and support outside-click/Escape dismissal and arrow-key navigation.

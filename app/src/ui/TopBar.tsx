@@ -141,8 +141,24 @@ export function TopBar() {
     { label: "Redo", shortcut: "⇧⌘Z", disabled: !canRedo, onSelect: redo },
   ];
   const viewItems: MenuItem[] = [
-    { label: "Plan", checked: view === "2d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("2d") },
-    { label: "Building in 3D", checked: view === "3d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("3d") },
+    {
+      label: "Plan",
+      checked: view === "2d",
+      disabled: ux.home || ux.step !== 1,
+      onSelect: () => {
+        setView("2d");
+        ux.setPresentation("2d");
+      },
+    },
+    {
+      label: "Building in 3D",
+      checked: view === "3d",
+      disabled: ux.home || ux.step !== 1,
+      onSelect: () => {
+        setView("3d");
+        ux.setPresentation("3d");
+      },
+    },
     "separator",
     { label: "Simple panels", checked: !ux.detailed, onSelect: () => ux.setDetailed(false) },
     { label: "Detailed panels", checked: ux.detailed, onSelect: () => ux.setDetailed(true) },
