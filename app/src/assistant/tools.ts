@@ -481,28 +481,13 @@ function nullableAsAnyOf(schema: unknown): unknown {
 }
 
 /**
- * Strict mode guarantees well-formed input, but the API allows at most 20 strict tools and at most
- * 16 "this or null" fields across them. These keep it: the geometry tools, where a malformed point
- * list would be costly, plus cheap tools with few or no such fields. Every other tool checks its
- * own input when it runs, and `runTool` turns anything that still slips through into an error the
- * model can correct.
+ * Strict mode would guarantee well-formed input, but the API compiles strict schemas into a
+ * grammar and refuses ours as too large, beyond its published limits (20 strict tools, 16
+ * "this or null" fields, 24 optional fields). So no tool is strict: each checks its own input when
+ * it runs, and `runTool` turns anything malformed into an error the model can correct. To try
+ * strict mode again on a few small tools, list them here; the tests keep them within the limits.
  */
-export const STRICT_TOOLS = new Set([
-  "add_wall",
-  "add_room",
-  "add_opening",
-  "update_opening",
-  "add_connector",
-  "add_furniture",
-  "add_neighbour",
-  "add_road",
-  "add_floor",
-  "remove",
-  "set_safety_flag",
-  "set_evacuation",
-  "set_hours",
-  "set_crowding",
-]);
+export const STRICT_TOOLS = new Set<string>();
 export const MAX_STRICT_TOOLS = 20;
 export const MAX_STRICT_UNIONS = 16;
 
