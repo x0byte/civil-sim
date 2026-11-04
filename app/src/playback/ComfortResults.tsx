@@ -1,3 +1,4 @@
+import { DetailSections } from "../experience/common.tsx";
 import { soundWord, lightWord } from "../experience/wording.ts";
 import type { DiscomfortCause, Track } from "../../../contracts/results.ts";
 import { deskLabel } from "../model/deskLabel.ts";
@@ -28,9 +29,11 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
   const names = new Map(run.scenario.profiles?.list.map((p) => [p.id, p.name]));
   const kind = (id: string) => names.get(id) ?? "Average person";
   const order = new Map(run.plan.spaces.map((s, i) => [s.id, i]));
-  const rooms = [...c.bySpace].sort((a, b) => b.discomfortMinutes - a.discomfortMinutes || (order.get(a.spaceId) ?? 0) - (order.get(b.spaceId) ?? 0));
+  const rooms = [...c.bySpace].sort(
+    (a, b) => b.discomfortMinutes - a.discomfortMinutes || (order.get(a.spaceId) ?? 0) - (order.get(b.spaceId) ?? 0),
+  );
   return (
-    <>
+    <DetailSections>
       <section className="panel">
         <header>
           <div>
@@ -190,7 +193,7 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
           </div>
         </section>
       )}
-    </>
+    </DetailSections>
   );
 }
 

@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
 import { Home } from "./experience/Home.tsx";
 import { AssistantWindow } from "./assistant/AssistantWindow.tsx";
-import { useExperience } from "./experience/state.ts";
+import { isCurrentRun, useExperience } from "./experience/state.ts";
 import { FineTune } from "./experience/common.tsx";
 import { Story } from "./experience/Story.tsx";
 import { Experience3D } from "./experience/Experience3D.tsx";
@@ -28,6 +28,8 @@ export function App() {
   const view = useEditor((s) => s.view);
   const toast = useEditor((s) => s.toast);
   const run = useEditor((s) => s.run);
+  const plan = useEditor((s) => s.plan),
+    profile = useEditor((s) => s.profiles[s.plan.id]);
   const comparison = useEditor((s) => s.comparison);
   const cmp = view === "compare" && comparison;
   const ux = useExperience();
@@ -103,10 +105,8 @@ export function App() {
               </>
             ) : ux.step === 2 ? (
               <>
-                <SimplePeople />
-                <FineTune>
-                  <PeoplePanel />
-                </FineTune>
+                {!ux.detailed && <SimplePeople />}
+                <PeoplePanel />
               </>
             ) : (
               <>
@@ -115,6 +115,9 @@ export function App() {
                   <CompareResults comparison={cmp} />
                 ) : run ? (
                   <>
+                    {!isCurrentRun(plan, run, profile) && (
+                      <p className="stale-banner">The building or people have changed. Run the day again to update these results.</p>
+                    )}
                     <Story run={run} />
                     <details className="more-detail">
                       <summary>More detail</summary>

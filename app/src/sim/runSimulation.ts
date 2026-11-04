@@ -8,6 +8,8 @@ import { recastScenario } from "./comparison.ts";
 
 export interface SimRun {
   plan: FloorPlan;
+  /** People settings used for this run, so changing them marks results as old. */
+  profile?: OfficeProfile;
   scenario: Scenario;
   result: SimulationResult;
   runMs: number;
@@ -22,7 +24,11 @@ export interface SimRun {
 type Outcome = { run: SimRun } | { errors: string[] };
 
 /** Runs one workday of `scenario` in `plan` with the simulation engine (engine/). */
-function runWith(plan: FloorPlan, scenario: Scenario, extra: Partial<Pick<SimRun, "notes" | "meetingDemand" | "collaborations">> = {}): Outcome {
+function runWith(
+  plan: FloorPlan,
+  scenario: Scenario,
+  extra: Partial<Pick<SimRun, "notes" | "meetingDemand" | "collaborations">> = {},
+): Outcome {
   const errors = [...validateFloorPlan(plan), ...validateScenario(scenario, plan)];
   if (!scenario.people.length) errors.push("There are no desks inside rooms, so there is nobody to simulate.");
   if (errors.length) return { errors };
@@ -50,8 +56,11 @@ function runWith(plan: FloorPlan, scenario: Scenario, extra: Partial<Pick<SimRun
 export function runSimulation(plan: FloorPlan, profile?: OfficeProfile, evacuation?: Scenario["evacuation"]): Outcome {
   const p = profile ?? defaultProfile(plan);
   const x = expandProfile(p, plan);
-  if(evacuation)x.scenario.evacuation=evacuation;else delete x.scenario.evacuation;
-  return runWith(plan, x.scenario, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
+  if (evacuation) x.scenario.evacuation = evacuation;
+  else delete x.scenario.evacuation;
+  const out = runWith(plan, x.scenario, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
+  if ("run" in out) out.run.profile = p;
+  return out;
 }
 
 export interface Comparison {
@@ -71,11 +80,16 @@ export function runComparison(
   const p = profileA ?? defaultProfile(a);
   const x = expandProfile(p, a);
   const base = x.scenario;
-  if(evacuation)base.evacuation=evacuation;else delete base.evacuation;
+  if (evacuation) base.evacuation = evacuation;
+  else delete base.evacuation;
   const ra = runWith(a, base, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
   if ("errors" in ra) return { errors: ra.errors.map((e) => `${labels[0]}: ${e}`) };
   const recast = recastScenario(base, b);
-  if(recast.scenario.evacuation)recast.scenario.evacuation={...recast.scenario.evacuation,blockedExitIds:recast.scenario.evacuation.blockedExitIds?.filter(id=>b.openings.some(o=>o.id===id&&o.exterior))};
+  if (recast.scenario.evacuation)
+    recast.scenario.evacuation = {
+      ...recast.scenario.evacuation,
+      blockedExitIds: recast.scenario.evacuation.blockedExitIds?.filter((id) => b.openings.some((o) => o.id === id && o.exterior)),
+    };
   const rb = runWith(b, recast.scenario, { notes: recast.notes, collaborations: p.collaborations });
   if ("errors" in rb) return { errors: rb.errors.map((e) => `${labels[1]}: ${e}`) };
   return { comparison: { a: ra.run, b: rb.run, labels } };

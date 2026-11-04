@@ -61,9 +61,10 @@ export function safeWalker(plan: FloorPlan, levelId: string, at: Vec2 = { x: pla
 export function connectorHere(plan: FloorPlan, p: Vec2, levelId: string): Connector | undefined {
   return plan.connectors.find((c) => c.levelIds.includes(levelId) && pointInPolygon(p, c.polygon));
 }
-export function connectorDestination(plan: FloorPlan, c: Connector, from: string): string | undefined {
+export function connectorDestination(plan: FloorPlan, c: Connector, from: string, travel?: "up" | "down"): string | undefined {
   const levels = plan.levels.filter((l) => c.levelIds.includes(l.id)),
     i = levels.findIndex((l) => l.id === from);
   if (c.kind === "escalator") return c.direction === "down" ? levels[i - 1]?.id : levels[i + 1]?.id;
+  if (travel) return levels[i + (travel === "up" ? 1 : -1)]?.id;
   return levels[i + 1]?.id ?? levels[i - 1]?.id;
 }

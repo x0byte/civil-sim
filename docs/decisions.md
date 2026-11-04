@@ -1,6 +1,13 @@
 # Decision log
 
 
+## 2026-11-04 — friendly flow and walk-through
+
+Continue on Claude’s Volt shell. Keep UX/view state separate from the plan and contracts. Result traffic lights share the initial, uncalibrated cutoffs in `app/src/experience/Story.tsx`; affected-person totals are explicitly a lower bound. Ranked actions carry existing result references plus place/time targets, and prepare assistant proposals without applying them. Capture the people settings with each app run so changing settings makes completion/results stale; evacuation saves the same settings snapshot it runs. Refuge rescue actions remain distinct from stranded-person warnings.
+
+Figures are instanced display geometry following the existing tracks, with kinds inferred from the built-in profile names (custom unmatched names use adult figures). Walking sweeps a 22 cm camera radius in at most 8 cm increments: only doors open wall gaps, windows block movement. Connector footprints trigger floor changes and the camera rises smoothly; lifts require a click. The development-only 850-figure stress drawing never changes simulation data. Five-second browser frame measurements and the usability screenshots are in `docs/ux-walkthrough-report.md`. Clamp animation-clock deltas to zero to avoid a negative first frame briefly showing the previous minute.
+
+
 ## 2026-11-04 — v0.9 evacuation and accessibility
 
 An evacuation keeps the ordinary seeded day's exact tracks until the alarm, then truncates future arrivals/events and schedules the people present through the existing density, door-flow and lift machinery. Reaction time has a separate per-person stream (default clipped normal mean 60, sd 25, min 30, max 120 s). People already between floors reach their next served landing. Multi-stop lifts use travel progress at 1.5 m/s to choose that floor. Stopped escalators use stair travel time in either direction and retain their v0.6 throughput; ordinary lifts accept no new evacuation calls. Evacuation lifts start their evacuation dispatch at the lowest served floor. Staff/familiarity ≥0.7 choose minimum estimated travel plus current exit queue; others keep their arrival entrance unless blocked or over 60 s slower. This is an initial exit choice after reacting, not continuous fire/smoke replanning.

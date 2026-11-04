@@ -7,10 +7,11 @@ import { Thinking } from "./AssistantWindow.tsx";
 /** Talk to the Volt Assistant. Its edits come back as a proposal to apply or discard. */
 export function AssistantPanel({ suggestions }: { suggestions?: ReactNode }) {
   const key = useAssistant((s) => s.key);
-  return key ? <Chat suggestions={suggestions} /> : <KeyForm />;
+  return key ? <Chat suggestions={suggestions} /> : <KeyForm suggestions={suggestions} />;
 }
 
-function KeyForm() {
+function KeyForm({ suggestions }: { suggestions?: ReactNode }) {
+  const prompt = useExperience((s) => s.prompt);
   const [value, setValue] = useState("");
   const [remember, setRemember] = useState(false);
   const ok = value.trim().startsWith("sk-ant-");
@@ -19,11 +20,22 @@ function KeyForm() {
       <div className="assistant-hello">
         <VoltMark size={28} />
         <h2>Describe a change, Volt does the rest</h2>
-        <p className="muted">Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.</p>
+        <p className="muted">
+          Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.
+        </p>
       </div>
+      {suggestions}
+      {prompt && <p className="prepared-prompt">Your next question: {prompt}</p>}
       <label className="field stacked">
         <span>Anthropic API key</span>
-        <input type="password" autoComplete="off" spellCheck={false} placeholder="sk-ant-…" value={value} onChange={(e) => setValue(e.target.value)} />
+        <input
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="sk-ant-…"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
       </label>
       <label className="check">
         <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -133,7 +145,16 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
           }}
         />
         <button className="send" onClick={submit} disabled={busy || !text.trim()} title="Send (Enter)">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
           </svg>
         </button>

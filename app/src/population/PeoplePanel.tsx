@@ -1,3 +1,4 @@
+import { AdvancedSections } from "../experience/common.tsx";
 import { useMemo } from "react";
 import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "../ui/fields.tsx";
@@ -71,7 +72,7 @@ export function PeoplePanel() {
   };
 
   return (
-    <>
+    <AdvancedSections>
       <section className="panel">
         <header>
           <div>
@@ -118,7 +119,11 @@ export function PeoplePanel() {
             </span>
           </label>
           <div className="row2">
-            <TimeField label="Day starts" value={profile.workday.start} onChange={(start) => upd({ workday: { ...profile.workday, start } })} />
+            <TimeField
+              label="Day starts"
+              value={profile.workday.start}
+              onChange={(start) => upd({ workday: { ...profile.workday, start } })}
+            />
             <TimeField label="Day ends" value={profile.workday.end} onChange={(end) => upd({ workday: { ...profile.workday, end } })} />
           </div>
           {x.notes.length > 0 && (
@@ -134,9 +139,10 @@ export function PeoplePanel() {
       </section>
 
       {(hasShops(plan) || profile.shoppers?.enabled) && (
-        <ShoppersSection profile={profile} setProfile={setProfile} expected={expectedShoppers(x.scenario.shoppers)} />
+        <ShoppersSection data-title="Shoppers" profile={profile} setProfile={setProfile} expected={expectedShoppers(x.scenario.shoppers)} />
       )}
       <KindsSection
+        data-title="Kinds and individual traits"
         profile={profile}
         setProfile={setProfile}
         groups={[
@@ -145,8 +151,8 @@ export function PeoplePanel() {
           ...(x.scenario.visitors?.length ? (["visitors"] as const) : []),
         ]}
       />
-      <ComfortSection profile={profile} setProfile={setProfile} />
-      <CrowdingSection profile={profile} setProfile={setProfile} />
+      <ComfortSection data-title="Sound and light" profile={profile} setProfile={setProfile} />
+      <CrowdingSection data-title="Crowding" profile={profile} setProfile={setProfile} />
       <section className="panel">
         <header>
           <div>
@@ -234,7 +240,7 @@ export function PeoplePanel() {
         </div>
       </section>
 
-      <WorksWith profile={profile} setProfile={setProfile} />
+      <WorksWith data-title="Teams working together" profile={profile} setProfile={setProfile} />
 
       <section className="panel">
         <header>
@@ -275,9 +281,9 @@ export function PeoplePanel() {
         </div>
       </section>
 
-      <LunchSection profile={profile} setProfile={setProfile} />
-      <VisitorsSection profile={profile} setProfile={setProfile} booked={x.scenario.visitors?.length ?? 0} />
-    </>
+      <LunchSection data-title="Lunch" profile={profile} setProfile={setProfile} />
+      <VisitorsSection data-title="Visitors" profile={profile} setProfile={setProfile} booked={x.scenario.visitors?.length ?? 0} />
+    </AdvancedSections>
   );
 }
 
@@ -292,13 +298,18 @@ function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile
           <h2>Who works with whom</h2>
           <span className="muted">Joint meetings between departments</span>
         </div>
-        <button disabled={depts.length < 2} onClick={() => set([...profile.collaborations, { a: depts[0].id, b: depts[1].id, meetingsPerDay: 1 }])}>
+        <button
+          disabled={depts.length < 2}
+          onClick={() => set([...profile.collaborations, { a: depts[0].id, b: depts[1].id, meetingsPerDay: 1 }])}
+        >
           + Add
         </button>
       </header>
       <div className="panel-body">
         {!profile.collaborations.length && (
-          <p className="muted">{depts.length < 2 ? "Add a second department first." : "None yet. Add pairs of departments that meet regularly."}</p>
+          <p className="muted">
+            {depts.length < 2 ? "Add a second department first." : "None yet. Add pairs of departments that meet regularly."}
+          </p>
         )}
         {profile.collaborations.map((c, i) => {
           const upd = (patch: Partial<typeof c>) => set(profile.collaborations.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -381,7 +392,15 @@ function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProf
   );
 }
 
-function ShoppersSection({ profile, setProfile, expected }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void; expected: number }) {
+function ShoppersSection({
+  profile,
+  setProfile,
+  expected,
+}: {
+  profile: OfficeProfile;
+  setProfile: (p: OfficeProfile) => void;
+  expected: number;
+}) {
   const sh = profile.shoppers ?? { ...DEFAULT_SHOPPERS, enabled: false };
   const upd = (patch: Partial<typeof sh>) => setProfile({ ...profile, shoppers: { ...sh, ...patch } });
   const days = Object.entries(SHOPPER_DAYS).map(([value, d]) => ({ value, label: d.label }));
@@ -416,7 +435,14 @@ function ShoppersSection({ profile, setProfile, expected }: { profile: OfficePro
           <label className="field">
             <span>Crowd size</span>
             <span className="input-unit">
-              <input type="range" min={0.25} max={3.5} step={0.25} value={sh.crowd} onChange={(e) => upd({ crowd: Number(e.target.value) })} />
+              <input
+                type="range"
+                min={0.25}
+                max={3.5}
+                step={0.25}
+                value={sh.crowd}
+                onChange={(e) => upd({ crowd: Number(e.target.value) })}
+              />
               <strong className="pct">{Math.round(sh.crowd * 100)}%</strong>
             </span>
           </label>
@@ -459,8 +485,8 @@ function ShoppersSection({ profile, setProfile, expected }: { profile: OfficePro
             onCommit={(toiletVisitsPerHour) => upd({ toiletVisitsPerHour })}
           />
           <p className="muted">
-            Shops pull shoppers by their "Shop pull" (set on each shop) against how far they have to walk. These are assumptions until checked against
-            real door counts.
+            Shops pull shoppers by their "Shop pull" (set on each shop) against how far they have to walk. These are assumptions until
+            checked against real door counts.
           </p>
         </div>
       )}
@@ -468,7 +494,15 @@ function ShoppersSection({ profile, setProfile, expected }: { profile: OfficePro
   );
 }
 
-function VisitorsSection({ profile, setProfile, booked }: { profile: OfficeProfile; setProfile: (p: OfficeProfile) => void; booked: number }) {
+function VisitorsSection({
+  profile,
+  setProfile,
+  booked,
+}: {
+  profile: OfficeProfile;
+  setProfile: (p: OfficeProfile) => void;
+  booked: number;
+}) {
   const v = profile.visitors ?? { ...DEFAULT_VISITORS, perDay: 0 };
   const upd = (patch: Partial<typeof v>) => setProfile({ ...profile, visitors: { ...v, ...patch } });
   return (
@@ -480,7 +514,15 @@ function VisitorsSection({ profile, setProfile, booked }: { profile: OfficeProfi
         </div>
       </header>
       <div className="panel-body">
-        <NumField estimated label="Visitors" unit="/ day" step={1} min={0} value={v.perDay} onCommit={(n) => upd({ perDay: Math.round(n) })} />
+        <NumField
+          estimated
+          label="Visitors"
+          unit="/ day"
+          step={1}
+          min={0}
+          value={v.perDay}
+          onCommit={(n) => upd({ perDay: Math.round(n) })}
+        />
         <NumField
           estimated
           label="Wait at reception"

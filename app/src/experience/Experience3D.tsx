@@ -47,7 +47,7 @@ export function Experience3D({ run }: { run: SimRun }) {
   }, [ux.focus?.key, run]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest("input,textarea,select,button")) return;
+      if ((e.target as HTMLElement)?.closest("input,textarea,select,[contenteditable=true]")) return;
       const mode = ({ "1": "overview", "2": "walk", "3": "follow" } as const)[e.key as "1" | "2" | "3"];
       if (mode) {
         e.preventDefault();
@@ -120,6 +120,13 @@ export function Experience3D({ run }: { run: SimRun }) {
       </p>
       <div className="walk-canvas">
         <Canvas
+          fallback={
+            <div className="panel-body">
+              <h2>3D isn’t available in this browser.</h2>
+              <p>You can still explore the whole day in 2D.</p>
+              <button onClick={() => ux.setPresentation("2d")}>Open 2D analysis</button>
+            </div>
+          }
           dpr={[1, 1.5]}
           camera={{
             position: [plan.bounds.width, Math.max(plan.bounds.width, plan.bounds.height), plan.bounds.height * 1.5],
@@ -139,7 +146,15 @@ export function Experience3D({ run }: { run: SimRun }) {
             cutHeight={ux.camera === "overview" ? 1.2 : null}
             labels={ux.camera === "overview"}
           />
-          <Figures run={run} time={time} levels={levels} peel={peel} onPick={(id) => ux.follow(id)} stress={stress ? 850 : 0} onCount={setCount} />
+          <Figures
+            run={run}
+            time={time}
+            levels={levels}
+            peel={peel}
+            onPick={(id) => ux.follow(id)}
+            stress={stress ? 850 : 0}
+            onCount={setCount}
+          />
           <Heat run={run} levels={levels} peel={peel} mode={heat} />
           {ux.focus?.levelId && levels.includes(ux.focus.levelId) && (
             <mesh
@@ -194,7 +209,7 @@ export function Experience3D({ run }: { run: SimRun }) {
               makeDefault
             />
           )}
-          <FrameRate onMeasure={setFps} />
+          <FrameRate key={`${ux.camera}:${stress}`} onMeasure={setFps} />
         </Canvas>
         <div className="walk-status">
           <strong>
@@ -209,7 +224,10 @@ export function Experience3D({ run }: { run: SimRun }) {
           </span>
         </div>
         {ux.camera !== "overview" && (
-          <MiniMap run={run} walker={ux.camera === "follow" && follow ? { ...walker, x: follow.x, y: follow.y, levelId: follow.levelId } : walker} />
+          <MiniMap
+            run={run}
+            walker={ux.camera === "follow" && follow ? { ...walker, x: follow.x, y: follow.y, levelId: follow.levelId } : walker}
+          />
         )}
         {ux.focus && (
           <div className="focus-label">
@@ -248,14 +266,19 @@ export function Experience3D({ run }: { run: SimRun }) {
                 tr?.points.reduce((n, a, i, ps) => {
                   const b = ps[i + 1];
                   return (
-                    n + (b && a.activity === "in_lift" && a.levelId === b.levelId && a.t < clock.t ? Math.max(0, Math.min(clock.t, b.t) - a.t) : 0)
+                    n +
+                    (b && a.activity === "in_lift" && a.levelId === b.levelId && a.t < clock.t
+                      ? Math.max(0, Math.min(clock.t, b.t) - a.t)
+                      : 0)
                   );
                 }, 0) ?? 0,
               )}{" "}
               s waiting for lifts so far
             </p>
             <strong>
-              {follow ? (ACTIVITY_STYLE[follow.activity as keyof typeof ACTIVITY_STYLE]?.label ?? "Away") : "Not in the building at this time"}
+              {follow
+                ? (ACTIVITY_STYLE[follow.activity as keyof typeof ACTIVITY_STYLE]?.label ?? "Away")
+                : "Not in the building at this time"}
             </strong>
             <button onClick={() => ux.setCamera("overview")}>Stop following</button>
           </div>
@@ -265,7 +288,10 @@ export function Experience3D({ run }: { run: SimRun }) {
       {ux.camera === "follow" && tr && (
         <div className="follow-detail">
           <PersonDay
-            track={{ ...tr, discomfort: tr.discomfort?.filter((d) => d.from < clock.t).map((d) => ({ ...d, to: Math.min(d.to, clock.t) })) }}
+            track={{
+              ...tr,
+              discomfort: tr.discomfort?.filter((d) => d.from < clock.t).map((d) => ({ ...d, to: Math.min(d.to, clock.t) })),
+            }}
             durationS={run.result.durationS}
             start={run.scenario.workday.start}
             name={selectedProfile?.name ?? "Person you are following"}
@@ -277,9 +303,13 @@ export function Experience3D({ run }: { run: SimRun }) {
         <details className="performance-tools">
           <summary>Performance check</summary>
           <label>
-            <input type="checkbox" checked={stress} onChange={(e) => setStress(e.target.checked)} /> Draw 850 figures for a display-only stress check
+            <input type="checkbox" checked={stress} onChange={(e) => setStress(e.target.checked)} /> Draw 850 figures for a display-only
+            stress check
           </label>
-          <p>This changes only the drawing. Simulation results and tracks stay the same. Frame rate is a rolling five-second browser measurement.</p>
+          <p>
+            This changes only the drawing. Simulation results and tracks stay the same. Frame rate is a rolling five-second browser
+            measurement.
+          </p>
         </details>
       )}
     </div>
@@ -287,6 +317,7 @@ export function Experience3D({ run }: { run: SimRun }) {
 }
 function FrameRate({ onMeasure }: { onMeasure: (n: number) => void }) {
   const stats = useRef({ start: performance.now(), frames: 0 });
+  useEffect(() => onMeasure(0), [onMeasure]);
   useFrame(() => {
     const s = stats.current;
     s.frames++;
@@ -322,7 +353,8 @@ function CameraController({
     pos = useRef(walker),
     keys = useRef(new Set<string>()),
     drag = useRef(false),
-    lastConnector = useRef("");
+    lastConnector = useRef(""),
+    eyeHeight = useRef((run.plan.levels.find((l) => l.id === walker.levelId)?.elevation ?? 0) + 1.6);
   useEffect(() => {
     pos.current = walker;
   }, [walker]);
@@ -337,7 +369,7 @@ function CameraController({
   }, [mode, floor, peel, run]);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest("input,select,textarea,button") || mode !== "walk") return;
+      if ((e.target as HTMLElement)?.closest("input,select,textarea,[contenteditable=true]") || mode !== "walk") return;
       if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) {
         keys.current.add(e.key.toLowerCase());
         e.preventDefault();
@@ -349,6 +381,7 @@ function CameraController({
       drag.current = false;
     };
     const press = () => {
+      gl.domElement.focus({ preventScroll: true });
       drag.current = true;
     };
     const release = () => {
@@ -359,6 +392,8 @@ function CameraController({
       pos.current.yaw -= e.movementX * 0.004;
       pos.current.pitch = THREE.MathUtils.clamp(pos.current.pitch - e.movementY * 0.004, -1.3, 1.3);
     };
+    gl.domElement.tabIndex = 0;
+    gl.domElement.setAttribute("aria-label", "3D building. In Walk mode use WASD or arrow keys; drag to look.");
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
@@ -383,7 +418,13 @@ function CameraController({
       const tr = run.result.tracks.find((t) => t.personId === followId),
         p = tr ? figureAt(run, tr, time.current) : null;
       if (!p) return;
-      const target = v.set(p.x - Math.sin(p.yaw) * 2.8, p.elevation + 2.2, p.y - Math.cos(p.yaw) * 2.8);
+      const behind = walkMove(
+        run.plan,
+        { x: p.x, y: p.y, levelId: p.levelId, yaw: p.yaw, pitch: 0 },
+        -Math.sin(p.yaw) * 2.8,
+        -Math.cos(p.yaw) * 2.8,
+      );
+      const target = v.set(behind.x, p.elevation + 1.8, behind.y);
       camera.position.lerp(target, 1 - Math.exp(-dt * 7));
       camera.lookAt(p.x, p.elevation + 1.1, p.y);
       return;
@@ -402,14 +443,20 @@ function CameraController({
     );
     const c = connectorHere(run.plan, pos.current, p.levelId);
     if (!c) lastConnector.current = "";
-    if (c && c.kind !== "lift" && lastConnector.current !== c.id) {
-      const to = connectorDestination(run.plan, c, p.levelId);
+    if (c && c.kind !== "lift" && lastConnector.current !== c.id && Math.hypot(pos.current.x - p.x, pos.current.y - p.y) > 0.001) {
+      const xs = c.polygon.map((p) => p.x),
+        ys = c.polygon.map((p) => p.y);
+      const alongX = Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys);
+      const delta = alongX ? pos.current.x - p.x : pos.current.y - p.y;
+      const to = connectorDestination(run.plan, c, p.levelId, delta >= 0 ? "up" : "down");
       if (to) {
         pos.current = { ...pos.current, levelId: to };
         lastConnector.current = c.id;
       }
     }
-    camera.position.set(pos.current.x, (run.plan.levels.find((l) => l.id === pos.current.levelId)?.elevation ?? 0) + 1.6, pos.current.y);
+    const targetEye = (run.plan.levels.find((l) => l.id === pos.current.levelId)?.elevation ?? 0) + 1.6;
+    eyeHeight.current += THREE.MathUtils.clamp(targetEye - eyeHeight.current, -1.5 * dt, 1.5 * dt);
+    camera.position.set(pos.current.x, eyeHeight.current, pos.current.y);
     camera.rotation.order = "YXZ";
     camera.rotation.set(pos.current.pitch, pos.current.yaw, 0);
     if (clock.elapsedTime - lastPublish.current > 0.1) {
@@ -426,7 +473,13 @@ function MiniMap({ run, walker }: { run: SimRun; walker: Walker }) {
         {run.plan.spaces
           .filter((s) => s.levelId === walker.levelId)
           .map((s) => (
-            <polygon key={s.id} points={s.polygon.map((p) => `${p.x},${p.y}`).join(" ")} fill="#cbdcd7" stroke="#718d87" strokeWidth=".08" />
+            <polygon
+              key={s.id}
+              points={s.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="#cbdcd7"
+              stroke="#718d87"
+              strokeWidth=".08"
+            />
           ))}
         {run.plan.walls
           .filter((w) => w.levelId === walker.levelId)

@@ -4,11 +4,12 @@ import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { PersonProfile } from "../../../contracts/scenario.ts";
 import officeJson from "../../../samples/office-a-evac.floorplan.json";
 import { runSimulation, type SimRun } from "../sim/runSimulation.ts";
+import { defaultProfile } from "../population/officeProfile.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { FineTune } from "./common.tsx";
 import { completedSteps, useExperience } from "./state.ts";
 import { STORY_LIMITS, storyScores, topFixes, Story } from "./Story.tsx";
-import { figureAt, figureKind, figurePose } from "./figures.ts";
+import { figureAt, figureKind, figurePose, figureShape } from "./figures.ts";
 import { canStand, walkMove, connectorDestination, safeWalker } from "./walk.ts";
 const plan = officeJson as FloorPlan;
 const output = runSimulation(plan);
@@ -23,6 +24,7 @@ describe("friendly flow", () => {
     expect(completedSteps(plan, true, null)).toEqual([true, true, false]);
     expect(completedSteps(plan, false, base)).toEqual([true, true, true]);
     expect(completedSteps({ ...plan, name: "Changed" }, false, base)).toEqual([true, false, false]);
+    expect(completedSteps(plan, true, base, { ...defaultProfile(plan), attendance: 0.5 })).toEqual([true, true, false]);
   });
   it("hides advanced fields in a closed Fine-tune disclosure, detailed exposes them", () => {
     const simple = renderToStaticMarkup(
@@ -71,6 +73,29 @@ describe("result story", () => {
     expect(storyScores(r).map((s) => s.name)).toEqual(["Getting around", "Comfort", "Access for everyone", "Safety"]);
     expect(storyScores(r)[3].signal).toBe("unknown");
   });
+  it("keeps refuge rescue separate from stranded people and points to the arrival moment", () => {
+    const r = copy(),
+      room = plan.spaces[0];
+    r.result.events = [{ type: "alarm", t: 1000, personId: "" }];
+    r.result.metrics.evacuation = {
+      outS: 120,
+      refugeS: 150,
+      stranded: 0,
+      byFloor: [],
+      byProfile: [],
+      exits: [],
+      connectors: [],
+      refuges: [{ spaceId: room.id, people: 2, firstS: 100, lastS: 150 }],
+    };
+    r.result.warnings = [{ code: "evacuation", message: "Two people wait at a refuge", refIds: [room.id] }];
+    expect(storyScores(r)[3]).toMatchObject({ signal: "check", sentence: "2 people wait at refuges; plan how help reaches them." });
+    const fix = topFixes(r)[0];
+    expect(fix.text).toContain("Plan assisted rescue for 2 people");
+    expect(fix.target.t).toBe(1150);
+    expect(fix.target.refIds).toContain(room.id);
+    r.result.metrics.evacuation.stranded = 1;
+    expect(storyScores(r)[3].signal).toBe("attention");
+  });
   it("ranks access ahead of crowding, points to actual room peak time, and never exposes ids", () => {
     const r = copy(),
       room = plan.spaces[0];
@@ -95,8 +120,13 @@ describe("figures and walking", () => {
     for (const a of ["walking", "evacuating", "climbing"] as const) expect(figurePose(a)).toBe("walking");
     for (const a of ["at_desk", "in_meeting", "eating"] as const) expect(figurePose(a)).toBe("seated");
     for (const a of ["shopping", "queuing", "in_lift"] as const) expect(figurePose(a)).toBe("standing");
-    for (const kind of ["child", "wheelchair", "pushchair"] as const) expect(figureKind({ id: kind, name: kind } as PersonProfile)).toBe(kind);
+    for (const kind of ["child", "wheelchair", "pushchair"] as const)
+      expect(figureKind({ id: kind, name: kind } as PersonProfile)).toBe(kind);
     expect(figureKind(undefined)).toBe("adult");
+    expect(figureShape("child", "walking").scale).toBeLessThan(figureShape("adult", "walking").scale);
+    expect(figureShape("wheelchair", "walking")).toMatchObject({ seated: true, chair: true });
+    expect(figureShape("pushchair", "walking")).toMatchObject({ pushchair: true, chair: false });
+    expect(figureShape("adult", "seated").seated).toBe(true);
     const tr = base.result.tracks[0],
       point = tr.points.find((p) => p.activity !== "absent")!;
     expect(figureAt(base, tr, point.t)?.id).toBe(tr.personId);
@@ -127,5 +157,9 @@ describe("figures and walking", () => {
     } as const;
     expect(connectorDestination(p, { ...c, levelIds: [...c.levelIds], polygon: [] }, p.levels[0].id)).toBe("upper");
     expect(connectorDestination(p, { ...c, levelIds: [...c.levelIds], polygon: [] }, "upper")).toBeUndefined();
+    p.levels.push({ id: "top", name: "Top floor", elevation: 6 });
+    const stairs = { ...c, kind: "stairs" as const, levelIds: p.levels.map((l) => l.id), polygon: [] };
+    expect(connectorDestination(p, stairs, "upper", "up")).toBe("top");
+    expect(connectorDestination(p, stairs, "upper", "down")).toBe(p.levels[0].id);
   });
 });

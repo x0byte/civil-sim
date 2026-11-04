@@ -27,6 +27,7 @@ export function Home() {
   const ux = useExperience();
   const plan = useEditor((s) => s.plan);
   const [section, setSection] = useState<Section>("home");
+  const [tour, setTour] = useState(0);
 
   const open = (id: string) => {
     useEditor.getState().load(SAMPLE_PLANS.find((s) => s.id === id)!.plan);
@@ -71,6 +72,7 @@ export function Home() {
             <header className="home-header">
               <h1>Welcome to Volt Design</h1>
               <p>Test a layout with the people who will use it, before it's built.</p>
+              <button onClick={() => setTour(1)}>Take the quick tour</button>
             </header>
 
             <h2>Start something new</h2>
@@ -78,7 +80,13 @@ export function Home() {
               <Tile icon={<ImageIcon />} title="Trace a plan image" note="A photo, scan or PDF export" onClick={() => bring("image")} />
               <Tile icon={<FileIcon />} title="Import a drawing" note="AutoCAD DXF" onClick={() => bring("dxf")} />
               <Tile icon={<PenIcon />} title="Draw from scratch" note="Walls, doors and rooms" onClick={() => bring("draw")} />
-              <Tile icon={<VoltMark size={22} />} title="Describe it to Volt" note="The assistant sets it up" onClick={() => bring("describe")} accent />
+              <Tile
+                icon={<VoltMark size={22} />}
+                title="Describe it to Volt"
+                note="The assistant sets it up"
+                onClick={() => bring("describe")}
+                accent
+              />
             </div>
 
             <h2>Continue</h2>
@@ -124,11 +132,16 @@ export function Home() {
             <ol className="home-steps">
               <li>
                 <strong>Building</strong>
-                <span>Trace a plan image, import a drawing, draw one, or describe it to Volt. Rooms, doors, stairs and lifts are all it needs.</span>
+                <span>
+                  Trace a plan image, import a drawing, draw one, or describe it to Volt. Rooms, doors, stairs and lifts are all it needs.
+                </span>
               </li>
               <li>
                 <strong>People</strong>
-                <span>Pick an office or a mall and a kind of day. Volt fills in who comes, including people who need step-free routes or find crowds hard.</span>
+                <span>
+                  Pick an office or a mall and a kind of day. Volt fills in who comes, including people who need step-free routes or find
+                  crowds hard.
+                </span>
               </li>
               <li>
                 <strong>Simulate</strong>
@@ -149,11 +162,55 @@ export function Home() {
           </>
         )}
       </main>
+      {tour > 0 && (
+        <div className="backdrop">
+          <section
+            className="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quick tour"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setTour(0);
+            }}
+          >
+            <p>Step {tour} of 3</p>
+            <h2>{["", "Your building", "Who uses it", "See what happens"][tour]}</h2>
+            <p>
+              {
+                [
+                  "",
+                  "Start from a sample, trace a plan, draw one, or describe your building to Volt.",
+                  "A typical day is already filled in. Choose the crowd and kinds of people; Fine-tune holds the details.",
+                  "Run the day, see what to fix first, and walk beside the people. Try a fix prepares a proposal for you to review.",
+                ][tour]
+              }
+            </p>
+            <div className="dialog-actions">
+              <button onClick={() => setTour(0)}>Skip tour</button>
+              <button autoFocus className="primary" onClick={() => setTour(tour === 3 ? 0 : tour + 1)}>
+                {tour === 3 ? "Let’s start" : "Next"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
 
-function Tile({ icon, title, note, onClick, accent }: { icon: ReactNode; title: string; note: string; onClick: () => void; accent?: boolean }) {
+function Tile({
+  icon,
+  title,
+  note,
+  onClick,
+  accent,
+}: {
+  icon: ReactNode;
+  title: string;
+  note: string;
+  onClick: () => void;
+  accent?: boolean;
+}) {
   return (
     <button className={`home-tile ${accent ? "accent" : ""}`} onClick={onClick}>
       <span className="home-tile-icon">{icon}</span>
@@ -194,7 +251,12 @@ function PlanThumb({ plan }: { plan: FloorPlan }) {
   const { width: w, height: h } = plan.bounds;
   const pad = Math.max(w, h) * 0.06;
   return (
-    <svg className="plan-thumb" viewBox={`${-pad} ${-pad} ${w + pad * 2} ${h + pad * 2}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <svg
+      className="plan-thumb"
+      viewBox={`${-pad} ${-pad} ${w + pad * 2} ${h + pad * 2}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
       {plan.spaces
         .filter((s) => s.levelId === level)
         .map((s) => (
@@ -203,13 +265,31 @@ function PlanThumb({ plan }: { plan: FloorPlan }) {
       {plan.walls
         .filter((wl) => wl.levelId === level)
         .map((wl) => (
-          <line key={wl.id} x1={wl.a.x} y1={wl.a.y} x2={wl.b.x} y2={wl.b.y} stroke="var(--thumb-wall)" strokeWidth={Math.max(w, h) / 90} strokeLinecap="square" />
+          <line
+            key={wl.id}
+            x1={wl.a.x}
+            y1={wl.a.y}
+            x2={wl.b.x}
+            y2={wl.b.y}
+            stroke="var(--thumb-wall)"
+            strokeWidth={Math.max(w, h) / 90}
+            strokeLinecap="square"
+          />
         ))}
     </svg>
   );
 }
 
-const svg = { width: 18, height: 18, viewBox: "0 0 18 18", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const svg = {
+  width: 18,
+  height: 18,
+  viewBox: "0 0 18 18",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
 const PlusIcon = () => (
   <svg {...svg} width={14} height={14}>
     <path d="M9 3.5v11M3.5 9h11" />

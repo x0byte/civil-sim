@@ -52,7 +52,11 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const queues = result.metrics.queues ?? [];
 
   const shopper = result.metrics.shoppers;
-  const shops = (result.metrics.shops ?? []).map((m) => ({ ...m, name: roomName(m.spaceId), food: spaces.get(m.spaceId)?.type === "food_court" }));
+  const shops = (result.metrics.shops ?? []).map((m) => ({
+    ...m,
+    name: roomName(m.spaceId),
+    food: spaces.get(m.spaceId)?.type === "food_court",
+  }));
   const byVisits = [...shops].sort((a, b) => b.visits - a.visits);
   const headcount = result.metrics.headcount ?? [];
   const peakCount = headcount.reduce((best, p) => (p.count > best.count ? p : best), { t: 0, count: 0 });
@@ -71,7 +75,13 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   const peaks = (result.metrics.peakOccupancy ?? [])
     .map((p) => {
       const s = spaces.get(p.spaceId);
-      return { ...p, name: roomName(p.spaceId), type: s?.type, capacity: s?.capacity, over: s?.capacity !== undefined && p.peak > s.capacity };
+      return {
+        ...p,
+        name: roomName(p.spaceId),
+        type: s?.type,
+        capacity: s?.capacity,
+        over: s?.capacity !== undefined && p.peak > s.capacity,
+      };
     })
     .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
     .sort((a, b) => b.peak - a.peak);
@@ -79,12 +89,12 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   if (result.metrics.evacuation)
     return (
       <DetailSections>
-        <EvacuationResults run={run} />
+        <EvacuationResults data-title="Evacuation" run={run} />
       </DetailSections>
     );
   return (
     <DetailSections>
-      <AccessibilityResults run={run} />
+      <AccessibilityResults data-title="Access guidance" run={run} />
       {stale && (
         <div className="stale-banner">
           The plan has changed since this run.
@@ -183,7 +193,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
         </section>
       )}
 
-      <ComfortResults run={run} roomName={roomName} />
+      <ComfortResults data-title="Comfort" run={run} roomName={roomName} />
       <WhoStruggled run={run} />
       <CrowdedPlaces run={run} roomName={roomName} />
 
@@ -247,8 +257,12 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
                 ))}
               </tbody>
             </table>
-            {unreachablePairs > 0 && <p className="warn">{unreachablePairs} pair(s) of desks have no walking route between them and are left out.</p>}
-            {partners.length === 0 && <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>}
+            {unreachablePairs > 0 && (
+              <p className="warn">{unreachablePairs} pair(s) of desks have no walking route between them and are left out.</p>
+            )}
+            {partners.length === 0 && (
+              <p className="muted">Add "Who works with whom" in the People tab to see how far apart partner teams sit.</p>
+            )}
           </div>
         </section>
       )}

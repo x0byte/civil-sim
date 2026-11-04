@@ -1,0 +1,42 @@
+{
+  "viewport": "1440×900",
+  "theme": "dark",
+  "measurement": "rolling five-second animation-frame intervals, after settling",
+  "measurements": [
+    {
+      "mode": "Overview",
+      "stress": false,
+      "status": "87 people inside\n87 figures · 60.0 fps"
+    },
+    {
+      "mode": "Walk",
+      "stress": false,
+      "status": "85 people inside\n46 figures · 60.0 fps"
+    },
+    {
+      "mode": "Overview",
+      "stress": true,
+      "status": "84 people inside\n850 figures · 60.0 fps"
+    },
+    {
+      "mode": "Walk",
+      "stress": true,
+      "status": "84 people inside\n850 figures · 60.0 fps"
+    },
+    {
+      "mode": "Overview, one floor fully in view",
+      "stress": true,
+      "status": "0 people inside\n850 figures · 60.0 fps"
+    },
+    {
+      "mode": "Final Overview, one floor",
+      "stress": true,
+      "status": "0 people inside\n850 figures · 60.0 fps"
+    },
+    {
+      "mode": "Final Walk",
+      "stress": true,
+      "status": "2 people inside\n850 figures · 60.0 fps"
+    }
+  ]
+}

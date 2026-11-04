@@ -29,6 +29,9 @@ export function TopBar() {
     }
   }, [dark]);
   const plan = useEditor((s) => s.plan);
+  const profile = useEditor((s) => s.profiles[s.plan.id]);
+  const run = useEditor((s) => s.run);
+  const comparison = useEditor((s) => s.comparison);
   const view = useEditor((s) => s.view);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
@@ -78,7 +81,9 @@ export function TopBar() {
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
         const n = opened.project.options.length;
-        notify([`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "));
+        notify(
+          [`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "),
+        );
       } else {
         load(opened.plan);
         notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
@@ -105,7 +110,8 @@ export function TopBar() {
     reader.readAsDataURL(file);
   };
 
-  const done = completedSteps(plan, ux.peopleReady, useEditor.getState().run);
+  const activeRun = view === "compare" ? (comparison?.b ?? null) : run;
+  const done = completedSteps(plan, ux.peopleReady, activeRun, profile);
   const go = (step: Step) => {
     ux.go(step);
     if (step < 3) setView("2d");
@@ -158,21 +164,17 @@ export function TopBar() {
         <Menu label="View" items={viewItems} />
       </div>
 
-      {ux.home ? (
-        <div />
-      ) : (
-        <nav className="workspaces" aria-label="Steps">
-          {STEPS.map((label, i) => {
-            const step = (i + 1) as Step;
-            return (
-              <button key={label} aria-current={ux.step === step ? "step" : undefined} onClick={() => go(step)}>
-                <span className={`step-dot ${done[i] ? "done" : ""}`}>{done[i] ? "✓" : step}</span>
-                {label}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      <nav className="workspaces" aria-label="Steps">
+        {STEPS.map((label, i) => {
+          const step = (i + 1) as Step;
+          return (
+            <button key={label} aria-current={!ux.home && ux.step === step ? "step" : undefined} onClick={() => go(step)}>
+              <span className={`step-dot ${done[i] ? "done" : ""}`}>{done[i] ? "✓" : step}</span>
+              {label}
+            </button>
+          );
+        })}
+      </nav>
 
       <div className="appbar-right">
         {!ux.home && (
@@ -352,7 +354,17 @@ const STEPS = ["Building", "People", "Simulate"] as const;
 
 function UndoIcon({ redo }: { redo?: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={redo ? { transform: "scaleX(-1)" } : undefined}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={redo ? { transform: "scaleX(-1)" } : undefined}
+    >
       <path d="M5.5 4L2.5 7l3 3" />
       <path d="M2.5 7H10a3.5 3.5 0 0 1 0 7H8" />
     </svg>

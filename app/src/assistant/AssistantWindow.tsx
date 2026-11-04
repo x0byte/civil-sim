@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { suggestions, useExperience } from "../experience/state.ts";
+import { GLOSSARY, suggestions, useExperience } from "../experience/state.ts";
 import { useEditor } from "../state/store.ts";
 import { VoltMark } from "../ui/Brand.tsx";
 import { AssistantPanel } from "./AssistantPanel.tsx";
@@ -100,6 +100,15 @@ export function AssistantWindow() {
       </header>
       <div className="assistant-window-body">
         <AssistantPanel suggestions={<Suggestions />} />
+        <details className="glossary">
+          <summary>A few useful words</summary>
+          {Object.entries(GLOSSARY).map(([term, meaning]) => (
+            <p key={term}>
+              <strong>{term}: </strong>
+              {meaning}
+            </p>
+          ))}
+        </details>
       </div>
     </section>
   );
@@ -157,7 +166,15 @@ export function Thinking() {
   );
 }
 
-const svg = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const };
+const svg = {
+  width: 16,
+  height: 16,
+  viewBox: "0 0 16 16",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+};
 const DockIcon = () => (
   <svg {...svg}>
     <rect x="2" y="2.5" width="12" height="11" rx="1.5" />

@@ -3,7 +3,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { ACTIVITY_STYLE } from "../playback/colors.ts";
-import { figureAt, type Figure } from "./figures.ts";
+import { figureAt, figureShape, type Figure } from "./figures.ts";
 const PARTS = [
   "head",
   "body",
@@ -70,13 +70,14 @@ export function Figures({
       if (!levels.includes(f.levelId)) return;
       const index = visible++;
       scratch.ids[index] = f.id;
-      const scale = f.kind === "child" ? 0.65 : 1,
+      const shape = figureShape(f.kind, f.pose),
+        scale = shape.scale,
         offset = run.plan.levels.findIndex((l) => l.id === f.levelId) * peel;
       scratch.p.set(f.x, f.elevation + offset, f.y);
       scratch.q.setFromAxisAngle(scratch.axis, f.yaw);
       scratch.scale.setScalar(scale);
       scratch.world.compose(scratch.p, scratch.q, scratch.scale);
-      const seated = f.pose === "seated" || f.kind === "wheelchair",
+      const seated = shape.seated,
         phase = f.pose === "walking" ? Math.sin(elapsed * 9 + index * 0.37) : 0;
       const base = seated ? 0.5 : 0.78;
       scratch.color.set(ACTIVITY_STYLE[f.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#6b7c8e");
@@ -111,12 +112,12 @@ export function Figures({
       part("legR", 0.1, seated ? 0.42 : 0.39, seated ? 0.12 : 0, 0.12, seated ? 0.35 : 0.59, 0.13, seated ? -Math.PI / 2 : -phase * 0.55);
       part("footL", -0.1, 0.08, seated ? 0.34 : 0.06, 0.14, 0.1, 0.25, 0, neutral);
       part("footR", 0.1, 0.08, seated ? 0.34 : 0.06, 0.14, 0.1, 0.25, 0, neutral);
-      part("wheelL", -0.31, 0.3, 0, 0.045, 0.28, 0.28, 0, neutral, f.kind === "wheelchair");
-      part("wheelR", 0.31, 0.3, 0, 0.045, 0.28, 0.28, 0, neutral, f.kind === "wheelchair");
-      part("chair", 0, 0.48, -0.02, 0.55, 0.08, 0.45, 0, neutral, f.kind === "wheelchair");
-      part("pushBody", 0, 0.54, 0.73, 0.46, 0.3, 0.56, 0.22, neutral, f.kind === "pushchair");
-      part("pushWheelL", -0.25, 0.15, 0.75, 0.06, 0.15, 0.15, 0, neutral, f.kind === "pushchair");
-      part("pushWheelR", 0.25, 0.15, 0.75, 0.06, 0.15, 0.15, 0, neutral, f.kind === "pushchair");
+      part("wheelL", -0.31, 0.3, 0, 0.045, 0.28, 0.28, 0, neutral, shape.chair);
+      part("wheelR", 0.31, 0.3, 0, 0.045, 0.28, 0.28, 0, neutral, shape.chair);
+      part("chair", 0, 0.48, -0.02, 0.55, 0.08, 0.45, 0, neutral, shape.chair);
+      part("pushBody", 0, 0.54, 0.73, 0.46, 0.3, 0.56, 0.22, neutral, shape.pushchair);
+      part("pushWheelL", -0.25, 0.15, 0.75, 0.06, 0.15, 0.15, 0, neutral, shape.pushchair);
+      part("pushWheelR", 0.25, 0.15, 0.75, 0.06, 0.15, 0.15, 0, neutral, shape.pushchair);
       part("badge", 0, base + 0.4, 0.126, 0.2, 0.08, 0.015, 0, staffTint, f.staff);
     };
     for (const { track } of cache) {
