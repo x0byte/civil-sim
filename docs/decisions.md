@@ -1,5 +1,9 @@
 # Decision log
 
+## 2026-11-04 — attached toolbar flyouts
+
+The drawing tools use a compact icon rail. Furniture and floor connections open attached choice flyouts; choosing an item closes the flyout and keeps that tool active for placement. Group icons remember the selected subtype. Flyouts render in a portal so the scrolling toolbar cannot clip them, and support outside-click/Escape dismissal and arrow-key navigation.
+
 
 ## 2026-11-04 — friendly flow and walk-through
 

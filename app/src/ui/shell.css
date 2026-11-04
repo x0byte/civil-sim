@@ -1017,3 +1017,22 @@ button.primary.wide {
 .results-story .fixes h2 {
   font-size: 14px;
 }
+
+
+/* A compact tool rail with Photoshop-style attached tool-group flyouts. */
+.toolbar.photoshop-toolbar { width: 50px; padding: 4px 6px 10px; gap: 3px; }
+.toolbar-grip { text-align: center; color: var(--ink-3); font-size: 13px; height: 17px; letter-spacing: 2px; }
+.photoshop-toolbar .tool { position: relative; width: 36px; min-height: 36px; padding: 8px; flex-shrink: 0; border-radius: 4px; }
+.photoshop-toolbar .tool:hover { background: var(--accent-soft); }
+.photoshop-toolbar .tool-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.photoshop-toolbar .tool-group::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 0; height: 0; border-bottom: 4px solid currentColor; border-left: 4px solid transparent; opacity: .7; }
+.photoshop-toolbar .tool[aria-expanded="true"] { background: var(--accent-soft); outline: 1px solid var(--accent); }
+.tool-flyout { position: fixed; z-index: 80; width: 228px; padding: 5px; border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: 0 7px 7px 7px; background: var(--surface); box-shadow: 5px 8px 24px #0004; }
+.tool-flyout-heading { padding: 9px 9px 10px; font-size: 12px; font-weight: 650; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.tool-flyout-heading small { display: block; margin-top: 4px; font-size: 10px; font-weight: 400; color: var(--ink-2); }
+.tool-flyout [role="menu"] { display: grid; gap: 2px; }
+.tool-flyout [role="menuitemradio"] { display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 8px 10px; text-align: left; border: 0; background: transparent; border-radius: 3px; font-size: 12px; }
+.tool-flyout [role="menuitemradio"] svg { flex-shrink: 0; color: var(--ink-2); }
+.tool-flyout [role="menuitemradio"]:hover, .tool-flyout [role="menuitemradio"]:focus-visible { background: var(--accent-soft); outline: 1px solid var(--accent); }
+.tool-flyout [aria-checked="true"] { background: var(--accent-soft); }
+.tool-choice-check { margin-left: auto; color: var(--accent); }
