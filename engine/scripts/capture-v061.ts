@@ -19,8 +19,8 @@ for (const [p, s] of pairs) {
     delete scenario.profiles; delete scenario.crowding; scenario.people.forEach((p) => { delete p.profileId; }); scenario.visitors?.forEach((v) => { delete v.profileId; });
     legacy = simulate(plan, scenario);
   }
-  const normalized = JSON.parse(JSON.stringify(legacy)); normalized.version = "0.5"; delete normalized.metrics.profiles; delete normalized.metrics.crowding;
-  normalized.heatmaps.levels.forEach((l: { peakDensity?: number[] }) => { delete l.peakDensity; });
+  const normalized = JSON.parse(JSON.stringify(legacy)); normalized.version = "0.5"; delete normalized.metrics.comfort; delete normalized.metrics.profiles; delete normalized.metrics.crowding;
+  normalized.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; });
   sha256[`${p}/${s}${s === "mall-weekend-people" ? "-no-new-fields" : ""}`] = createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
 await writeFile(new URL("../test/data/v061-sha256.json", import.meta.url), JSON.stringify({ implementation: "engine/v0.6.1", baseCommit: "89843f1", note: "Corrected closing and room journeys; historical v0.5 captures are retained separately.", sha256 }, null, 2) + "\n");

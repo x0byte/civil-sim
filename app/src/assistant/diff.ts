@@ -16,6 +16,7 @@ const LISTS = [
   ["space", "spaces"],
   ["fixture", "fixtures"],
   ["connector", "connectors"],
+  ["noise", "noiseSources"],
 ] as const;
 
 /** What the proposal changes. Derived fields the editor recomputes (a room's doors, the room furniture sits in) don't count. */
@@ -27,9 +28,9 @@ export function diffPlans(before: FloorPlan, after: FloorPlan): PlanDiff {
     return JSON.stringify(rest);
   };
   for (const [kind, list] of LISTS) {
-    const old = new Map<string, object>(before[list].map((x) => [x.id, x]));
+    const old = new Map<string, object>((before[list] ?? []).map((x) => [x.id, x]));
     const now = new Set<string>();
-    for (const x of after[list]) {
+    for (const x of (after[list] ?? [])) {
       now.add(x.id);
       const o = old.get(x.id);
       if (!o || key(o) !== key(x)) changed.push({ kind, id: x.id });

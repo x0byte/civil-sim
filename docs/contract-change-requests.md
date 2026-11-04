@@ -3,6 +3,16 @@
 Need something the contracts don't allow? Add an entry here instead of editing `contracts/`.
 The product owner marks it approved or rejected.
 
+## v0.7: Comfort totals for people without a profile in a profiled scenario
+- Requested by: Codex, 2026-11-03
+- Status: **approved — option 1, product owner, 2026-11-03**
+- `contracts/scenario.ts` permits a kind with no share list to retain the average person, without `Track.profileId`, even when `profiles.list` exists. Comfort applies to everyone along their actual paths.
+- `contracts/results.ts` currently specifies one `metrics.comfort.byProfile` row per listed profile, and permits a default row with `profileId: ""` only **without profiles**. The brief also requires by-profile minutes to reconcile with the tracks' discomfort stretches. People without an assigned profile have no row in that mixed case.
+- Concrete example: one staff member assigned profile `worker`, and one visitor whose kind has no share list or explicit assignment. If the visitor has five dim minutes, their track must contain that stretch. A result containing only the `worker` row cannot report the visitor's minutes without mislabelling them or failing the totals check.
+- **Recommended option 1:** retain every listed profile row in list order, then append one `profileId: ""` row when any tracks have no assigned profile. This row uses their default tolerances and reconciles their actual stretches. With no profiles, retain the existing single default row, including for an empty population. No new field or type is needed; clarify the row semantics.
+- **Option 2:** keep the strict listed-profile rows, leave unprofiled people's discomfort on their tracks only, and explicitly limit the by-profile reconciliation requirement to people with assigned profiles. This leaves the table's total below the building total in mixed scenarios.
+- Preparation completed: the six complete pre-change v0.6.1 hashes are captured from `6503fc5` in `engine/test/data/v061-full-sha256.json`; branch `engine/v0.7` starts at the approved contract branch. All eight contract sample pairs pass. Contracts, app and sample JSON remain untouched.
+
 Template:
 
 ```

@@ -5,6 +5,9 @@ import {
   DEFAULT_WIDTH,
   addConnector,
   addFixture,
+  addNoiseSource,
+  updateNoiseSource,
+  setSite,
   addOpening,
   addSpace,
   addWall,
@@ -27,6 +30,8 @@ import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
 type Drag =
   | { type: "pan"; startX: number; startY: number; cam: Camera }
   | { type: "corner"; from: Vec2; ignore: Set<string>; started: boolean }
+  | { type: "noise"; id: string; grab: Vec2; started: boolean }
+  | { type: "north"; rotate: boolean; grab: Vec2; started: boolean }
   | { type: "fixture"; id: string; grab: Vec2; started: boolean }
   | { type: "opening"; id: string; started: boolean }
   | { type: "room"; start: Vec2; moved: boolean };
@@ -38,6 +43,7 @@ const HINTS: Record<Tool, string> = {
   door: "Click on a wall to add a door. Doors on the outside walls are marked as entrances.",
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
+  noise: "Click to place a noise source. Edit its name, loudness and hours on the right.",
   fixture: "Click to place. Pick the type in the toolbar.",
   connector:
     "Drag the footprint of the stairs, escalator or lift. It joins this floor to the one above; change the floors on the right.",
@@ -72,6 +78,7 @@ export function Canvas2D() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan);
   const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean } | null>(null);
+  const [northAt, setNorthAt] = useState<Vec2>({ x: 2, y: 2 });
   const [draft, setDraft] = useState<Vec2[]>([]);
   const [rect, setRect] = useState<{ a: Vec2; b: Vec2 } | null>(null);
   const [calib, setCalib] = useState<{ a: Vec2; b: Vec2 } | null>(null);
@@ -146,7 +153,13 @@ export function Canvas2D() {
 
     switch (tool) {
       case "select": {
-        if (kind === "corner") {
+        if (kind === "north" || kind === "north-rotate") {
+          dragRef.current = { type: "north", rotate: kind === "north-rotate", grab: { x: raw.x - northAt.x, y: raw.y - northAt.y }, started: false };
+        } else if (kind === "noise") {
+          select({ kind: "noise", id });
+          const n = getItem(plan, "noise", id)!;
+          dragRef.current = { type: "noise", id, grab: { x: raw.x - n.position.x, y: raw.y - n.position.y }, started: false };
+        } else if (kind === "corner") {
           const from = { x: Number(target!.getAttribute("data-x")), y: Number(target!.getAttribute("data-y")) };
           const ignore = new Set(view.walls.filter((w) => samePoint(w.a, from) || samePoint(w.b, from)).map((w) => w.id));
           dragRef.current = { type: "corner", from, ignore, started: false };
@@ -196,6 +209,12 @@ export function Canvas2D() {
         dragRef.current = { type: "room", start: p, moved: false };
         return;
       }
+      case "noise": {
+        let id = "";
+        commit((p) => { const r = addNoiseSource(p, snap(raw, false, { walls: false }).point, level); id = r.id; return r.plan; });
+        select({ kind: "noise", id });
+        return;
+      }
       case "fixture": {
         const p = snap(raw, false, { walls: false }).point;
         let newId = "";
@@ -239,6 +258,19 @@ export function Canvas2D() {
         const from = d.from;
         dragPlan((p) => moveCorner(p, from, s.point, level));
         d.from = s.point;
+        return;
+      }
+      case "north": {
+        if (!d.rotate) { setNorthAt({ x: Math.max(0, Math.min(plan.bounds.width, raw.x - d.grab.x)), y: Math.max(0, Math.min(plan.bounds.height, raw.y - d.grab.y)) }); return; }
+        if (!d.started) { beginDrag(); d.started = true; }
+        const northDeg = Math.atan2(raw.x - northAt.x, northAt.y - raw.y) * 180 / Math.PI;
+        dragPlan((p) => setSite(p, { northDeg }));
+        return;
+      }
+      case "noise": {
+        if (!d.started) { beginDrag(); d.started = true; }
+        const position = { x: raw.x - d.grab.x, y: raw.y - d.grab.y };
+        dragPlan((p) => updateNoiseSource(p, d.id, { position }));
         return;
       }
       case "fixture": {
@@ -386,6 +418,11 @@ export function Canvas2D() {
             below={below}
           />
 
+          <g transform={`translate(${northAt.x} ${northAt.y}) rotate(${plan.site?.northDeg ?? 0})`}>
+            <circle data-kind="north" r={sx(14)} fill="var(--paper)" stroke="var(--accent)" strokeWidth={sx(1.5)} style={{ cursor: "move" }}><title>Drag to move north arrow</title></circle>
+            <path data-kind="north-rotate" d={`M 0 ${sx(-30)} L ${sx(-9)} ${sx(-8)} L 0 ${sx(-13)} L ${sx(9)} ${sx(-8)} Z`} fill="var(--accent)" style={{ cursor: "grab" }}><title>Drag the arrow tip to rotate north</title></path>
+            <text transform={`rotate(${-(plan.site?.northDeg ?? 0)})`} y={sx(5)} textAnchor="middle" fontSize={sx(12)} fill="var(--ink)" pointerEvents="none">N</text>
+          </g>
           {/* drafts */}
           {draft.length > 0 && (
             <polyline

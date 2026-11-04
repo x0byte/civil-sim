@@ -7,12 +7,12 @@ import { rectangle } from "./shopper-fixtures.ts";
 
 const point = (t: number, x: number, y: number, activity: Track["points"][number]["activity"], levelId = "ground") => ({ t, x, y, activity, levelId });
 function fixture() {
-  const p: FloorPlan = { version: "0.3", id: "retail", name: "Retail", units: "m", bounds: { width: 10, height: 10 },
+  const p: FloorPlan = { version: "0.4", id: "retail", name: "Retail", units: "m", bounds: { width: 10, height: 10 },
     levels: [{ id: "ground", name: "Ground", elevation: 0 }, { id: "upper", name: "Upper", elevation: 4 }], connectors: [], fixtures: [],
     walls: [{ id: "front", levelId: "ground", a: { x: 0, y: 2 }, b: { x: 10, y: 2 }, thickness: 0.1, height: 3 }],
     openings: [{ id: "door", wallId: "front", kind: "door", offset: 4, width: 1 }],
     spaces: [{ id: "shop", levelId: "ground", name: "Shop", type: "shop", privacy: "public", polygon: rectangle(2, 2, 4, 4), doorIds: ["door"] }] };
-  const s: Scenario = { version: "0.6", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "10:00" }, teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } };
+  const s: Scenario = { version: "0.7", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "10:00" }, teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } };
   const tracks: Track[] = [
     { personId: "buyer", kind: "shopper", points: [point(0, 4, 8, "absent"), point(10, 4, 8, "walking"), point(15, 4, 3, "shopping"), point(115, 4, 3, "walking"), point(120, 4, 8, "absent"), point(3600, 4, 8, "absent")] },
     { personId: "passer", kind: "shopper", points: [point(0, 0, 3, "absent"), point(30, 0, 3, "walking"), point(38, 8, 3, "absent"), point(3600, 8, 3, "absent")] },

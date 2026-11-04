@@ -1,7 +1,18 @@
 import { Fragment, useEffect, useState } from "react";
+import { COMFORT_TOLERANCES } from "../model/comfortDefaults.ts";
 import type { PersonProfile } from "../../../contracts/scenario.ts";
 import { NumField, SelectField } from "../ui/fields.tsx";
-import { ACCESS_LABEL, type Group, KINDS_PRESETS, type KindOfPerson, type KindsPreset, type KindsSettings, kindsFromPreset, usablePrefers, withMean } from "./kinds.ts";
+import {
+  ACCESS_LABEL,
+  type Group,
+  KINDS_PRESETS,
+  type KindOfPerson,
+  type KindsPreset,
+  type KindsSettings,
+  kindsFromPreset,
+  usablePrefers,
+  withMean,
+} from "./kinds.ts";
 import type { OfficeProfile } from "./officeProfile.ts";
 
 const GROUP_LABEL: Record<Group, string> = { shoppers: "Shoppers", staff: "Staff", visitors: "Visitors" };
@@ -24,7 +35,8 @@ export function KindsSection({
 
   const set = (next: KindsSettings) => setProfile({ ...profile, kinds: next });
   const edit = (next: Partial<KindsSettings>) => set({ ...kinds, ...next, preset: "custom" });
-  const editKind = (id: string, patch: Partial<KindOfPerson>) => edit({ list: kinds.list.map((k) => (k.id === id ? { ...k, ...patch } : k)) });
+  const editKind = (id: string, patch: Partial<KindOfPerson>) =>
+    edit({ list: kinds.list.map((k) => (k.id === id ? { ...k, ...patch } : k)) });
   const shares = kinds.shares[group] ?? {};
   const total = kinds.list.reduce((s, k) => s + (shares[k.id] ?? 0), 0);
   const presets = [
@@ -103,10 +115,12 @@ export function KindsSection({
               ))}
             </tbody>
           </table>
-          {groups.length > 0 && !total && <p className="warn">No kinds chosen for {GROUP_LABEL[group].toLowerCase()}: they'll all be average adults.</p>}
+          {groups.length > 0 && !total && (
+            <p className="warn">No kinds chosen for {GROUP_LABEL[group].toLowerCase()}: they'll all be average adults.</p>
+          )}
           <p className="muted">
-            Each person's speed, how well they know the building and how much crowding they put up with are drawn around these averages, so no two
-            are the same. All numbers are assumptions until checked against real counts.
+            Each person's speed, how well they know the building and how much crowding they put up with are drawn around these averages, so
+            no two are the same. All numbers are assumptions until checked against real counts.
           </p>
         </div>
       )}
@@ -135,7 +149,14 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         options={access}
         onChange={(a) => onChange({ access: a, prefers: usablePrefers(kind.prefers, a) })}
       />
-      <NumField label="Walking speed" unit="m/s" step={0.05} min={0.2} value={kind.speed.mean} onCommit={(v) => onChange({ speed: withMean(kind.speed, v) })} />
+      <NumField
+        label="Walking speed"
+        unit="m/s"
+        step={0.05}
+        min={0.2}
+        value={kind.speed.mean}
+        onCommit={(v) => onChange({ speed: withMean(kind.speed, v) })}
+      />
       <NumField
         label="Knows the building"
         unit="%"
@@ -152,7 +173,46 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         value={kind.crowdComfort.mean}
         onCommit={(v) => onChange({ crowdComfort: withMean(kind.crowdComfort, v) })}
       />
-      <NumField label="Room taken in a crowd" unit="× adult" step={0.1} min={0.3} value={kind.size} onCommit={(size) => onChange({ size })} />
+      {(["noiseComfort", "focusNoiseComfort", "taskLux"] as const).map((key) => (
+        <NumField
+          key={key}
+          label={
+            key === "noiseComfort" ? "Too loud above" : key === "focusNoiseComfort" ? "Too loud for focused work above" : "Needs at least"
+          }
+          unit={key === "taskLux" ? "lux" : "dB(A)"}
+          step={key === "taskLux" ? 25 : 1}
+          min={0}
+          value={(kind[key] ?? COMFORT_TOLERANCES[key]).mean}
+          onCommit={(v) =>
+            onChange({ [key]: withMean(kind[key] ?? COMFORT_TOLERANCES[key], Math.min(key === "taskLux" ? 100000 : 150, v)) })
+          }
+        />
+      ))}
+      <SelectField
+        label="Glare tolerance"
+        value={String((kind.glareComfort ?? COMFORT_TOLERANCES.glareComfort).mean)}
+        options={[
+          { value: "0.25", label: "Low" },
+          { value: "0.4", label: "Typical" },
+          { value: "0.55", label: "High" },
+          ...([0.25, 0.4, 0.55].includes((kind.glareComfort ?? COMFORT_TOLERANCES.glareComfort).mean)
+            ? []
+            : [{ value: String(kind.glareComfort!.mean), label: "Custom" }]),
+        ]}
+        onChange={(v) => onChange({ glareComfort: withMean(kind.glareComfort ?? COMFORT_TOLERANCES.glareComfort, Number(v), 0, 1) })}
+      />
+      <label className="check">
+        <input type="checkbox" checked={!!kind.lowVision} onChange={(e) => onChange({ lowVision: e.target.checked })} />
+        Low vision
+      </label>
+      <NumField
+        label="Room taken in a crowd"
+        unit="× adult"
+        step={0.1}
+        min={0.3}
+        value={kind.size}
+        onCommit={(size) => onChange({ size })}
+      />
     </div>
   );
 }

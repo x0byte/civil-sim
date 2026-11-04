@@ -16,6 +16,7 @@ import { RoomSpots } from "./modules/spots.ts";
 import { People, stepFreeWarnings } from "./modules/profiles.ts";
 import { AccessRoutes } from "./modules/access-routes.ts";
 import { onLevel } from "./modules/levels.ts";
+import { COMFORT_ASSUMPTIONS } from "./modules/comfort.ts";
 
 export class SimulationInputError extends Error {
   readonly errors: string[];
@@ -46,6 +47,7 @@ function floorPlanErrors(plan: FloorPlan): string[] {
   finite(plan.bounds.height, "Plan height");
   for (const wall of plan.walls) { finite(wall.thickness, `Wall ${wall.id} thickness`); finite(wall.height, `Wall ${wall.id} height`); }
   for (const opening of plan.openings) { finite(opening.offset, `Opening ${opening.id} offset`); finite(opening.width, `Opening ${opening.id} width`); }
+  for (const space of plan.spaces) if (space.lightingLux !== undefined) finite(space.lightingLux, `Space ${space.id} lighting`);
   for (const c of plan.connectors) if (c.capacity !== undefined && !Number.isInteger(c.capacity)) errors.push(`Lift ${c.id} capacity must be a finite whole number of people`);
   return errors;
 }
@@ -143,8 +145,8 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
   return {
     version: RESULTS_VERSION, floorPlanId: plan.id, scenarioId: scenario.id, seed: scenario.seed, durationS, tracks,
-    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics, people), events,
-    assumptions: assumptions(scenario), warnings,
+    ...aggregate(plan, scenario, tracks, events, navigation.connectorMetrics, people, warn), events,
+    assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS] : assumptions(scenario), warnings,
   };
 }
 

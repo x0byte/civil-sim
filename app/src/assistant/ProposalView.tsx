@@ -111,6 +111,10 @@ function mark(plan: FloorPlan, kind: string, id: string, level: string, color: s
       if (!s || s.levelId !== level) return null;
       return <polygon key={`s-${id}`} points={poly(s.polygon)} {...common} fill={color} fillOpacity={0.08} />;
     }
+    case "noise": {
+      const n = getItem(plan, "noise", id);
+      return n && n.levelId === level ? <circle key={`n-${id}`} cx={n.position.x} cy={n.position.y} r={0.7} {...common} /> : null;
+    }
     case "fixture": {
       const f = getItem(plan, "fixture", id);
       if (!f || f.levelId !== level) return null;

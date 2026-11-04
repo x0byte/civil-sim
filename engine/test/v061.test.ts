@@ -9,6 +9,7 @@ import { plan, scenario } from "./fixtures.ts";
 describe("v0.6.1 review regressions", () => {
   it.each(["office-a", "office-b"])("attends meetings and continues attendance with crowding: %s", (id) => {
     const p = plan(id); const s = JSON.parse(readFileSync(new URL("../../docs/repro/office-a-crowding.scenario.json", import.meta.url), "utf8")) as Scenario;
+    s.version = "0.7";
     const r = simulate(p, s); expect(r.warnings).toEqual([]);
     for (const meeting of s.meetings) for (const id of meeting.attendeeIds) {
       const start = r.events.find((e) => e.personId === id && e.type === "meeting_start" && e.spaceId === meeting.spaceId)!;

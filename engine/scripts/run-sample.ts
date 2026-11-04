@@ -3,7 +3,7 @@ import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
 import { simulate } from "../src/index.ts";
 
-const pairs = [["office-a", "office-day"], ["office-b", "office-day"], ["sealed-room", "sealed-day"], ["mall-2f", "mall-day"], ["mall-2f", "mall-weekend"], ["mall-2f", "mall-weekend-people"]] as const;
+const pairs = [["office-a", "office-day"], ["office-b", "office-day"], ["sealed-room", "sealed-day"], ["mall-2f", "mall-day"], ["mall-2f", "mall-weekend"], ["mall-2f", "mall-weekend-people"], ["office-a-comfort", "office-day-comfort"], ["mall-2f-comfort", "mall-weekend-comfort"]] as const;
 const out = new URL("../out/", import.meta.url);
 await mkdir(out, { recursive: true });
 for (const [planId, scenarioId] of pairs) {

@@ -104,9 +104,9 @@ export class DensityField {
 }
 
 export function sampleDensity(plan: FloorPlan, tracks: Track[], duration: number, people: People | undefined,
-  occupancy: { spaceId: string; peak: number }[]): { levels: Heatmaps["levels"]; crowding: CrowdingMetrics[]; discomfort: Map<string, number> } {
+  occupancy: { spaceId: string; peak: number }[], crowded?: (id: string, from: number, to: number) => void): { levels: Heatmaps["levels"]; crowding: CrowdingMetrics[]; discomfort: Map<string, number> } {
   const field = new DensityField(plan, true);
-  const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: [], dwellS: [], peakDensity: Array<number>(field.cols * field.rows).fill(0) }));
+  const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: [], dwellS: [], peakDensity: Array<number>(field.cols * field.rows).fill(0), noiseDbA: [], lightLux: [], glare: [] }));
   const peakArrays = new Map(levels.map((l) => [l.levelId, l.peakDensity]));
   const entered = new Set(occupancy.filter((s) => s.peak > 0).map((s) => s.spaceId));
   const spaces = plan.spaces.filter((s) => entered.has(s.id));
@@ -174,7 +174,7 @@ export function sampleDensity(plan: FloorPlan, tracks: Track[], duration: number
       const person = people?.people.get(body.id);
       if (!person?.profile && !narrow.length) continue;
       const density = field.around(body, body.levelId);
-      if (person?.profile && density > person.comfort && dt > 0) discomfort.set(body.id, (discomfort.get(body.id) ?? 0) + dt);
+      if (person?.profile && density > person.comfort && dt > 0) { discomfort.set(body.id, (discomfort.get(body.id) ?? 0) + dt); crowded?.(body.id, t, t + dt); }
       // Include an occupied point inside narrow/irregular labels that has no cell centre.
       for (const i of narrow) if (spaces[i].levelId === body.levelId && density > sampled[i] && interiorIntervals(body, body, spaces[i].polygon).length) sampled[i] = density;
     }

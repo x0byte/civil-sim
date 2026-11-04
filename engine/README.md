@@ -1,4 +1,4 @@
-# Simulation engine v0.6.1
+# Simulation engine v0.7
 
 `simulate(plan, scenario)` is a pure, synchronous TypeScript function with no runtime
 dependencies. It imports the locked types and validators directly from `contracts/`.
@@ -12,9 +12,74 @@ import { simulate } from "./engine/src/index.ts";
 const result = simulate(plan, scenario);
 ```
 
+## Comfort
+
+Floor plans use v0.4 and scenarios/results v0.7. `scenario.comfort` turns on sound,
+light, glare and contrast observations **after** the movement schedule has completed.
+It never changes movement points. When omitted, `metrics.comfort` is null, each floor's
+`noiseDbA`, `lightLux` and `glare` arrays are empty, and `Track.discomfort` is absent.
+Six full hashes captured from v0.6.1 (`6503fc5`) verify all other output fields exactly.
+
+The room-type lighting/acoustics defaults and tolerance distributions match the brief.
+Each new tolerance uses an independent profile/trait seed, leaving the v0.6 traits
+unchanged. Unprofiled people use exact default means. Listed profiles appear in order;
+an extra default row (`profileId: ""`) follows when there are unprofiled people, as
+approved by the product owner. Empty listed profiles still get zero rows.
+
+Electric light is constant while open. Daylight falls exponentially with distance
+from visible glass (1.6 m decay length), with the supplied transmission and sky.
+Opaque walls block it, including blocking an interior window's view outside.
+Solar position uses the input date, latitude and north angle, Sri Lankan UTC+5:30
+clock time and longitude 80° E. The sun calculation follows the
+[NOAA solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
+Direct floor glare uses glass sill/head heights and the sun's ray direction; desk
+glare additionally checks a 45° facing cone and window view width. The score grows
+as the sun lowers. Shading, frosting and overcast skies remove glare from that window.
+Daylight remains diffuse in those cases. There are no reflected-glare, thermal or
+three-dimensional sky/shadow calculations.
+
+Sound uses exact straight-line wall/opening intersections between source and target
+grid positions, adding energies rather than decibels. Distances beyond 1 m reduce
+energy by distance squared. Crossed materials cost 30 dB for an internal wall,
+35 for an exterior wall, 25 for glass and 10 for a doorway; target-room reflections
+add 6 dB for hard or 3 for mixed finishes. People are grouped at 1 m cell centres;
+fixed sources keep exact positions. Quiet desk/toilet activity is 40 dB(A) at 1 m,
+walking/lift waiting 45, other present activity 55, escalators 60, lifts 50, and
+background air conditioning 35. No sound crosses floors. Source hours are clipped
+to each minute. Source geometry is cached across the day.
+
+Light/glare grids store extrema of 15-minute observations. The sound grid stores the
+loudest rolling 15-minute energy average; room sound peaks are one-minute values.
+Room rows include every entered label in plan order. Overlapping labels each receive
+their actual discomfort time; the first matching label supplies environmental room
+defaults where labels overlap. Desk rows cover the whole opening period and show
+glare above the assigned sitter's comfort and sound above their focus limit (default
+means for an unassigned desk). This can reveal a hazard even when its sitter was away.
+
+Per-person intervals split at keyframes, room boundaries and minute observations;
+crowding reuses five-second samples. Absent time and travel between floors are excluded.
+Same-cause intervals merge, causes can overlap, and overload counts their union with
+at least two active causes. Per-profile minutes reconcile with the actual stretches.
+Room discomfort counts any-cause time once, rather than adding cause totals.
+Low contrast requires both LRVs and a difference below 30; only low-vision walking
+gets that cause. Missing LRVs stay `not_checked`.
+
+At most four comfort warnings summarize a desk with glare, a dim room, a room over
+70 dB(A) for at least 15 consecutive minutes, and a low-contrast room actually used
+by someone with low vision. All numbers remain uncalibrated comparison assumptions.
+The 1 m sound grid cannot resolve fine partitions or head/body geometry precisely.
+
+Run `npm run benchmark:comfort --prefix engine` for three complete runs per comfort
+sample and paired comparisons with the original v0.6.1 implementation. The script
+extracts `6503fc5` into a temporary directory, builds both versions with the same
+bundler and verifies the baseline hashes. Comparison runs warm both equally and
+collect preceding garbage outside each timer. Full sample results and report data
+are written to ignored `engine/out/comfort-benchmark.json`. See
+[the v0.7 report](../docs/engine-v0.7-report.md) for results and limitations.
+
 ## Profiles and crowds
 
-Scenario v0.6 accepts optional profiles and crowding; floor plans remain v0.3. Named
+Scenario v0.7 retains optional profiles and crowding; floor plans use v0.4. Named
 staff/visitor assignments override profile shares. Every trait and profile choice uses
 its own deterministic stream, so profiles leave arrival and shopper-type draws intact.
 Shares use independent weighted draws by profile id: appending a new profile can win
@@ -118,6 +183,7 @@ npm run typecheck --prefix engine
 npm run samples --prefix engine
 npm run benchmark:shoppers --prefix engine
 npm run benchmark:people --prefix engine
+npm run benchmark:comfort --prefix engine
 ```
 
 `npm run samples --prefix engine` writes ignored `engine/out/office-a.result.json`,
@@ -221,7 +287,7 @@ their summary. Every scenario person, including managers, is a `staff` track.
 
 ## Floors and connectors
 
-Inputs use floor-plan v0.3 and scenario v0.6; results use v0.6. Each floor has its own
+Inputs use floor-plan v0.4 and scenario v0.7; results use v0.7. Each floor has its own
 walkable grid, walls, doors, targets, standing spots, room queues and occupancy.
 Connector footprint cells override walls on every served floor. Desks and exterior
 doors retain their declared floor. A one-way route that cannot complete a return trip

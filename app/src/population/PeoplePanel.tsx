@@ -10,6 +10,7 @@ import {
   defaultProfile,
   expandProfile,
 } from "./officeProfile.ts";
+import { ComfortSection } from "./ComfortSection.tsx";
 import { CrowdingSection, KindsSection } from "./KindsSection.tsx";
 import { DEFAULT_SHOPPERS, MALL_HOURS, SHOPPER_DAYS, type ShopperDay, expectedShoppers, hasShops, shopperTypes } from "./shoppers.ts";
 
@@ -137,6 +138,7 @@ export function PeoplePanel() {
           ...(x.scenario.visitors?.length ? (["visitors"] as const) : []),
         ]}
       />
+      <ComfortSection profile={profile} setProfile={setProfile} />
       <CrowdingSection profile={profile} setProfile={setProfile} />
       <section className="panel">
         <header>

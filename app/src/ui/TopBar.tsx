@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
 import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
@@ -10,6 +10,22 @@ import { useEditor } from "../state/store.ts";
 import { useProblems } from "./Problems.tsx";
 
 export function TopBar() {
+  const [dark, setDark] = useState(() => {
+    try {
+      const saved = localStorage.getItem("civil-sim:theme");
+      return saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    try {
+      localStorage.setItem("civil-sim:theme", dark ? "dark" : "light");
+    } catch {
+      /* storage unavailable */
+    }
+  }, [dark]);
   const plan = useEditor((s) => s.plan);
   const view = useEditor((s) => s.view);
   const canUndo = useEditor((s) => s.past.length > 0);
@@ -51,7 +67,9 @@ export function TopBar() {
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
         const n = opened.project.options.length;
-        notify([`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "));
+        notify(
+          [`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "),
+        );
       } else {
         load(opened.plan);
         notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
@@ -105,7 +123,9 @@ export function TopBar() {
         <button onClick={() => importRef.current?.click()} title="Open a civil-sim project, a floor plan, or an AutoCAD DXF drawing">
           Open file
         </button>
-        <button onClick={saveProject} title="Save the plan, its People settings and saved options in one file">Save file</button>
+        <button onClick={saveProject} title="Save the plan, its People settings and saved options in one file">
+          Save file
+        </button>
         <button onClick={() => imageRef.current?.click()} className="primary-ghost" title="Upload a floor plan image to trace over">
           Trace image
         </button>
@@ -154,7 +174,11 @@ export function TopBar() {
         className="primary"
         onClick={runDay}
         disabled={errors.length > 0}
-        title={errors.length ? `Fix ${errors.length} problem${errors.length > 1 ? "s" : ""} first (listed on the right)` : "Simulate a workday in this layout"}
+        title={
+          errors.length
+            ? `Fix ${errors.length} problem${errors.length > 1 ? "s" : ""} first (listed on the right)`
+            : "Simulate a workday in this layout"
+        }
       >
         ▶ Run day
       </button>
@@ -173,6 +197,10 @@ export function TopBar() {
           Comparison
         </button>
       </div>
+
+      <button onClick={() => setDark((value) => !value)} aria-label={dark ? "Use light theme" : "Use dark theme"}>
+        {dark ? "Light" : "Dark"}
+      </button>
 
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}

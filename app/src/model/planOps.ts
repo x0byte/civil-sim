@@ -8,6 +8,8 @@ import type {
   FixtureType,
   FloorPlan,
   Level,
+  NoiseSource,
+  Site,
   Opening,
   Privacy,
   Space,
@@ -15,6 +17,7 @@ import type {
   Vec2,
   Wall,
 } from "../../../contracts/floorplan.ts";
+import { DEFAULT_SITE, DEFAULT_GLASS, NOISE_PRESETS } from "./comfortDefaults.ts";
 import {
   DOOR_ON_EDGE_TOLERANCE,
   distToPolygonEdge,
@@ -26,7 +29,7 @@ import {
   wallLength,
 } from "./geometry.ts";
 
-export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector";
+export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector" | "noise";
 export interface ItemRef {
   kind: ItemKind;
   id: string;
@@ -112,7 +115,15 @@ export function upgradePlan(plan: FloorPlan): FloorPlan {
 
 function allIds(plan: FloorPlan): Set<string> {
   return new Set(
-    [...plan.levels, ...plan.walls, ...plan.openings, ...plan.spaces, ...plan.fixtures, ...plan.connectors].map((x) => x.id),
+    [
+      ...plan.levels,
+      ...plan.walls,
+      ...plan.openings,
+      ...plan.spaces,
+      ...plan.fixtures,
+      ...plan.connectors,
+      ...(plan.noiseSources ?? []),
+    ].map((x) => x.id),
   );
 }
 
@@ -171,7 +182,14 @@ export function normalize(plan: FloorPlan): FloorPlan {
     c.levelIds.every((id) => known.has(id)) ? c : { ...c, levelIds: c.levelIds.filter((id) => known.has(id)) },
   );
 
-  return { ...plan, openings, spaces, fixtures, connectors };
+  return {
+    ...plan,
+    openings,
+    spaces,
+    fixtures,
+    connectors,
+    ...(plan.noiseSources ? { noiseSources: plan.noiseSources.filter((n) => known.has(n.levelId)) } : {}),
+  };
 }
 
 /** Just one floor of the plan: its walls, their openings, its rooms and furniture, and connectors that stop there. */
@@ -185,6 +203,7 @@ export function onLevel(plan: FloorPlan, levelId: string): FloorPlan {
     spaces: plan.spaces.filter((s) => s.levelId === levelId),
     fixtures: plan.fixtures.filter((f) => f.levelId === levelId),
     connectors: plan.connectors.filter((c) => c.levelIds.includes(levelId)),
+    noiseSources: plan.noiseSources?.filter((n) => n.levelId === levelId),
   };
 }
 
@@ -239,6 +258,7 @@ export function removeLevel(plan: FloorPlan, levelId: string): FloorPlan {
     openings: plan.openings.filter((o) => wallIds.has(o.wallId)),
     spaces: keep(plan.spaces),
     fixtures: keep(plan.fixtures),
+    noiseSources: plan.noiseSources?.filter((n) => n.levelId !== levelId),
     connectors: plan.connectors.map((c) => ({ ...c, levelIds: c.levelIds.filter((id) => id !== levelId) })),
   };
 }
@@ -262,12 +282,7 @@ export function defaultConnectorLevels(plan: FloorPlan, kind: ConnectorKind, lev
   return i > 0 ? [ids[i - 1], ids[i]] : [ids[i]];
 }
 
-export function addConnector(
-  plan: FloorPlan,
-  polygon: Vec2[],
-  kind: ConnectorKind,
-  levelId: string,
-): { plan: FloorPlan; id: string } {
+export function addConnector(plan: FloorPlan, polygon: Vec2[], kind: ConnectorKind, levelId: string): { plan: FloorPlan; id: string } {
   const id = nextId(plan, kind);
   const count = plan.connectors.filter((c) => c.kind === kind).length + 1;
   const connector: Connector = {
@@ -313,13 +328,7 @@ export function addWall(plan: FloorPlan, a: Vec2, b: Vec2, levelId = plan.levels
  * Where an opening of `width` centred near `offset` can go on the wall, nudged to fit
  * inside the wall. Returns null if it would overlap another opening or the wall is too short.
  */
-export function fitOpening(
-  plan: FloorPlan,
-  wallId: string,
-  offset: number,
-  width: number,
-  ignoreId?: string,
-): number | null {
+export function fitOpening(plan: FloorPlan, wallId: string, offset: number, width: number, ignoreId?: string): number | null {
   const wall = plan.walls.find((w) => w.id === wallId);
   if (!wall) return null;
   const len = wallLength(wall);
@@ -335,12 +344,7 @@ export function fitOpening(
   return clash ? null : centre;
 }
 
-export function addOpening(
-  plan: FloorPlan,
-  wallId: string,
-  kind: Opening["kind"],
-  offset: number,
-): { plan: FloorPlan; id: string } | null {
+export function addOpening(plan: FloorPlan, wallId: string, kind: Opening["kind"], offset: number): { plan: FloorPlan; id: string } | null {
   const width = DEFAULT_WIDTH[kind];
   const centre = fitOpening(plan, wallId, offset, width);
   const wall = plan.walls.find((w) => w.id === wallId);
@@ -400,6 +404,8 @@ export function removeItem(plan: FloorPlan, ref: ItemRef): FloorPlan {
       return { ...plan, spaces: plan.spaces.filter((s) => s.id !== ref.id) };
     case "fixture":
       return { ...plan, fixtures: plan.fixtures.filter((f) => f.id !== ref.id) };
+    case "noise":
+      return { ...plan, noiseSources: plan.noiseSources?.filter((n) => n.id !== ref.id) };
     case "connector":
       return { ...plan, connectors: plan.connectors.filter((c) => c.id !== ref.id) };
   }
@@ -413,22 +419,26 @@ type ItemOf<K extends ItemKind> = K extends "wall"
       ? Space
       : K extends "connector"
         ? Connector
-        : FloorPlan["fixtures"][number];
+        : K extends "noise"
+          ? NoiseSource
+          : FloorPlan["fixtures"][number];
 
-const listKey = { wall: "walls", opening: "openings", space: "spaces", fixture: "fixtures", connector: "connectors" } as const;
+const listKey = {
+  wall: "walls",
+  opening: "openings",
+  space: "spaces",
+  fixture: "fixtures",
+  connector: "connectors",
+  noise: "noiseSources",
+} as const;
 
 export function getItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string): ItemOf<K> | undefined {
-  return (plan[listKey[kind]] as { id: string }[]).find((x) => x.id === id) as ItemOf<K> | undefined;
+  return ((plan[listKey[kind]] ?? []) as { id: string }[]).find((x) => x.id === id) as ItemOf<K> | undefined;
 }
 
-export function updateItem<K extends ItemKind>(
-  plan: FloorPlan,
-  kind: K,
-  id: string,
-  fn: (item: ItemOf<K>) => ItemOf<K>,
-): FloorPlan {
+export function updateItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string, fn: (item: ItemOf<K>) => ItemOf<K>): FloorPlan {
   const key = listKey[kind];
-  return { ...plan, [key]: (plan[key] as ItemOf<K>[]).map((x) => (x.id === id ? fn(x) : x)) };
+  return { ...plan, [key]: ((plan[key] ?? []) as ItemOf<K>[]).map((x) => (x.id === id ? fn(x) : x)) };
 }
 
 /** Keeps every opening on `wallId` inside the wall after it changed length. */
@@ -465,7 +475,10 @@ export function setWallLength(plan: FloorPlan, wallId: string, length: number): 
   const w = plan.walls.find((x) => x.id === wallId);
   if (!w || !(length > 0)) return plan;
   const b = clampToBounds(plan, pointAlong(w, length));
-  return refitOpenings(updateItem(plan, "wall", wallId, (x) => ({ ...x, b })), new Set([wallId]));
+  return refitOpenings(
+    updateItem(plan, "wall", wallId, (x) => ({ ...x, b })),
+    new Set([wallId]),
+  );
 }
 
 export function setBounds(plan: FloorPlan, width: number, height: number): FloorPlan {
@@ -479,6 +492,7 @@ export function contentExtent(plan: FloorPlan): { x: number; y: number } {
     ...plan.walls.flatMap((w) => [w.a, w.b]),
     ...plan.spaces.flatMap((s) => s.polygon),
     ...plan.fixtures.map((f) => f.position),
+    ...(plan.noiseSources ?? []).map((n) => n.position),
     ...plan.connectors.flatMap((c) => c.polygon),
   ];
   return { x: Math.max(0, ...points.map((p) => p.x)), y: Math.max(0, ...points.map((p) => p.y)) };
@@ -510,4 +524,65 @@ export function editorWarnings(plan: FloorPlan): string[] {
     if (cutOff.length) warnings.push(`No stairs, escalator or lift reaches ${cutOff.join(", ")}. Draw one with the Stairs tool.`);
   }
   return warnings;
+}
+
+export function setSite(plan: FloorPlan, patch: Partial<Site>): FloorPlan {
+  const site = { ...DEFAULT_SITE, ...plan.site, ...patch };
+  if (!Number.isFinite(site.northDeg) || (site.latitude !== undefined && (!Number.isFinite(site.latitude) || Math.abs(site.latitude) > 90)))
+    return plan;
+  return { ...plan, site: { ...site, northDeg: ((site.northDeg % 360) + 360) % 360 } };
+}
+
+export function setWindowGlass(
+  plan: FloorPlan,
+  id: string,
+  patch: Partial<Pick<Opening, "sillM" | "headM" | "transmittance" | "frosted" | "shaded">>,
+): FloorPlan {
+  const o = getItem(plan, "opening", id);
+  if (!o || o.kind !== "window") return plan;
+  const next = { ...o, ...patch };
+  if ([next.sillM, next.headM, next.transmittance].some((v) => v !== undefined && !Number.isFinite(v))) return plan;
+  if (
+    !((next.sillM ?? DEFAULT_GLASS.sillM) >= 0 && (next.headM ?? DEFAULT_GLASS.headM) > (next.sillM ?? DEFAULT_GLASS.sillM)) ||
+    !((next.transmittance ?? DEFAULT_GLASS.transmittance) >= 0 && (next.transmittance ?? DEFAULT_GLASS.transmittance) <= 1)
+  )
+    return plan;
+  return updateItem(plan, "opening", id, () => next);
+}
+
+export function setRoomFinish(
+  plan: FloorPlan,
+  id: string,
+  patch: Partial<Pick<Space, "lightingLux" | "acoustics" | "floorLRV" | "wallLRV">>,
+): FloorPlan {
+  if (patch.lightingLux !== undefined && (!Number.isFinite(patch.lightingLux) || patch.lightingLux < 0)) return plan;
+  for (const v of [patch.floorLRV, patch.wallLRV]) if (v !== undefined && (!Number.isFinite(v) || v < 0 || v > 100)) return plan;
+  return updateItem(plan, "space", id, (s) => ({ ...s, ...patch }));
+}
+
+export function addNoiseSource(plan: FloorPlan, position: Vec2, levelId = plan.levels[0].id): { plan: FloorPlan; id: string } {
+  const id = nextId(plan, "noise");
+  return {
+    id,
+    plan: {
+      ...plan,
+      noiseSources: [...(plan.noiseSources ?? []), { id, ...NOISE_PRESETS[0], levelId, position: clampToBounds(plan, position) }],
+    },
+  };
+}
+
+export function updateNoiseSource(plan: FloorPlan, id: string, patch: Partial<Omit<NoiseSource, "id">>): FloorPlan {
+  if (patch.dbA !== undefined && (!Number.isFinite(patch.dbA) || patch.dbA < 0 || patch.dbA > 150)) return plan;
+  if (
+    patch.hours &&
+    (!/^([01]\d|2[0-3]):[0-5]\d$/.test(patch.hours.from) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(patch.hours.to) ||
+      patch.hours.from >= patch.hours.to)
+  )
+    return plan;
+  return updateItem(plan, "noise", id, (n) => ({
+    ...n,
+    ...patch,
+    ...(patch.position ? { position: clampToBounds(plan, patch.position) } : {}),
+  }));
 }
