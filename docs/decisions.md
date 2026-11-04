@@ -2,6 +2,9 @@
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Site and weather before evacuation
+- **Site and weather (neighbours, their shadows, roads, real hourly cloud) becomes contract v0.8; evacuation moves to v0.9.** It builds straight on comfort, which already knows the sun's path. *(Product owner, agreeing with Claude)*
+
 ## 2026-11-04: v0.7.1 sound exposure and doorway glare
 - Person sound exposure subtracts that listener's own minute-sampled emission with the same propagation and room gain; ambient grids retain all sources. Assigned desk summaries also exclude the sitter. Focus noise limits apply to meetings and desks in open/private offices or meeting rooms; shop counters and other desks use general noise limits.
 - Meetings share one 60 dB(A) talker across attendees, with speech for half the minute and pauses/note-taking for the rest (57 dB(A) average source). Other social activity uses 55 dB(A) speech with one in three talking. These deterministic energy averages are comparison assumptions, not calibrated speech predictions. Doors pass diffuse daylight but block direct sun and facing-window glare; wall-free areas stay open. *(Codex, implementing the approved review-fix brief.)*

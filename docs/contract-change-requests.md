@@ -442,3 +442,112 @@ interface PersonProfile {
 2. **Defaults:** lighting and acoustics default by room type, marked as assumptions; floor and wall shades have no default, so contrast says "not checked" until someone enters them. Recommended.
 3. **Desk direction:** desk rotation starts to mean which way the person faces, so glare can be judged; the editor already lets you rotate desks. Recommended.
 4. **On by default in the app**, like crowding, while staying optional in the contract. Recommended.
+
+## v0.8: Site and weather — neighbours, shadows, roads and real skies
+- Requested by: Claude, 2026-11-04
+- Status: **open**. The order is settled (site and weather before evacuation, which becomes v0.9; product owner 2026-11-04); the details below need approval.
+
+**In plain words.** Comfort (v0.7) knows the sun's path but treats the building as standing alone under a sky that's either clear or overcast all day. Real Sri Lankan sites have a tall block next door, a main road along one side and afternoon cloud. This change lets you drop a pin on the site and fetch, once, what surrounds it and what the weather is like, so results can say:
+- "From 15:10 the apartment block to the west shades the office windows: desks 8–12 have no afternoon glare."
+- "The first-floor food court still gets low sun over the neighbouring shops (they're 6 m tall; its windows start at 4.8 m)."
+- "Galle Road (a main road) along the west side makes the bottom desks 6 dB louder than the top ones."
+- "On a typical 15 November, cloud builds from 14:00, so afternoon glare is about half what a clear day gives."
+
+**Key choice 1: open data, fetched once, saved in the project.** Neighbouring buildings and roads come from **OpenStreetMap** (free to use for this, with credit), weather from **Open-Meteo** (free, no key). The app fetches them when you place the pin or press Refresh, and saves them into the plan and scenario. The engine never goes online, so the same project always gives the same result and works offline.
+
+**Key choice 2: not Google's map data.** Google's terms don't allow extracting buildings or tracing from Google Maps or Earth imagery for our own analysis. Google can come later only as a picture behind the map, inside Google's own viewer, once there's a small server to hold the key. Google's Open Buildings heights are open, but come as very large files that need a server to cut down: later.
+
+**Key choice 3: heights you can trust or correct.** OpenStreetMap often lacks heights. Each neighbour records where its height came from: measured in the data, estimated from its number of floors (3 m each), or assumed (2 floors) when nothing is known. The app highlights estimated and assumed heights for you to check.
+
+**Key choice 4: weather as a typical day by default.** For the simulated date the app saves 24 hourly values: cloud, temperature, humidity and rain. Default: **typical for that date** (the average of the past 10 years around it). Option: **a specific past day**, to check against something you remember. In v0.8 the engine uses cloud for sun and daylight; temperature, humidity and rain are stored and shown, ready for heat comfort and rain-day behaviour later.
+
+**Key choice 5: without the new fields, results are exactly v0.7.**
+
+**Change: `floorplan.ts` (version "0.4" → "0.5"; all new fields optional)**
+```ts
+interface Site {
+  northDeg: number;
+  latitude?: number;
+  /** Where the plan's origin (its top-left corner, x 0 y 0) is on the earth. Replaces latitude when given. */
+  location?: { lat: number; lon: number };
+  /** Hours ahead of UTC for clock times. Missing: 5.5 (Sri Lanka). */
+  utcOffsetHours?: number;
+  /** Buildings around this one that can shade it. In plan metres; may lie outside `bounds`. */
+  neighbours?: Neighbour[];
+  /** Roads around the building, as noise sources along their length. In plan metres; may lie outside `bounds`. */
+  roads?: Road[];
+  /** Where fetched data came from, shown with the results, e.g. "© OpenStreetMap contributors, fetched 2026-11-04". */
+  credits?: string[];
+}
+
+interface Neighbour {
+  id: string;
+  name?: string;               // "Apartment block", from the data when it has one
+  polygon: Vec2[];             // footprint, at least 3 points
+  heightM: number;             // above this building's ground floor
+  /** "data": a height in the source; "floors": from its number of floors; "assumed": nothing known (2 floors); "user": entered or corrected. */
+  heightFrom: "data" | "floors" | "assumed" | "user";
+}
+
+interface Road {
+  id: string;
+  name?: string;               // "Galle Road"
+  path: Vec2[];                // centre line, at least 2 points
+  kind: "main" | "secondary" | "local" | "service";
+  /** Loudness 1 m from the kerb, dB(A). Missing: main 75, secondary 70, local 62, service 55. */
+  dbA?: number;
+  /** When traffic runs, "HH:MM". Missing: 06:00–22:00. */
+  hours?: { from: string; to: string };
+}
+```
+
+**Change: `scenario.ts` (version "0.7" → "0.8")**
+```ts
+interface Comfort {
+  // … everything in v0.7, plus:
+  /** Hourly weather for the simulated date. When given, its cloud replaces `sky`. */
+  weather?: Weather;
+}
+
+interface Weather {
+  /** "typical": averaged over past years for this date; "day": one real past day (`comfort.date`). */
+  kind: "typical" | "day";
+  /** e.g. "Open-Meteo, 2016–2025, fetched 2026-11-04". */
+  source: string;
+  /** 24 entries, one per clock hour from 00:00. */
+  hourly: { hour: string; cloudPct: number; tempC: number; humidityPct: number; rainMm: number }[];
+}
+```
+
+**How the engine uses them (explained in the assumptions).**
+- *Neighbour shadows:* direct sun reaches a window or a spot only if the line towards the sun clears every neighbour, counting their height and the floor's elevation. Neighbours also block part of the sky, reducing daylight from windows facing them.
+- *Roads:* each road is a noise source along its whole length (fading about 3 dB per doubling of distance, slower than a single point), through walls and windows as for v0.7 sources.
+- *Cloud:* each hour's cloud cuts direct sun and glare in proportion (100% cloud: none) and changes daylight between clear-sky and overcast levels.
+- Without neighbours, roads or weather, exactly v0.7.
+
+**Change: `results.ts` (version "0.7" → "0.8")**
+- `ComfortMetrics` adds `windows`: one per window that gets direct sun at some point, in plan order: `{ openingId; sunMinutes; shadedByNeighboursMinutes; cloudedMinutes }`. That explains why a window is or isn't glary.
+- `ComfortMetrics` adds `weatherUsed: "sky" | "typical" | "day"`, so the screens say which sky was used.
+- Assumptions name the data sources from `site.credits` and `weather.source`.
+
+**Change: `validate.ts`**
+- `location` within lat −90–90, lon −180–180; `utcOffsetHours` −12–14; neighbours: unique ids, polygon ≥ 3 points, `heightM` above 0 and at most 500; roads: unique ids, path ≥ 2 points, `dbA` 0–140, valid hours. Neighbours and roads are exempt from the plan-bounds check.
+- Weather: exactly 24 entries for hours 00:00…23:00 in order, cloud and humidity 0–100, rain ≥ 0, temperature −50–60.
+
+**Breaks**
+- Engine (Codex): neighbour shadows for direct sun and glare, sky blocked by neighbours, road line sources, hourly cloud, the window metrics. Exactly v0.7 without the new fields; deterministic; within v0.7 speed limits plus a little for neighbours.
+- App (Codex this time, Claude reviews):
+  - **Site panel:** place the pin by typing coordinates or pasting a Google Maps link (the app reads the coordinates from the link; no Google key needed); line the plan up with the street using the north angle. A small map view of the surroundings with © OpenStreetMap credit.
+  - **Fetch surroundings:** buildings and roads within about 200 m, from OpenStreetMap; heights marked data / floors / assumed, assumed ones highlighted; edit heights, delete or draw neighbours by hand; Refresh to fetch again.
+  - **Weather:** "Typical for this date" or "A specific past day", fetched from Open-Meteo, shown as a small hourly strip (cloud, temperature, rain); Refresh.
+  - **Results:** windows shaded by neighbours and by cloud; neighbours and roads drawn faintly around the plan in 2D and as plain blocks in 3D.
+  - **Assistant:** can set the location from a link or place name the user gives, and correct neighbour heights ("the block to the west is 12 floors").
+- Samples: `office-a-comfort` gains a location in Colombo, a 10-storey neighbour to the west, Galle Road as a road (replacing its point source in a new copy of the plan, `office-a-site`), and a typical 15 November weather day in a new `office-day-site` scenario. Fixed data in the sample, nothing fetched.
+
+**Left for later.** Terrain and hills; trees; heights from Google Open Buildings (needs a server); Google map or satellite imagery behind the plan (needs a key on a server); heat comfort from the stored temperature and humidity; rain changing who comes and where they go; evacuation (v0.9).
+
+**Decisions for the product owner**
+1. **Sources:** OpenStreetMap for neighbours and roads, Open-Meteo for weather; no Google map data, Google imagery later with a server. Recommended.
+2. **Fetch once, save in the project; the engine stays offline.** Recommended.
+3. **Weather default:** typical for the date (10-year average), with a specific past day as an option. Recommended.
+4. **Unknown heights:** from floors when known, otherwise assumed 2 floors, highlighted for the user to check. Recommended.
