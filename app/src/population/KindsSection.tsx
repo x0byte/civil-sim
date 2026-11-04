@@ -149,7 +149,7 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         options={access}
         onChange={(a) => onChange({ access: a, prefers: usablePrefers(kind.prefers, a) })}
       />
-      <NumField
+      <NumField estimated
         label="Walking speed"
         unit="m/s"
         step={0.05}
@@ -157,7 +157,7 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         value={kind.speed.mean}
         onCommit={(v) => onChange({ speed: withMean(kind.speed, v) })}
       />
-      <NumField
+      <NumField estimated
         label="Knows the building"
         unit="%"
         step={5}
@@ -165,7 +165,7 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         value={Math.round(kind.familiarity.mean * 100)}
         onCommit={(v) => onChange({ familiarity: withMean(kind.familiarity, Math.min(100, v) / 100, 0, 1) })}
       />
-      <NumField
+      <NumField estimated
         label="Uncomfortable above"
         unit="people/m²"
         step={0.1}
@@ -174,7 +174,7 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         onCommit={(v) => onChange({ crowdComfort: withMean(kind.crowdComfort, v) })}
       />
       {(["noiseComfort", "focusNoiseComfort", "taskLux"] as const).map((key) => (
-        <NumField
+        <NumField estimated
           key={key}
           label={
             key === "noiseComfort" ? "Too loud above" : key === "focusNoiseComfort" ? "Too loud for focused work above" : "Needs at least"
@@ -205,7 +205,7 @@ function KindDetail({ kind, onChange }: { kind: KindOfPerson; onChange: (patch: 
         <input type="checkbox" checked={!!kind.lowVision} onChange={(e) => onChange({ lowVision: e.target.checked })} />
         Low vision
       </label>
-      <NumField
+      <NumField estimated
         label="Room taken in a crowd"
         unit="× adult"
         step={0.1}

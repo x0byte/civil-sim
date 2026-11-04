@@ -1,3 +1,4 @@
+import {soundWord,lightWord} from "../experience/wording.ts";
 import type { DiscomfortCause, Track } from "../../../contracts/results.ts";
 import { deskLabel } from "../model/deskLabel.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -102,10 +103,10 @@ export function ComfortResults({ run, roomName }: { run: SimRun; roomName: (id: 
               <dl className="stats">
                 <dt>Loudest</dt>
                 <dd>
-                  {r.loudestDbA.toFixed(0)} dB(A) · {clockAt(run.scenario.workday.start, r.loudestT)}
+                  {soundWord(r.loudestDbA)} · {r.loudestDbA.toFixed(0)} dB(A) · {clockAt(run.scenario.workday.start, r.loudestT)}
                 </dd>
                 <dt>Dimmest</dt>
-                <dd>{Math.round(r.dimmestLux)} lux</dd>
+                <dd>{lightWord(r.dimmestLux)} · {Math.round(r.dimmestLux)} lux</dd>
                 <dt>Worst glare</dt>
                 <dd>
                   {r.worstGlare.toFixed(2)}

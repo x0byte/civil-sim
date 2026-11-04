@@ -1,3 +1,5 @@
+import {plainText} from "../experience/wording.ts";
+import {DetailSections} from "../experience/common.tsx";
 import { AccessibilityResults, EvacuationResults } from "./EvacuationResults.tsx";
 import { deskLabel } from "../model/deskLabel.ts";
 import { pointInPolygon, polygonArea } from "../model/geometry.ts";
@@ -74,9 +76,9 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
     .filter((p) => p.peak > 0 && p.type !== "open_office" && p.type !== "corridor")
     .sort((a, b) => b.peak - a.peak);
 
-  if(result.metrics.evacuation) return <EvacuationResults run={run}/>;
+  if(result.metrics.evacuation) return <DetailSections><EvacuationResults run={run}/></DetailSections>;
   return (
-    <>
+    <DetailSections>
       <AccessibilityResults run={run}/>
       {stale && (
         <div className="stale-banner">
@@ -466,7 +468,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
               ))}
               {result.warnings.map((w, i) => (
                 <li key={i} className="warning">
-                  {w.message}
+                  {plainText(run.plan,w.message)}
                 </li>
               ))}
             </ul>
@@ -487,7 +489,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
           </p>
         </details>
       </section>
-    </>
+    </DetailSections>
   );
 }
 

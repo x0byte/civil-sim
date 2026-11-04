@@ -1,3 +1,5 @@
+import {Estimate} from "../experience/Story.tsx";
+import {soundWord,lightWord} from "../experience/wording.ts";
 import { useEffect, useState } from "react";
 
 /** Number input that commits on Enter or blur, so typing doesn't create an undo step per keystroke. */
@@ -9,6 +11,7 @@ export function NumField({
   step = 0.05,
   min,
   max,
+  estimated = false,
 }: {
   label: string;
   value: number;
@@ -17,6 +20,7 @@ export function NumField({
   step?: number;
   min?: number;
   max?: number;
+  estimated?: boolean;
 }) {
   const [text, setText] = useState(fmt(value));
   useEffect(() => setText(fmt(value)), [value]);
@@ -27,7 +31,7 @@ export function NumField({
   };
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>{label} {estimated && <Estimate/>}</span>
       <span className="input-unit">
         <input
           type="number"
@@ -39,7 +43,7 @@ export function NumField({
           onBlur={apply}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         />
-        {unit}
+        {unit} {unit==="lux"?` · ${lightWord(value)}`:unit==="dB(A)"?` · ${soundWord(value)}`:""}
       </span>
     </label>
   );

@@ -1,3 +1,4 @@
+import { useExperience } from "../experience/state.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, SimulationResult, Track } from "../../../contracts/results.ts";
@@ -22,6 +23,8 @@ const CROWD_FROM = 1;
 const CROWD_SCALE = 4;
 
 const SPEEDS = [
+  { label: "Real time", value: 1 },
+  { label: "10×", value: 10 },
   { label: "1 min/s", value: 60 },
   { label: "5 min/s", value: 300 },
   { label: "15 min/s", value: 900 },
@@ -99,7 +102,7 @@ export function Playback({ run }: { run: SimRun }) {
         insets={{ top: 64, right: 32, bottom: 84, left: 220 }}
         legend
         selectedPerson={personId}
-        onPickPerson={setPersonId}
+        onPickPerson={id => { setPersonId(id); if(id) useExperience.getState().follow(id, clock.t); }}
       />
       <div className="view-controls">
         <HeatToggle value={heat} onChange={setHeat} comfort={!!run.result.metrics.comfort} />

@@ -1,4 +1,4 @@
-import { EvacuationDialog } from "../sim/EvacuationDialog.tsx";
+import {useExperience} from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
@@ -6,9 +6,7 @@ import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
 import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
-import { runDay } from "../sim/runDay.ts";
 import { useEditor } from "../state/store.ts";
-import { useProblems } from "./Problems.tsx";
 
 export function TopBar() {
   const [dark, setDark] = useState(() => {
@@ -31,19 +29,20 @@ export function TopBar() {
   const view = useEditor((s) => s.view);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
-  const hasRun = useEditor((s) => s.run !== null);
-  const hasComparison = useEditor((s) => s.comparison !== null);
   const options = useEditor((s) => s.options);
   const { load, undo, redo, setView, commit, notify, setTool } = useEditor.getState();
-  const { errors } = useProblems();
+  const ux = useExperience();
   const importRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [evacOpen,setEvacOpen]=useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [dxf, setDxf] = useState<{ drawing: DxfDrawing; name: string } | null>(null);
 
+  useEffect(()=>{
+    const bring=(e:Event)=>{const action=(e as CustomEvent<string>).detail;if(action==="image")imageRef.current?.click();else if(action==="dxf")importRef.current?.click();else if(action==="draw")setNewOpen(true);};
+    window.addEventListener("civil-sim:bring",bring);return()=>window.removeEventListener("civil-sim:bring",bring);
+  },[]);
   const saveProject = () => {
     const { options, profiles } = useEditor.getState();
     const file = buildProject(plan, options, profiles);
@@ -58,6 +57,7 @@ export function TopBar() {
   };
 
   const openFile = async (file: File) => {
+    ux.newBuilding();
     try {
       if (/\.dxf$/i.test(file.name)) {
         const drawing = parseDxf(await file.text());
@@ -99,18 +99,18 @@ export function TopBar() {
   };
 
   return (
-    <header className="topbar">
+    <header className={`topbar ${ux.home?"home-topbar":""} ${ux.step!==1?"compact-topbar":""}`}>
       <div className="brand">
         <span className="logo">◧</span> civil-sim
       </div>
 
-      <div className="group">
-        <button onClick={() => setNewOpen(true)}>New</button>
+      <div className="group project-actions">
+        <button onClick={() => {ux.newBuilding();setNewOpen(true);}}>New</button>
         <select
           value=""
           onChange={(e) => {
             const s = SAMPLE_PLANS.find((x) => x.id === e.target.value);
-            if (s) load(s.plan);
+            if (s) {load(s.plan); ux.newBuilding();}
           }}
         >
           <option value="" disabled>
@@ -172,40 +172,12 @@ export function TopBar() {
       <button onClick={() => setCompareOpen(true)} title="Run the same people through two layouts side by side">
         Compare
       </button>
-      <button
-        className="primary"
-        onClick={runDay}
-        disabled={errors.length > 0}
-        title={
-          errors.length
-            ? `Fix ${errors.length} problem${errors.length > 1 ? "s" : ""} first (listed on the right)`
-            : "Simulate a workday in this layout"
-        }
-      >
-        ▶ Run day
-      </button>
-      <button disabled={errors.length>0} onClick={()=>setEvacOpen(true)}>Run an evacuation…</button>
-
-      <div className="segmented">
-        <button className={view === "2d" ? "active" : ""} onClick={() => setView("2d")}>
-          2D
-        </button>
-        <button className={view === "3d" ? "active" : ""} onClick={() => setView("3d")}>
-          3D
-        </button>
-        <button className={view === "sim" ? "active" : ""} onClick={() => setView("sim")} disabled={!hasRun}>
-          Simulation
-        </button>
-        <button className={view === "compare" ? "active" : ""} onClick={() => setView("compare")} disabled={!hasComparison}>
-          Comparison
-        </button>
-      </div>
+      {ux.step===1&&!ux.home&&<div className="segmented"><button className={view==="2d"?"active":""} onClick={()=>setView("2d")}>Plan</button><button className={view==="3d"?"active":""} onClick={()=>setView("3d")}>Building in 3D</button></div>}
 
       <button onClick={() => setDark((value) => !value)} aria-label={dark ? "Use light theme" : "Use dark theme"}>
         {dark ? "Light" : "Dark"}
       </button>
 
-      {evacOpen && <EvacuationDialog onClose={()=>setEvacOpen(false)}/>}
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (

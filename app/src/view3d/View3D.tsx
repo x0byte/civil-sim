@@ -87,10 +87,10 @@ function Sun({ centre, span }: { centre: [number, number, number]; span: number 
 const CUT_HEIGHT = 1.2;
 
 /** Every floor from the ground up to `level`, each at its elevation, plus the stairs, escalators and lifts between them. */
-function Building({ plan, level, cutHeight }: { plan: FloorPlan; level: string; cutHeight: number | null }) {
+export function Building({ plan, level, cutHeight, visibleLevels, peel = 0, labels = true }: { plan: FloorPlan; level: string; cutHeight: number | null; visibleLevels?: string[]; peel?: number; labels?: boolean }) {
   const { width, height } = plan.bounds;
   const top = Math.max(0, plan.levels.findIndex((l) => l.id === level));
-  const shown = plan.levels.slice(0, top + 1);
+  const shown = visibleLevels ? plan.levels.filter(l => visibleLevels.includes(l.id)) : plan.levels.slice(0, top + 1);
   const index = new Map(plan.levels.map((l, i) => [l.id, i]));
   const holes = useMemo(() => new Map(plan.levels.map((l) => [l.id, wells(plan, l.id)])), [plan]);
   return (
@@ -101,11 +101,11 @@ function Building({ plan, level, cutHeight }: { plan: FloorPlan; level: string; 
       </mesh>
       {(plan.site?.neighbours ?? []).map((n) => <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />)}
       {(plan.site?.roads ?? []).flatMap((r) => r.path.slice(1).map((b, i) => { const a = r.path[i]; return <mesh key={`${r.id}-${i}`} position={[(a.x + b.x) / 2, -.02, (a.y + b.y) / 2]} rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}><boxGeometry args={[Math.hypot(b.x - a.x, b.y - a.y), .04, r.kind === "main" ? 6 : 4]} /><meshStandardMaterial color="#9298a0" /></mesh>; }))}
-      {shown.map((l, i) => (
-        <group key={l.id} position={[0, l.elevation, 0]}>
-          {i > 0 && <Slab plan={plan} holes={holes.get(l.id)!} />}
+      {shown.map((l) => (
+        <group key={l.id} position={[0, l.elevation + index.get(l.id)! * peel, 0]}>
+          {index.get(l.id)! > 0 && <Slab plan={plan} holes={holes.get(l.id)!} />}
           {/* Only the floor on top is cut open; the ones below keep their full walls up to its slab. */}
-          <Scene plan={onLevel(plan, l.id)} cutHeight={i === top ? cutHeight : null} labels={i === top} holes={holes.get(l.id)} />
+          <Scene plan={onLevel(plan, l.id)} cutHeight={visibleLevels || index.get(l.id) === top ? cutHeight : null} labels={labels && (Boolean(visibleLevels) || index.get(l.id) === top)} holes={holes.get(l.id)} />
         </group>
       ))}
       {plan.connectors.flatMap((c) => {
@@ -113,7 +113,7 @@ function Building({ plan, level, cutHeight }: { plan: FloorPlan; level: string; 
         const lowest = served.length ? index.get(served[0])! : Infinity;
         if (served.length < 2 || lowest > top) return [];
         const highest = Math.min(top, index.get(served[served.length - 1])!);
-        return [<ConnectorMesh key={c.id} connector={c} from={plan.levels[lowest].elevation} to={plan.levels[highest].elevation} reaches={highest > lowest} />];
+        return [<ConnectorMesh key={c.id} connector={c} from={plan.levels[lowest].elevation + lowest * peel} to={plan.levels[highest].elevation + highest * peel} reaches={highest > lowest} />];
       })}
     </group>
   );

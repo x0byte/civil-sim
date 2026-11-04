@@ -170,9 +170,9 @@ export function PeoplePanel() {
                     ×
                   </button>
                 </div>
-                <NumField label="Headcount" unit="people" step={1} min={0} value={d.headcount} onCommit={(v) => updDept(d.id, { headcount: Math.round(v) })} />
-                <NumField label="Managers" unit="incl." step={1} min={0} value={d.managers} onCommit={(v) => updDept(d.id, { managers: Math.round(v) })} />
-                <NumField
+                <NumField estimated label="Headcount" unit="people" step={1} min={0} value={d.headcount} onCommit={(v) => updDept(d.id, { headcount: Math.round(v) })} />
+                <NumField estimated label="Managers" unit="incl." step={1} min={0} value={d.managers} onCommit={(v) => updDept(d.id, { managers: Math.round(v) })} />
+                <NumField estimated
                   label="Team meetings"
                   unit="/ day"
                   step={1}
@@ -222,7 +222,7 @@ export function PeoplePanel() {
           </div>
         </header>
         <div className="panel-body">
-          <NumField
+          <NumField estimated
             label="Toilet visits"
             unit="/ day"
             step={1}
@@ -230,7 +230,7 @@ export function PeoplePanel() {
             value={profile.rates.toiletVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, toiletVisitsPerDay: v } })}
           />
-          <NumField
+          <NumField estimated
             label="Pantry visits"
             unit="/ day"
             step={1}
@@ -238,7 +238,7 @@ export function PeoplePanel() {
             value={profile.rates.pantryVisitsPerDay}
             onCommit={(v) => upd({ rates: { ...profile.rates, pantryVisitsPerDay: v } })}
           />
-          <NumField
+          <NumField estimated
             label="Give up after"
             unit="min"
             step={1}
@@ -292,7 +292,7 @@ function WorksWith({ profile, setProfile }: { profile: OfficeProfile; setProfile
                   ×
                 </button>
               </div>
-              <NumField label="Meetings" unit="/ day" step={1} min={0} value={c.meetingsPerDay} onCommit={(v) => upd({ meetingsPerDay: Math.round(v) })} />
+              <NumField estimated label="Meetings" unit="/ day" step={1} min={0} value={c.meetingsPerDay} onCommit={(v) => upd({ meetingsPerDay: Math.round(v) })} />
             </div>
           );
         })}
@@ -335,7 +335,7 @@ function LunchSection({ profile, setProfile }: { profile: OfficeProfile; setProf
             <TimeField label="Lunch from" value={lunch.windowStart} onChange={(windowStart) => upd({ windowStart })} />
             <TimeField label="Last start" value={lunch.windowEnd} onChange={(windowEnd) => upd({ windowEnd })} />
           </div>
-          <NumField label="Lasts" unit="min" step={5} min={5} value={lunch.durationMin} onCommit={(v) => upd({ durationMin: Math.round(v) })} />
+          <NumField estimated label="Lasts" unit="min" step={5} min={5} value={lunch.durationMin} onCommit={(v) => upd({ durationMin: Math.round(v) })} />
           <Share label="In the pantry" value={lunch.pantryShare} onChange={(v) => upd({ pantryShare: Math.min(v, 1 - lunch.outShare) })} />
           <Share label="Go out" value={lunch.outShare} onChange={(v) => upd({ outShare: Math.min(v, 1 - lunch.pantryShare) })} />
           <p className="muted">The other {Math.round(atDesk * 100)}% eat at their desk.</p>
@@ -421,7 +421,7 @@ function ShoppersSection({
             </tbody>
           </table>
           <Share label="Pop into shops passed" value={sh.impulse} onChange={(impulse) => upd({ impulse })} />
-          <NumField
+          <NumField estimated
             label="Toilet visits"
             unit="/ hour"
             step={0.05}
@@ -459,8 +459,8 @@ function VisitorsSection({
         </div>
       </header>
       <div className="panel-body">
-        <NumField label="Visitors" unit="/ day" step={1} min={0} value={v.perDay} onCommit={(n) => upd({ perDay: Math.round(n) })} />
-        <NumField label="Wait at reception" unit="min" step={1} min={0} value={v.waitMin} onCommit={(n) => upd({ waitMin: Math.round(n) })} />
+        <NumField estimated label="Visitors" unit="/ day" step={1} min={0} value={v.perDay} onCommit={(n) => upd({ perDay: Math.round(n) })} />
+        <NumField estimated label="Wait at reception" unit="min" step={1} min={0} value={v.waitMin} onCommit={(n) => upd({ waitMin: Math.round(n) })} />
         {v.perDay > 0 && (
           <p className="muted">
             Visitors join booked meetings first, then visit a manager's office. {booked} of {v.perDay} have somewhere to go.

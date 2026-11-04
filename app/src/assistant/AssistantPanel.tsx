@@ -1,3 +1,4 @@
+import { useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { useAssistant } from "./assistant.ts";
 
@@ -57,6 +58,8 @@ function Chat() {
   const { send, reset, forgetKey, apply, discard } = useAssistant.getState();
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const prompt = useExperience(s=>s.prompt), promptKey = useExperience(s=>s.promptKey);
+  useEffect(()=>{ if(prompt) setText(prompt); },[prompt,promptKey]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [lines.length, busy]);

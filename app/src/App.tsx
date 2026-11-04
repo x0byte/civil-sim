@@ -1,5 +1,11 @@
+import {plainText} from "./experience/wording.ts";
 import { useEffect } from "react";
-import { AssistantPanel } from "./assistant/AssistantPanel.tsx";
+import {FlowHeader,StartScreen,SimpleBuilding,SimplePeople,RunControls,AssistantDock} from "./experience/Flow.tsx";
+import {useExperience} from "./experience/state.ts";
+import {FineTune} from "./experience/common.tsx";
+import {Story} from "./experience/Story.tsx";
+import {Experience3D} from "./experience/Experience3D.tsx";
+import "./experience/experience.css";
 import { ProposalView } from "./assistant/ProposalView.tsx";
 import { useAssistant } from "./assistant/assistant.ts";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
@@ -19,10 +25,9 @@ export function App() {
   const view = useEditor((s) => s.view);
   const toast = useEditor((s) => s.toast);
   const run = useEditor((s) => s.run);
-  const sim = view === "sim" && run;
   const comparison = useEditor((s) => s.comparison);
   const cmp = view === "compare" && comparison;
-  const tab = useEditor((s) => s.sidebarTab);
+  const ux = useExperience();
   const proposal = useAssistant((s) => s.proposal);
 
   useEffect(() => {
@@ -42,6 +47,7 @@ export function App() {
         return;
       }
       if (mod || e.altKey) return;
+      if(useExperience.getState().step !== 1 || useExperience.getState().home) return;
       const t = TOOLS.find((x) => x.key === e.key.toUpperCase());
       if (t) {
         s.setView("2d");
@@ -53,56 +59,26 @@ export function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className="app friendly-app">
+      <FlowHeader />
       <TopBar />
-      <main className="workspace">
-        {view === "2d" && !proposal && <Toolbar />}
+      {ux.home ? <StartScreen /> : <main className="workspace">
+        {ux.step === 1 && view === "2d" && !proposal && <Toolbar />}
         <div className="stage">
-          {cmp ? (
-            <CompareView comparison={cmp} />
-          ) : sim ? (
-            <Playback run={sim} />
-          ) : proposal ? (
-            <ProposalView />
-          ) : view === "3d" ? (
-            <View3D />
-          ) : (
-            <Canvas2D />
-          )}
+          {proposal ? <ProposalView /> : ux.step === 3 && cmp ? <CompareView comparison={cmp}/> : ux.step === 3 && run ? (
+            ux.presentation === "3d" ? <Experience3D run={run}/> : <Playback run={run}/>
+          ) : view === "3d" ? <View3D/> : <Canvas2D/>}
+          {ux.step === 3 && !run && !cmp && <div className="run-empty"><h1>Let’s see how your building feels.</h1><p>Run a typical day to see people move, where they wait and what could work better.</p></div>}
         </div>
-        <aside className={cmp ? "sidebar wide" : "sidebar"}>
-          {cmp ? (
-            <CompareResults comparison={cmp} />
-          ) : sim ? (
-            <ResultsPanel run={sim} onRerun={runDay} />
-          ) : (
-            <>
-              <div className="tabs">
-                <button className={tab === "plan" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("plan")}>
-                  Plan
-                </button>
-                <button className={tab === "people" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("people")}>
-                  People
-                </button>
-                <button className={tab === "assistant" ? "active" : ""} onClick={() => useEditor.getState().setSidebarTab("assistant")}>
-                  Assistant
-                </button>
-              </div>
-              {tab === "assistant" ? (
-                <AssistantPanel />
-              ) : tab === "people" ? (
-                <PeoplePanel />
-              ) : (
-                <>
-                  <Inspector />
-                  <Problems />
-                </>
-              )}
-            </>
-          )}
+        <aside className={cmp && ux.step===3 ? "sidebar wide" : "sidebar"}>
+          {ux.step===1 ? <><SimpleBuilding/><FineTune><Inspector/><Problems/></FineTune></> : ux.step===2 ? <><SimplePeople/><FineTune><PeoplePanel/></FineTune></> : <>
+            <RunControls/>
+            {cmp ? <CompareResults comparison={cmp}/> : run ? <><Story run={run}/><details className="more-detail"><summary>More detail</summary><ResultsPanel run={run} onRerun={runDay}/></details></> : <section className="panel"><div className="panel-body">Your results will appear here. You can change the people or the building at any time.</div></section>}
+          </>}
         </aside>
-      </main>
-      {toast && <div className="toast">{toast}</div>}
+      </main>}
+      <AssistantDock/>
+      {toast && <div className="toast" role="status">{plainText(useEditor.getState().plan,toast)}</div>}
     </div>
   );
 }
