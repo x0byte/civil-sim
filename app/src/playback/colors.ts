@@ -17,6 +17,9 @@ export const ACTIVITY_STYLE: Record<Exclude<Activity, "absent">, { label: string
   // takes the visitor-waiting purple (malls have shoppers, offices have visitors).
   eating: { label: "Eating", color: "#008300" },
   shopping: { label: "In a shop", color: "#6250d6" },
+  // After an alarm nobody walks about normally or visits the toilet, so evacuation reuses those slots.
+  evacuating: { label: "Getting out", color: "#eb6834" },
+  at_refuge: { label: "At a refuge", color: "#eda100" },
 };
 
 /** Single-hue sequential ramp, light (little) to dark (a lot). */

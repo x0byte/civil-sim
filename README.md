@@ -35,7 +35,7 @@ Done: **M1 editor**, **M2 playback** with the simulation engine, **M3 compare la
 3. **People who differ, and crowding:** wheelchair users, older adults, children, first-time visitors and lift-lovers drawn from bell curves; crowds slow people down; "who struggled" results (contract v0.6; engine and app done).
 4. **Comfort:** what each spot sounds and looks like (noise, daylight, lighting, glare, floor and wall contrast) against each kind of person's tolerances; "how it felt" results and one person's day (contract v0.7, approved; engine in progress).
 5. **Site and weather:** drop a pin to fetch neighbouring buildings (their shadows) and roads (their noise) from OpenStreetMap, and a typical day's weather from Open-Meteo (contract v0.8, done).
-6. **Evacuation and accessibility:** an alarm at a chosen time, exits people actually use, refuges for step-free people, how fast each floor empties; ramps, accessible toilets and accessibility checks (contract v0.9, proposed).
+6. **Evacuation and accessibility:** an alarm at a chosen time, exits people actually use, refuges for step-free people, how fast each floor empties; ramps, accessible toilets and accessibility checks (contract v0.9, approved; build in progress).
 7. **Calibration:** compare against mall door counters and Wi-Fi data.
 
 **Design assistant:** ✓ describe a change in plain words; Claude proposes the edit to the plan or the people, and you apply it.

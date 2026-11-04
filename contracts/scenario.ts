@@ -1,9 +1,9 @@
-// Scenario contract, v0.8: who is in the building and what their day looks like.
+// Scenario contract, v0.9: who is in the building and what their day looks like.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.8";
+export const SCENARIO_VERSION = "0.9";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -41,6 +41,20 @@ export interface Scenario {
   crowding?: Crowding;
   /** Work out sound, light and contrast comfort for everyone (contract v0.7). Omitted means off. */
   comfort?: Comfort;
+  /** Sound an alarm and evacuate (contract v0.9). Missing: an ordinary day. */
+  evacuation?: Evacuation;
+}
+
+/**
+ * The day runs normally until the alarm; then everyone reacts, after their own delay, and heads for
+ * an exit (or, if they can't use stairs and there's no evacuation lift, a refuge). The run ends when
+ * the last person is out or at a refuge.
+ */
+export interface Evacuation {
+  /** When the alarm sounds, "HH:MM", within the workday. */
+  alarmAt: ClockTime;
+  /** Exterior doors out of use for this run (blocked, or a fire near them). Missing: none. */
+  blockedExitIds?: string[];
 }
 
 /**
@@ -109,6 +123,8 @@ export interface PersonProfile {
   familiarity: Spread;
   /** People per m² around them at which they start to feel uncomfortable (a typical adult about 1.5; someone anxious in crowds about 0.8). */
   crowdComfort: Spread;
+  /** Seconds from an alarm until they start moving. Missing: typical 30–120 s (stated in the assumptions). */
+  reactionS?: Spread;
   /** Loudest dB(A) they're comfortable with while walking, shopping or eating (typical about 70; noise-sensitive about 60). Missing: typical. */
   noiseComfort?: Spread;
   /** Loudest dB(A) for focused work at a desk or in a meeting (typical about 50). Missing: typical. */

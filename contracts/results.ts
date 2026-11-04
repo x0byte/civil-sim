@@ -1,8 +1,8 @@
-// Simulation results contract, v0.8.
+// Simulation results contract, v0.9.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.8";
+export const RESULTS_VERSION = "0.9";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -40,7 +40,11 @@ export type Activity =
   /** A shopper inside a shop. */
   | "shopping"
   /** A shopper at the food court. */
-  | "eating";
+  | "eating"
+  /** After an alarm: moving to an exit or a refuge. */
+  | "evacuating"
+  /** After an alarm: waiting at a refuge for help. */
+  | "at_refuge";
 
 /**
  * A person's path through the day, as keyframes.
@@ -106,13 +110,21 @@ export type SimEventType =
   /** A shopper went into a shop or the food court (`spaceId`). Shoppers also get "arrive" and "leave". */
   | "shop_visit"
   /** Couldn't reach `spaceId` by any route they can use (e.g. step-free), so went elsewhere or did without. */
-  | "blocked";
+  | "blocked"
+  /** The alarm sounded (one event, personId ""). */
+  | "alarm"
+  /** Left the building in an alarm, through `openingId`. */
+  | "evacuated"
+  /** Reached a refuge (`spaceId`) in an alarm. */
+  | "reached_refuge";
 
 export interface SimEvent {
   t: number;
   personId: string;
   type: SimEventType;
   spaceId?: string;
+  /** "evacuated" only: the exterior door used. */
+  openingId?: string;
 }
 
 export interface Metrics {
@@ -152,6 +164,44 @@ export interface Metrics {
   crowding: CrowdingMetrics[];
   /** Sound, light and contrast comfort. null when `scenario.comfort` is missing. */
   comfort: ComfortMetrics | null;
+  /** How the building emptied. null without `scenario.evacuation`. Times are seconds from the alarm. */
+  evacuation: EvacuationMetrics | null;
+  /** Common accessibility guidance, checked on every run, in this order of codes. */
+  accessibility: AccessibilityCheck[];
+}
+
+export interface EvacuationMetrics {
+  /** Until everyone who could leave was out; until everyone else was at a refuge (0 if nobody went to one). */
+  outS: number;
+  refugeS: number;
+  /** People with no exit or refuge they could reach. */
+  stranded: number;
+  /** One per floor, in plan order: people on it at the alarm, and when the last of them left it (0 if nobody). */
+  byFloor: { levelId: string; people: number; clearS: number }[];
+  /** One per profile in list order, then a row "" for people without one when there are any (or only "" without profiles). */
+  byProfile: { profileId: string; people: number; meanOutS: number; slowestOutS: number; atRefuge: number; stranded: number }[];
+  /** One per exterior door, in plan order: people out through it, first and last (0 if unused), most waiting at once. */
+  exits: { openingId: string; people: number; firstS: number; lastS: number; peakQueue: number }[];
+  /** Stairs, escalators, ramps and lifts used after the alarm, in plan order: people, most waiting at once, total person-seconds waiting. */
+  connectors: { connectorId: string; people: number; peakQueue: number; queueS: number }[];
+  /** One per refuge space anyone reached, in plan order. */
+  refuges: { spaceId: string; people: number; firstS: number; lastS: number }[];
+}
+
+export type AccessibilityCheckCode =
+  | "door_width"
+  | "ramp_gradient"
+  | "accessible_toilet_per_floor"
+  | "step_free_route_per_floor"
+  | "refuge_or_evacuation_lift_per_floor";
+
+/** One guidance check. Guidance, not certification: results say to confirm with local regulations. */
+export interface AccessibilityCheck {
+  code: AccessibilityCheckCode;
+  ok: boolean;
+  /** Plain words, naming rooms, doors and floors. */
+  message: string;
+  refIds: string[];
 }
 
 /** Why someone was uncomfortable at a moment. "crowded" is v0.6's crowd discomfort. */
@@ -306,6 +356,10 @@ export type WarningCode =
   | "not_step_free"
   /** Comfort problems in plain words, naming rooms or desks: "Desk 6 gets direct sun from 15:30 to 16:40". Only with comfort on. */
   | "comfort"
+  /** Evacuation problems, e.g. "3 people on Second floor had no exit or refuge they could use". Only with an alarm. */
+  | "evacuation"
+  /** A failed accessibility check (see Metrics.accessibility). */
+  | "accessibility"
   | "other";
 
 export interface Warning {

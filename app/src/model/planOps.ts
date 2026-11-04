@@ -80,7 +80,7 @@ export const DEFAULT_LIFT_CAPACITY = 8;
 
 export function blankPlan(name: string, width: number, height: number): FloorPlan {
   return {
-    version: "0.5",
+    version: "0.6",
     id: `plan-${Date.now().toString(36)}`,
     name,
     units: "m",
@@ -96,18 +96,18 @@ export function blankPlan(name: string, width: number, height: number): FloorPla
 
 /**
  * Brings a plan saved in an older format up to date. A single-floor v0.1 plan becomes
- * one "Ground floor" with everything on it; v0.2 to v0.4 only lacked optional fields (shop pull,
- * entrance shares, comfort settings, site), so they just take the new version; anything current is returned as is.
+ * one "Ground floor" with everything on it; v0.2 to v0.5 only lacked optional fields (shop pull,
+ * entrance shares, comfort settings, site, evacuation settings), so they just take the new version; anything current is returned as is.
  */
 export function upgradePlan(plan: FloorPlan): FloorPlan {
   const version = (plan as { version: string }).version;
-  if (version === "0.2" || version === "0.3" || version === "0.4") return { ...plan, version: "0.5" };
+  if (version === "0.2" || version === "0.3" || version === "0.4" || version === "0.5") return { ...plan, version: "0.6" };
   if (version !== "0.1") return plan;
   const raw = plan as Omit<FloorPlan, "connectors"> & Partial<Pick<FloorPlan, "connectors">>;
   const level = GROUND.id;
   return {
     ...raw,
-    version: "0.5",
+    version: "0.6",
     levels: [GROUND],
     walls: raw.walls.map((w) => ({ ...w, levelId: w.levelId ?? level })),
     spaces: raw.spaces.map((x) => ({ ...x, levelId: x.levelId ?? level })),

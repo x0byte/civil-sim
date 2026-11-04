@@ -1,4 +1,4 @@
-# Contracts (v0.8)
+# Contracts (v0.9)
 
 These files define how the parts of civil-sim talk to each other. The editor and the
 engine are built separately, by different agents, and only ever meet here.
@@ -25,6 +25,7 @@ engine are built separately, by different agents, and only ever meet here.
 - **Every number shown to a user is traceable.** Results carry an `assumptions` list in plain language.
 
 ## Version history
+- **v0.9** (floor plan v0.6, scenario, results): evacuation and accessibility. Plans gain ramps, `evacuationLift`, `fireExit`, accessible toilets and refuges; scenarios gain `evacuation` (alarm time, blocked exits) and profiles `reactionS`. Results gain `"evacuating"` and `"at_refuge"`, alarm/evacuated/refuge events, `metrics.evacuation` (time to empty, by floor, kind, exit, connector and refuge) and `metrics.accessibility` checks, with `evacuation` and `accessibility` warnings.
 - **v0.8** (floor plan v0.5, scenario, results): site and weather. `site` gains `location`, `utcOffsetHours`, `neighbours` (footprints with heights and where each height came from), `roads` (noise along their length) and `credits`; `comfort.weather` holds 24 hours of cloud, temperature, humidity and rain, typical or a real day. Results gain per-window sun, neighbour-shade and cloud minutes and `weatherUsed`.
 - **v0.7** (floor plan v0.4, scenario, results): comfort. Plans can say which way is north (`site`), list `noiseSources`, describe window glass (`sillM`, `headM`, `transmittance`, `frosted`, `shaded`) and rooms' `lightingLux`, `acoustics`, `floorLRV` and `wallLRV`; desk `rotation` now means the way the sitter faces. Scenarios gain `comfort` (date, sky) and profiles gain noise, light and glare tolerances and `lowVision`. Results gain noise, light and glare grids per floor, `Track.discomfort` stretches, `metrics.comfort` (by kind of person, by space, desks) and the `comfort` warning.
 - **v0.5** (floor plan v0.3, scenario, results): shoppers (`shoppers`: arrivals through the day, shopper types, impulse visits), shop pull (`Space.attraction`) and entrance shares (`Opening.arrivalShare`); results gain shopper tracks, `"shopping"` and `"eating"`, `shop_visit` events, per-shop pass-bys, visits and conversion, a headcount through the day, and shopper totals.

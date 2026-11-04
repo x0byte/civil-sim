@@ -114,7 +114,7 @@ describe("app comfort", () => {
     const two = { ...plan, levels: [...plan.levels, { id: "upper", name: "Upper", elevation: 4 }] };
     expect(removeLevel(two, plan.levels[0].id).noiseSources).toEqual([]);
     const legacy = parseProjectOrPlan(JSON.stringify({ ...office, version: "0.3" }));
-    expect(legacy.kind === "plan" && legacy.plan.version).toBe("0.5");
+    expect(legacy.kind === "plan" && legacy.plan.version).toBe("0.6");
   });
 
   it("runs an app-built comfort day end to end and renders the results and editors", () => {

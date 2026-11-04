@@ -25,7 +25,7 @@ interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "w
 const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
 const singleFloor = (d: Draft): FloorPlan => ({
   ...d,
-  version: "0.5",
+  version: "0.6",
   levels: [GROUND],
   walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
   spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
@@ -214,7 +214,7 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.8",
+  version: "0.9",
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
@@ -241,7 +241,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.8",
+  version: "0.9",
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -382,7 +382,7 @@ const connectors: Connector[] = [
   { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
 ];
 const mall: FloorPlan = {
-  version: "0.5",
+  version: "0.6",
   id: "mall-2f",
   name: "Small mall: two floors",
   units: "m",
@@ -398,7 +398,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.8",
+  version: "0.9",
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -422,7 +422,7 @@ const mallScenario: Scenario = {
 // A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
 // Arrival rates and shopper types are assumptions until calibrated against door counts.
 const mallWeekend: Scenario = {
-  version: "0.8",
+  version: "0.9",
   id: "mall-weekend",
   name: "Saturday: shop staff and about 850 shoppers",
   seed: 21,
@@ -636,6 +636,41 @@ const officeDaySite: Scenario = {
   },
 };
 
+// ---------- evacuation and accessibility samples (contract v0.9) ----------
+// The mall with an accessible toilet, a refuge beside the First floor stairs and a fire exit by the
+// stairs on Ground floor. The lift is not an evacuation lift, so step-free people upstairs use the refuge.
+const mallEvac: FloorPlan = {
+  ...mall,
+  id: "mall-2f-evac",
+  name: "Small mall: fire exit, refuge and accessible toilet",
+  openings: [...mall.openings, { ...door("g-d-fire", "g-w-right", 12, 1.2, true), fireExit: true }],
+  spaces: [
+    ...mall.spaces.map((sp) => (sp.id === "g-toilets" ? { ...sp, accessible: true } : sp)),
+    { id: "f-refuge", levelId: FIRST.id, name: "Refuge by the stairs", type: "corridor", privacy: "public", polygon: rect(37, 9, 39.5, 15), doorIds: [], refuge: true },
+  ],
+};
+const mallWeekendEvac: Scenario = {
+  ...mallWeekendPeople,
+  id: "mall-weekend-evac",
+  name: "Saturday evening alarm at 18:30, about 850 shoppers",
+  profiles: {
+    ...mallWeekendPeople.profiles!,
+    list: mallWeekendPeople.profiles!.list.map((pr) => (pr.id === "staff" ? { ...pr, reactionS: sp(30, 10, 15, 60) } : pr)),
+  },
+  evacuation: { alarmAt: "18:30" },
+};
+
+// Office A with an accessible toilet and a fire exit in the bottom wall; the alarm goes off during the
+// 10:00 operations meeting.
+const officeAEvac: FloorPlan = {
+  ...officeA,
+  id: "office-a-evac",
+  name: "Office A: fire exit and accessible toilet",
+  openings: [...officeA.openings, { ...door("d-fire", "w-bottom", 22, 1, true), fireExit: true }],
+  spaces: officeA.spaces.map((sp) => (sp.id === "toilet" ? { ...sp, accessible: true } : sp.id === "open-office" ? { ...sp, doorIds: [...sp.doorIds, "d-fire"] } : sp)),
+};
+const officeDayEvac: Scenario = { ...officeScenario, id: "office-day-evac", name: "Workday with an alarm at 10:20, during the operations meeting", evacuation: { alarmAt: "10:20" } };
+
 const out: Record<string, unknown> = {
   "office-a.floorplan.json": officeA,
   "office-b.floorplan.json": officeB,
@@ -652,6 +687,10 @@ const out: Record<string, unknown> = {
   "mall-weekend-comfort.scenario.json": mallWeekendComfort,
   "office-a-site.floorplan.json": officeASite,
   "office-day-site.scenario.json": officeDaySite,
+  "mall-2f-evac.floorplan.json": mallEvac,
+  "mall-weekend-evac.scenario.json": mallWeekendEvac,
+  "office-a-evac.floorplan.json": officeAEvac,
+  "office-day-evac.scenario.json": officeDayEvac,
 };
 for (const [file, data] of Object.entries(out)) {
   writeFileSync(new URL(file, dir), JSON.stringify(data, null, 2) + "\n");

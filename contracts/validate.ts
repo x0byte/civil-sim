@@ -43,6 +43,7 @@ export type IssueCode =
   | "space_comfort"
   | "neighbour"
   | "road"
+  | "accessibility"
   // scenario
   | "seed"
   | "workday"
@@ -62,6 +63,7 @@ export type IssueCode =
   | "crowding"
   | "comfort"
   | "weather"
+  | "evacuation"
   | "reserved_id";
 
 export interface ValidationIssue {
@@ -147,6 +149,10 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
       if (!isNum(sill) || !isNum(head) || sill < 0 || head <= sill) err("window", `window ${o.id} needs 0 ≤ sillM < headM`);
       if (o.transmittance !== undefined && !(o.transmittance >= 0 && o.transmittance <= 1)) err("window", `window ${o.id} transmittance must be 0–1`);
     }
+    if (o.fireExit !== undefined) {
+      if (o.kind !== "door" || !o.exterior) err("accessibility", `opening ${o.id}: only exterior doors can be fire exits`);
+      else if (o.fireExit && o.arrivalShare !== undefined) err("accessibility", `door ${o.id}: a fire exit can't have an arrivalShare`);
+    }
     if (o.arrivalShare !== undefined) {
       if (o.kind !== "door" || !o.exterior) err("arrival_share", `opening ${o.id}: only exterior doors have an arrivalShare`);
       else if (!(o.arrivalShare >= 0 && o.arrivalShare <= 1)) err("arrival_share", `door ${o.id} arrivalShare must be 0–1`);
@@ -186,6 +192,7 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
       if (s.type !== "shop" && s.type !== "food_court") err("attraction", `space ${s.id}: only shops and food courts have an attraction`);
       else if (!(s.attraction > 0)) err("attraction", `space ${s.id} attraction must be positive`);
     }
+    if (s.accessible !== undefined && s.type !== "toilet") err("accessibility", `space ${s.id}: only toilets can be marked accessible`);
     if (s.lightingLux !== undefined && !(s.lightingLux >= 0)) err("space_comfort", `space ${s.id} lightingLux must be zero or more`);
     if (s.acoustics !== undefined && !["hard", "mixed", "soft"].includes(s.acoustics)) err("space_comfort", `space ${s.id} acoustics must be "hard", "mixed" or "soft"`);
     for (const [name, v] of [["floorLRV", s.floorLRV], ["wallLRV", s.wallLRV]] as const) {
@@ -220,6 +227,7 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
     if (c.kind !== "lift" && served.length > 2) err("connector", `${c.kind} ${c.id} joins exactly two levels; use a lift to serve more`);
     if (c.direction !== undefined && c.kind !== "escalator") err("connector", `connector ${c.id}: only escalators have a direction`);
     if (c.capacity !== undefined && (c.kind !== "lift" || !(c.capacity > 0))) err("connector", `connector ${c.id}: only lifts have a capacity, and it must be positive`);
+    if (c.evacuationLift !== undefined && c.kind !== "lift") err("connector", `connector ${c.id}: only lifts can be evacuation lifts`);
   }
 
   if (plan.site) {
@@ -385,6 +393,7 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
       if (p.glareComfort !== undefined && (!spread(p.glareComfort) || p.glareComfort.min < 0 || p.glareComfort.max > 1)) {
         err("profiles", `profile ${p.id}: glareComfort needs 0 ≤ min ≤ mean ≤ max ≤ 1 and sd ≥ 0`);
       }
+      if (p.reactionS !== undefined && (!spread(p.reactionS) || p.reactionS.min < 0)) err("profiles", `profile ${p.id}: reactionS needs 0 ≤ min ≤ mean ≤ max and sd ≥ 0`);
       if (p.lowVision !== undefined && typeof p.lowVision !== "boolean") err("profiles", `profile ${p.id}: lowVision must be true or false`);
     }
     for (const kind of ["staff", "visitors", "shoppers"] as const) {
@@ -403,6 +412,17 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
     if (x.profileId !== undefined && !profileIds.has(x.profileId)) err("profiles", `${x.id}: profile "${x.profileId}" is not in scenario.profiles`);
   }
   if (scenario.crowding && scenario.crowding.enabled !== true) err("crowding", "crowding must be { enabled: true } or left out");
+  const evac = scenario.evacuation;
+  if (evac) {
+    const at = parseClock(evac.alarmAt);
+    if (at === null || (start !== null && end !== null && (at < start || at >= end))) err("evacuation", "evacuation alarmAt must be HH:MM within the workday");
+    if (plan) {
+      for (const id of evac.blockedExitIds ?? []) {
+        const o = plan.openings.find((x) => x.id === id);
+        if (!o || o.kind !== "door" || !o.exterior) err("evacuation", `blocked exit "${id}" is not an exterior door in plan ${plan.id}`);
+      }
+    }
+  }
   const comfort = scenario.comfort;
   if (comfort) {
     if (comfort.enabled !== true) err("comfort", "comfort must have enabled: true, or be left out");

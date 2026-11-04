@@ -1,8 +1,8 @@
-// Floor plan contract, v0.5: a building of one or more floors, what it looks and sounds like, and what surrounds it.
+// Floor plan contract, v0.6: a building of one or more floors, what it looks and sounds like, and what surrounds it.
 // The editor (app/) writes this; the engine (engine/) reads it.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const FLOORPLAN_VERSION = "0.5";
+export const FLOORPLAN_VERSION = "0.6";
 
 /**
  * A point in metres. Origin is the top-left of the plan,
@@ -137,6 +137,8 @@ export interface Opening {
    * e.g. 0.6 for the car-park door. Entrances without a share split what's left equally.
    */
   arrivalShare?: number;
+  /** Exterior doors only: used only in an alarm, never to arrive or leave normally. Missing: false. */
+  fireExit?: boolean;
 }
 
 export type SpaceType =
@@ -193,6 +195,10 @@ export interface Space {
   /** Light reflectance of the floor and of the walls, 0 (black) to 100 (white). Missing: contrast isn't checked. */
   floorLRV?: number;
   wallLRV?: number;
+  /** Toilets only: usable by wheelchair users (wide door, room to turn, grab rails). Missing: false. */
+  accessible?: boolean;
+  /** A protected spot to wait for help in an alarm, usually beside a stair. Missing: false. */
+  refuge?: boolean;
 }
 
 export type FixtureType = "desk" | "water" | "printer" | "coffee";
@@ -212,7 +218,11 @@ export interface Fixture {
   spaceId: string;
 }
 
-export type ConnectorKind = "stairs" | "escalator" | "lift";
+/**
+ * A ramp joins two floors next to each other, like stairs. Step-free people can use it when it's no
+ * steeper than 1 in 12: the rise between the two floors over its footprint's longer side.
+ */
+export type ConnectorKind = "stairs" | "escalator" | "lift" | "ramp";
 
 /**
  * Joins floors. Its footprint is the same on every floor it serves; people step on and off
@@ -225,12 +235,14 @@ export interface Connector {
   kind: ConnectorKind;
   /** Footprint, a simple polygon of at least 3 points. */
   polygon: Vec2[];
-  /** Floors it stops at, two or more. Stairs and escalators join floors that are next to each other in `levels`. */
+  /** Floors it stops at, two or more. Stairs, escalators and ramps join floors that are next to each other in `levels`. */
   levelIds: string[];
   /** Escalators only: the way it runs, from lower to higher ("up") or higher to lower ("down"). */
   direction?: "up" | "down";
   /** Lifts only: people per trip. Missing means 8. */
   capacity?: number;
+  /** Lifts only: kept running in an alarm for people who can't use stairs. Other lifts stop; escalators are used as stairs. Missing: false. */
+  evacuationLift?: boolean;
 }
 
 export interface Underlay {

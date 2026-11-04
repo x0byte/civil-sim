@@ -555,7 +555,8 @@ interface Weather {
 
 ## v0.9: Evacuation and accessibility
 - Requested by: Claude, 2026-11-04
-- Status: **open**: needs the product owner's approval.
+- Status: **approved** by the product owner, 2026-11-04, with the five recommended decisions (a separate run from an alarm time; familiar exits; lifts stop unless evacuation lifts, escalators as stairs; refuges counted, not emptied; guidance, not certification)
+- Implemented as proposed, with these details settled while writing the types: `SimEvent.openingId` carries the exit for `"evacuated"`; the `"alarm"` event has personId ""; validation codes `accessibility` (plan flags) and `evacuation` (scenario); the app reuses the walking and toilet colours for "Getting out" and "At a refuge"; samples `mall-2f-evac` + `mall-weekend-evac` (alarm 18:30) and `office-a-evac` + `office-day-evac` (alarm 10:20).
 
 **In plain words.** Two questions every client and approving authority asks: **can everyone get out, and how fast?** and **can everyone use the building in the first place?** This change adds both.
 

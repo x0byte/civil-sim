@@ -9,6 +9,9 @@ The app uses explicit user fetches only: a single 200 m Overpass query, four vis
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-04: Contract v0.9 (evacuation and accessibility)
+- **Approved: an evacuation is its own run from a chosen alarm time with the same people; people who know the building take the nearest exit and others mostly go back the way they came; lifts stop unless they're evacuation lifts and escalators become stairs; step-free people without an evacuation lift wait at refuges, which are counted, not emptied; accessibility checks are common guidance, not certification.** Floor plan v0.6, scenario and results v0.9. *(Product owner, as recommended)*
+
 ## 2026-11-04: Contract v0.8 (site and weather)
 - **Approved: neighbours and roads from OpenStreetMap, weather from Open-Meteo, fetched once by the app and saved in the project; the engine never goes online.** No Google map data (its terms don't allow extracting it); Google imagery and Open Buildings heights wait for a server. Weather defaults to a typical day for the date. Unknown heights come from floors or are assumed 2 floors and highlighted. Floor plan v0.5, scenario and results v0.8. *(Product owner, as recommended)*
 
