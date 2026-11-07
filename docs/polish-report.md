@@ -39,7 +39,9 @@ Pressed Fetch surroundings once in the browser using office-a-site's saved locat
 
 ## Validation and screenshots
 
-All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine source changes. The broader engine check found 15 historical mall-hash mismatches from the requested doorway. The product owner explicitly approved refreshing those entries in five engine/test/data JSON files; [polish-baseline-refresh.patch](polish-baseline-refresh.patch) records the exact changes. Timing rechecks are recorded below.
+All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine source changes. The broader engine check found 15 historical mall-hash mismatches from the requested doorway. The product owner explicitly approved refreshing those entries in five engine/test/data JSON files; [polish-baseline-refresh.patch](polish-baseline-refresh.patch) records the exact changes. After the approved refresh, all historical hashes pass. The full engine suite is **283/285 passing** (118.62 s): mall evacuation took 3.152 s against its unchanged 3 s limit, and the two-run refuge/lift test exceeded the unchanged 5 s test timeout. An isolated recheck also failed at 3.163 s and about 6.2 s. These are review blockers for an engine performance follow-up; this app brief does not authorize an engine source change.
+
+Direct Node before/after diagnostics, alternating the original and changed sample twice, measured ordinary evacuation at 2.004/1.754 s before and 2.153/2.165 s after; the combined refuge/lift pair at 3.333/3.199 s before and 4.378/4.403 s after. All these runs reported zero stranded people. The new doorway adds routing work. These measurements do not replace the failed Vitest limits. Raw observations: [polish-door-timing.json](polish-door-timing.json).
 
 A resize check also found that a floating assistant could leave its minimise button outside the viewport; its horizontal clamp now keeps the whole title bar on screen.
 
@@ -50,5 +52,7 @@ Office and mall People were inspected at 1024 and 1440 px in light and dark on t
 ![Mall dark, 1440](images/polish/polish-mall-1440-dark.png)
 ![Mall light, 1024](images/polish/polish-mall-1024-light.png)
 ![Name and Learn page](images/polish/rename-learn-1440-light.png)
+
+![Assistant stays within the laptop viewport](images/polish/polish-assistant-resize-1024-dark.png)
 
 Other theme/width captures are alongside these in images/polish.

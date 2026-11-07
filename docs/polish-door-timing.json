@@ -1,0 +1,66 @@
+[
+  {
+    "label": "before",
+    "normal": {
+      "ms": 2004,
+      "stranded": 0
+    },
+    "refuge": {
+      "ms": 1613,
+      "stranded": 0
+    },
+    "lift": {
+      "ms": 1720,
+      "stranded": 0
+    },
+    "refugeTestMs": 3333
+  },
+  {
+    "label": "after",
+    "normal": {
+      "ms": 2153,
+      "stranded": 0
+    },
+    "refuge": {
+      "ms": 1999,
+      "stranded": 0
+    },
+    "lift": {
+      "ms": 2379,
+      "stranded": 0
+    },
+    "refugeTestMs": 4378
+  },
+  {
+    "label": "before",
+    "normal": {
+      "ms": 1754,
+      "stranded": 0
+    },
+    "refuge": {
+      "ms": 1552,
+      "stranded": 0
+    },
+    "lift": {
+      "ms": 1647,
+      "stranded": 0
+    },
+    "refugeTestMs": 3199
+  },
+  {
+    "label": "after",
+    "normal": {
+      "ms": 2165,
+      "stranded": 0
+    },
+    "refuge": {
+      "ms": 2023,
+      "stranded": 0
+    },
+    "lift": {
+      "ms": 2380,
+      "stranded": 0
+    },
+    "refugeTestMs": 4403
+  }
+]
