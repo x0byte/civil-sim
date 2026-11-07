@@ -8,8 +8,10 @@ html:root[data-theme="dark"] {
   --line: #36383e;
   --ink: #e9eaed;
   --ink-2: #b8bbc3;
-  --ink-3: #8b8f99;
-  --accent: #5b9cff;
+  --ink-3: #a5a9b2;
+  --accent: #306bbb;
+  --accent-text: #91bbff;
+  --on-accent: #ffffff;
   --accent-soft: #23324c;
   --chrome: #161719;
   --chrome-ink: #d9dbe0;
@@ -30,7 +32,7 @@ html:root[data-theme="dark"] {
 }
 /* One accent: Codex's green flow colours follow the Volt blue. */
 .friendly-app {
-  --ux-green: var(--accent);
+  --ux-green: var(--accent-text);
   --ux-soft: var(--accent-soft);
 }
 html,
@@ -198,7 +200,7 @@ body {
 }
 .menu-list button:hover:not(:disabled) {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .menu-list button:disabled {
   opacity: 0.4;
@@ -271,12 +273,12 @@ body {
 }
 .step-dot.done {
   background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  border-color: var(--accent-text);
+  color: var(--on-accent);
 }
 button[aria-current] .step-dot:not(.done) {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-text);
+  color: var(--accent-text);
 }
 
 /* ---------- home ---------- */
@@ -390,7 +392,7 @@ button[aria-current] .step-dot:not(.done) {
     background 0.12s;
 }
 .home-tile:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   background: var(--paper);
 }
 .home-tile-icon {
@@ -405,7 +407,7 @@ button[aria-current] .step-dot:not(.done) {
 }
 .home-tile.accent .home-tile-icon {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .home-tile strong {
   font-size: 13px;
@@ -435,7 +437,7 @@ button[aria-current] .step-dot:not(.done) {
   transition: border-color 0.12s;
 }
 .plan-card:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
 }
 .plan-thumb {
   display: block;
@@ -490,7 +492,7 @@ button[aria-current] .step-dot:not(.done) {
   height: 24px;
   border-radius: 50%;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
   font-size: 12px;
 }
@@ -582,7 +584,7 @@ button[aria-current] .step-dot:not(.done) {
   font-size: 13px;
 }
 .assistant-titlebar .brand-mark {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .assistant-state {
   font-size: 11px;
@@ -592,7 +594,7 @@ button[aria-current] .step-dot:not(.done) {
   background: var(--bg);
 }
 .assistant-state.busy {
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--accent-soft);
 }
 .assistant-window-body {
@@ -626,7 +628,7 @@ button[aria-current] .step-dot:not(.done) {
   transform: translateY(-1px);
 }
 .assistant-fab .brand-mark {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .assistant-fab.busy {
   box-shadow:
@@ -654,7 +656,7 @@ button[aria-current] .step-dot:not(.done) {
   gap: 6px;
 }
 .assistant-hello .brand-mark {
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 4px;
 }
 .assistant-hello h2 {
@@ -696,7 +698,7 @@ button[aria-current] .step-dot:not(.done) {
   font-size: 13px;
 }
 .assistant-suggestions .chip:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
 }
 .assistant-chat .chat-line {
   display: flex;
@@ -726,7 +728,7 @@ button[aria-current] .step-dot:not(.done) {
 .assistant-chat .chat-line.user .bubble {
   max-width: 85%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-bottom-right-radius: 4px;
 }
 .assistant-chat .chat-line.assistant .bubble {
@@ -742,7 +744,7 @@ button[aria-current] .step-dot:not(.done) {
 }
 .chat-avatar {
   margin-top: 9px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .assistant-chat .proposal-card {
   margin: 0;
@@ -776,7 +778,7 @@ button[aria-current] .step-dot:not(.done) {
   background: var(--paper);
 }
 .assistant-chat .chat-input:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
 }
 .assistant-chat .chat-input textarea {
   flex: 1;
@@ -800,7 +802,7 @@ button[aria-current] .step-dot:not(.done) {
   border-radius: 8px;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 .assistant-chat .send:disabled {
@@ -845,7 +847,7 @@ button.primary.wide {
   height: 34px;
   flex: none;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-text);
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
 }
 .thinking-orb::after {
@@ -854,7 +856,7 @@ button.primary.wide {
   inset: -2px;
   border-radius: 50%;
   border: 2px solid transparent;
-  border-top-color: var(--accent);
+  border-top-color: var(--accent-text);
   border-right-color: color-mix(in srgb, var(--accent) 40%, transparent);
   animation: orbit 1.1s linear infinite;
 }
@@ -1035,7 +1037,7 @@ button.primary.wide {
 .tool-flyout [role="menuitemradio"] svg { flex-shrink: 0; color: var(--ink-2); }
 .tool-flyout [role="menuitemradio"]:hover, .tool-flyout [role="menuitemradio"]:focus-visible { background: var(--accent-soft); outline: 1px solid var(--accent); }
 .tool-flyout [aria-checked="true"] { background: var(--accent-soft); }
-.tool-choice-check { margin-left: auto; color: var(--accent); }
+.tool-choice-check { margin-left: auto; color: var(--accent-text); }
 
 .building-workspace,.building-preview { display:flex; flex-direction:column; height:100%; min-height:0; }
 .building-view-switch { display:flex; gap:7px; align-items:center; padding:9px 12px; background:var(--surface); border-bottom:1px solid var(--line); flex-shrink:0; }
@@ -1056,3 +1058,6 @@ button.primary.wide {
 .walk-controls label { font-size:11px; }
 .sim-sun-note { margin:0; padding:5px 12px; background:var(--surface); color:var(--ink-2); font-size:10px; }
 @media(max-width:1100px) { .sun-clock { gap:5px; flex-wrap:wrap; }.sun-clock input { flex-basis:35%; }.building-view-switch {gap:5px;padding:8px;}.building-view-switch>span {display:none;} }
+
+.home-name { max-width: 760px; line-height: 1.7; }
+a { color: var(--accent-text); }

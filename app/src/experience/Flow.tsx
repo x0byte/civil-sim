@@ -3,8 +3,9 @@ import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
 import { useEditor } from "../state/store.ts";
 import { getItem } from "../model/planOps.ts";
+import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
-import { DEFAULT_SHOPPERS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
+import { DEFAULT_SHOPPERS, MALL_HOURS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
 import { kindsFromPreset, type KindsPreset } from "../population/kinds.ts";
 import { TextField } from "../ui/fields.tsx";
 import { runDay } from "../sim/runDay.ts";
@@ -63,7 +64,9 @@ export function SimplePeople() {
                 ux.ask("Help me add shops and a food court so I can try a shopping mall crowd.");
                 return;
               }
-              save({ ...profile, shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" } });
+              save({ ...profile, shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" },
+                ...(e.target.value === "mall" && profile.workday.start === "08:30" ? { workday: MALL_HOURS } : {}),
+              });
             }}
           >
             <option value="office">Office</option>
@@ -108,6 +111,16 @@ export function SimplePeople() {
                 <option value={1}>Everyone comes in</option>
                 <option value={0.8}>A typical workday · most come in</option>
                 <option value={0.5}>A quieter day · half come in</option>
+                {![1, 0.8, 0.5].includes(profile.attendance) && <option value={profile.attendance}>Your day · {Math.round(profile.attendance * 100)}% come in</option>}
+              </select>
+            </label>
+            <label className="field">
+              <span>Crowd size</span>
+              <select value={profile.attendance} onChange={(e) => save({ ...profile, attendance: Number(e.target.value) })}>
+                <option value={1}>Full team</option>
+                <option value={0.8}>Most of the team</option>
+                <option value={0.5}>Half the team</option>
+                {![1, 0.8, 0.5].includes(profile.attendance) && <option value={profile.attendance}>Your setting · {Math.round(profile.attendance * 100)}%</option>}
               </select>
             </label>
             <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask the assistant to change teams or add visitors.</p>
@@ -127,6 +140,11 @@ export function SimplePeople() {
             <option value="opening">Opening week · more first-time visitors</option>
             {profile.kinds?.preset === "custom" && <option value="custom">Your own mix</option>}
           </select>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={profile.comfort?.enabled ?? false}
+            onChange={(e) => save({ ...profile, comfort: { ...(profile.comfort ?? DEFAULT_COMFORT), enabled: e.target.checked } })} />
+          Check comfort · sound and light
         </label>
         <button onClick={() => ux.ask("Help me choose who uses this building. Explain the assumptions first.")}>Help me choose</button>
         <button className="primary" onClick={() => ux.go(3)}>

@@ -1,3 +1,7 @@
+## 2026-11-07 — Simple People controls and sample doorway
+
+Simple mode keeps the comfort switch alongside building type, day, crowd and people mix; all detailed people controls remain under Fine-tune. Accent fills and accent text have separate tokens for readable themes. Removed shell predecessors only after searching TS/TSX references. The upper mall food court now has a 3 m doorway in a new 14 m wall along its existing concourse boundary; the generated mall variants inherit it. OSM transport failures receive plain retry wording.
+
 ## 2026-11-07 — Nine Arches identity
 
 The product and exported files use Nine Arches; existing project formats, storage keys and JSON imports stay compatible. The placeholder nine-arch mark lives in Brand.tsx, with a generated SVG favicon. The assistant name is centralized there for a future name.

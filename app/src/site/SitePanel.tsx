@@ -4,7 +4,7 @@ import { setSite, setSurroundings } from "../model/planOps.ts";
 import { useEditor } from "../state/store.ts";
 import { NumField } from "../ui/fields.tsx";
 import { mapsLocation } from "./coordinates.ts";
-import { fetchSurroundings } from "./data.ts";
+import { fetchSurroundings, surroundingsError } from "./data.ts";
 
 export function SitePanel() {
   const plan = useEditor((s) => s.plan); const { commit, select } = useEditor.getState(); const site = plan.site;
@@ -28,7 +28,7 @@ export function SitePanel() {
       if (context(useEditor.getState().plan) !== before) throw new Error("The location or north changed. Fetch again to use the new position.");
       commit((p) => setSurroundings(p, data.neighbours, data.roads, data.credits));
       setMessage(`Saved ${data.neighbours.length} neighbouring buildings and ${data.roads.length} roads. Check estimated heights.`);
-    } catch (e) { setMessage(e instanceof TypeError ? "Couldn't reach the surroundings service. Check the connection and Retry." : c.signal.aborted ? "The surroundings request timed out. Retry later." : (e as Error).message); }
+    } catch (e) { setMessage(surroundingsError(e, c.signal.aborted)); }
     finally { clearTimeout(timeout); setBusy(false); }
   };
   return <section className="panel"><header><div><h2>Site and surroundings</h2><span className="muted">Pin the plan's top-left corner on the map</span></div></header><div className="panel-body">

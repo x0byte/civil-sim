@@ -271,7 +271,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
     ...[10, 20, 30].map((x) => wall(`${p}w-shop-${x}`, { x, y: 0 }, { x, y: 7 })),
     ...(ground
       ? [wall(`${p}w-wc`, { x: 32, y: 18 }, { x: W, y: 18 }), wall(`${p}w-wc-side`, { x: 32, y: 18 }, { x: 32, y: H })]
-      : []),
+      : [wall(`${p}w-food`, { x: 0, y: 16 }, { x: 14, y: 16 })]),
   ].map(L);
   const openings: Opening[] = [
     ...[5, 15, 25, 35].map((x, i) => door(`${p}d-shop-${i + 1}`, `${p}w-shops`, x, 2.4)),
@@ -282,7 +282,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
           { ...door(`${p}d-side`, `${p}w-left`, 15, 1.8, true), arrivalShare: 0.3 },
           door(`${p}d-wc`, `${p}w-wc`, 4, 1.2),
         ]
-      : []),
+      : [door(`${p}d-food`, `${p}w-food`, 10, 3)]),
   ];
   const shopNames = ground ? ["Pharmacy", "Bookshop", "Phone store", "Clothing"] : ["Sports", "Electronics", "Shoes", "Toys"];
   // How strongly each shop pulls shoppers; the clothing store is the anchor.
@@ -332,7 +332,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             { x: 14, y: 16 },
             { x: 0, y: 16 },
           ],
-          doorIds: [1, 2, 3, 4].map((i) => `${p}d-shop-${i}`),
+          doorIds: [...[1, 2, 3, 4].map((i) => `${p}d-shop-${i}`), `${p}d-food`],
         },
     ...(ground
       ? [
@@ -355,7 +355,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             type: "food_court",
             privacy: "public",
             polygon: rect(0, 16, 14, H),
-            doorIds: [],
+            doorIds: [`${p}d-food`],
             attraction: 2.5,
           } satisfies Space,
         ]),

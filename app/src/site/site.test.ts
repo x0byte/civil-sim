@@ -73,3 +73,10 @@ describe("saved weather history",()=>{
   const result=await fetchWeather(plan().site!,"2026-11-15","typical",undefined,new Date("2026-11-04"));expect(mock).toHaveBeenCalledTimes(10);expect(result.weather.source).toContain("2016–2025");expect(result.weather.hourly).toHaveLength(24);
  });
 });
+
+// A timeout from either Overpass endpoint must not leak the browser's raw abort error.
+it("explains surroundings service failures in plain words", async () => {
+  const { surroundingsError } = await import("./data.ts");
+  expect(surroundingsError(new DOMException("signal is aborted without reason", "AbortError"))).toBe("The surroundings service took too long. Retry later.");
+  expect(surroundingsError(new TypeError("Failed to fetch"))).toContain("Check the connection");
+});

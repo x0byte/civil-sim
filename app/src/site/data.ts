@@ -107,3 +107,12 @@ function clipRoad(road: Road): Road[] {
   if (current.length > 1) parts.push(current);
   return parts.map((path, i) => ({ ...road, id: i ? `${road.id}-part-${i + 1}` : road.id, path }));
 }
+
+/** Browser and service errors as a useful sentence, without transport jargon. */
+export function surroundingsError(error: unknown, cancelled = false): string {
+  if (cancelled || (error instanceof Error && (error.name === "AbortError" || /aborted|timeout/i.test(error.message)))) {
+    return "The surroundings service took too long. Retry later.";
+  }
+  if (error instanceof TypeError) return "Couldn't reach the surroundings service. Check the connection and Retry.";
+  return error instanceof Error ? error.message : "Couldn't fetch nearby buildings and roads. Retry later.";
+}
