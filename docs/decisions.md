@@ -309,3 +309,14 @@ a soft accent tint on hover and keyboard focus, and a thin chevron. Menus take a
 while one is open, hovering another title switches to it. Where the browser supports `appearance: base-select`
 (Chrome, Edge), the open select list is styled to match, with a checkmark on the current choice; other browsers keep
 their system list with the styled closed control. Selects stay native elements, so forms and tests need no change.
+
+## 2026-11-07 · Ella, icon view switches, controls
+- The assistant is called **Ella**, after the hill town where the Nine Arches Bridge stands (`ASSISTANT_NAME` in
+  `app/src/ui/Brand.tsx`; the system prompt tells the model its name). Code names (`useAssistant`, `assistant/`) stay.
+- View switches use icons (`app/src/ui/icons.tsx`) with a short 2D/3D label and a tooltip (`data-tip`); each keeps an
+  `aria-label` with the full name. Every "pick one" row (`.view-tabs`, `.segmented`) shares one look: a tinted track
+  with the chosen option raised.
+- Buttons, checkboxes, radio buttons and sliders are restyled in `system.css`. Button rules use low specificity
+  (`button:where(...)`) so purpose-built buttons keep their own looks.
+- In the 3D walk-through, the frame rate moved into the dev-only performance panel, and the crowding caveat sits
+  behind an ⓘ next to the clock line.

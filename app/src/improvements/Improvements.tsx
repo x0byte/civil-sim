@@ -136,7 +136,7 @@ export function Improvements() {
                   useExperience.getState().ask();
                 }}
               >
-                Watch in the assistant
+                Watch with Ella
               </button>
             </div>
           </section>
@@ -239,7 +239,7 @@ export function Improvements() {
                   </article>
                 ))}
             </div>
-            <p>Check the proposed changes against your “things not to touch” before applying. Rough scope is an assistant estimate, not a quote.</p>
+            <p>Check the proposed changes against your “things not to touch” before applying. Rough scope is Ella's estimate, not a quote.</p>
             <button onClick={() => useImprovements.setState({ phase: "idle", baseline: null, previewId: null, error: null })}>
               Try another goal
             </button>
@@ -285,7 +285,7 @@ export function Improvements() {
                     useExperience.getState().ask();
                   }}
                 >
-                  Add an API key in the assistant
+                  Add an API key in Ella
                 </button>
               ) : (
                 <button type="submit" className="primary" disabled={unavailable || assistantBusy}>

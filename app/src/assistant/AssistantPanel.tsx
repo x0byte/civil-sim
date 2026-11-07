@@ -20,7 +20,7 @@ function KeyForm({ suggestions }: { suggestions?: ReactNode }) {
     <div className="assistant-welcome">
       <div className="assistant-hello">
         <Mark size={28} />
-        <h2>Describe a change to the assistant</h2>
+        <h2>Describe a change to Ella</h2>
         <p className="muted">
           Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.
         </p>
@@ -160,7 +160,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         <textarea
           ref={inputRef}
           rows={2}
-          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask the assistant to change something…"}
+          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask Ella to change something…"}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

@@ -4,6 +4,7 @@ import { useEditor } from "../state/store.ts";
 import { Canvas2D } from "../editor/Canvas2D.tsx";
 import { Skeleton } from "../loading/LoadingState.tsx";
 import { LoadBoundary } from "../loading/LoadBoundary.tsx";
+import { CubeIcon, PinIcon, PlanIcon, WalkIcon } from "../ui/icons.tsx";
 const BuildingPreview = lazy(() => import("./BuildingPreview.tsx"));
 const SitePlacement = lazy(() => import("./SitePlacement.tsx"));
 
@@ -22,20 +23,24 @@ export function BuildingWorkspace() {
   };
   return (
     <div className="building-workspace">
-      <div className="building-view-switch" role="group" aria-label="Building view">
+      <div className="building-view-switch">
         <span>Explore your building</span>
-        <button aria-pressed={view !== "3d"} onClick={() => choose("2d")}>
-          2D plan
-        </button>
-        <button aria-pressed={view === "3d" && mode === "overview"} onClick={() => choose("overview")}>
-          3D Overview
-        </button>
-        <button aria-pressed={view === "3d" && mode === "walk"} onClick={() => choose("walk")}>
-          Walk
-        </button>
-        <button aria-pressed={view === "3d" && mode === "site"} onClick={() => choose("site")}>
-          Place on site
-        </button>
+        <div className="view-tabs" role="group" aria-label="Building view">
+          <button aria-pressed={view !== "3d"} aria-label="2D plan" data-tip="2D plan" onClick={() => choose("2d")}>
+            <PlanIcon />
+            <span>2D</span>
+          </button>
+          <button aria-pressed={view === "3d" && mode === "overview"} aria-label="3D overview" data-tip="3D overview" onClick={() => choose("overview")}>
+            <CubeIcon />
+            <span>3D</span>
+          </button>
+          <button aria-pressed={view === "3d" && mode === "walk"} aria-label="Walk through at eye level" data-tip="Walk through" onClick={() => choose("walk")}>
+            <WalkIcon />
+          </button>
+          <button aria-pressed={view === "3d" && mode === "site"} aria-label="Place on site" data-tip="Place on site" onClick={() => choose("site")}>
+            <PinIcon />
+          </button>
+        </div>
       </div>
       <div className="building-view-content">
         {view === "3d" ? (

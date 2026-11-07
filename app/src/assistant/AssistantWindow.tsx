@@ -46,9 +46,9 @@ export function AssistantWindow() {
 
   if (!open) {
     return (
-      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open the Assistant">
+      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open Ella">
         <Mark size={20} className={busy ? "is-thinking" : ""} />
-        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask the assistant"}</span>
+        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask Ella"}</span>
       </button>
     );
   }

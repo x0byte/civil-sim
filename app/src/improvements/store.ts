@@ -123,7 +123,7 @@ export const useImprovements = create<ImprovementsState>((set, get) => ({
       return;
     }
     if (!assistant.key) {
-      set({ error: "Add your API key in the assistant, then come back to Find improvements." });
+      set({ error: "Add your API key in Ella, then come back to Find improvements." });
       useExperience.getState().ask();
       return;
     }

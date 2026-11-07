@@ -1,4 +1,5 @@
 import { ImprovementsButton } from "../improvements/Improvements.tsx";
+import { CubeIcon, PlanIcon } from "../ui/icons.tsx";
 import { useState } from "react";
 import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
@@ -27,7 +28,7 @@ export function SimpleBuilding() {
         <p>
           {state.plan.spaces.length} rooms · {state.plan.levels.length} {state.plan.levels.length === 1 ? "floor" : "floors"} · dimensions in metres
         </p>
-        <p>Select something on the plan, or tell the assistant what to change.</p>
+        <p>Select something on the plan, or tell Ella what to change.</p>
         <button
           className="primary"
           onClick={() =>
@@ -130,7 +131,7 @@ export function SimplePeople() {
                 )}
               </select>
             </label>
-            <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask the assistant to change teams or add visitors.</p>
+            <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask Ella to change teams or add visitors.</p>
           </>
         )}
         <label className="field">
@@ -200,24 +201,30 @@ export function RunControls() {
       <SimulationStatus />
       {state.run && <ImprovementsButton />}
       {state.run && (
-        <div className="presentation-switch" role="group" aria-label="View results">
+        <div className="presentation-switch view-tabs wide" role="group" aria-label="View results">
           <button
             aria-pressed={ux.presentation === "2d"}
+            aria-label="2D analysis"
+            data-tip="Heatmaps on the plan"
             onClick={() => {
               ux.setPresentation("2d");
               state.setView("sim");
             }}
           >
-            2D analysis
+            <PlanIcon />
+            <span>2D</span>
           </button>
           <button
             aria-pressed={ux.presentation === "3d"}
+            aria-label="3D walk-through"
+            data-tip="Walk through in 3D"
             onClick={() => {
               ux.setPresentation("3d");
               state.setView("sim");
             }}
           >
-            3D walk-through
+            <CubeIcon />
+            <span>3D</span>
           </button>
         </div>
       )}

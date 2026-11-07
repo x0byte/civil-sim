@@ -82,7 +82,7 @@ export function ProposalView({
 
       <div className="proposal-bar">
         <div>
-          <strong>{title ?? "Proposed by the assistant"}</strong>
+          <strong>{title ?? "Proposed by Ella"}</strong>
           <span className="muted">
             {" "}
             · {diff.changed.length} new or changed, {diff.removed.length} removed

@@ -503,3 +503,400 @@ select:disabled {
     visibility: hidden;
   }
 }
+
+/* ---------- Buttons ----------
+   Specificity is kept low on purpose (button:where(...)) so purpose-built buttons — menu titles,
+   tool rail, cards — keep their own looks; plain buttons and the named variants get these. */
+:root {
+  --btn-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --btn-press: color-mix(in srgb, var(--ink) 9%, var(--surface));
+  --btn-border: color-mix(in srgb, var(--ink) 14%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+button {
+  border-radius: var(--control-radius);
+  font-weight: 500;
+  line-height: 1.2;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s,
+    color 0.12s,
+    box-shadow 0.12s,
+    transform 0.08s;
+}
+button:where(:not([class]), .danger, .primary-ghost) {
+  border-color: var(--btn-border);
+}
+button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+button:where(:not([class]), .danger, .primary-ghost):where(:hover:not(:disabled)) {
+  background-color: var(--btn-hover);
+}
+button:where(:not([class]), .danger, .primary-ghost, .primary):where(:active:not(:disabled)) {
+  transform: translateY(0.5px);
+  background-color: var(--btn-press);
+}
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+button:disabled {
+  opacity: 0.45;
+}
+button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.14);
+}
+button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+  border-color: transparent;
+}
+button.primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 80%, #000);
+}
+button.primary:focus-visible {
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.18),
+    var(--focus-ring);
+}
+button.primary-ghost {
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+button.primary-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: var(--accent);
+}
+button.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+button.link {
+  border-radius: 3px;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Checkboxes and radio buttons ---------- */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  display: inline-grid;
+  place-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 32%, transparent);
+  background: var(--surface);
+  cursor: pointer;
+  vertical-align: -3px;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+input[type="checkbox"] {
+  border-radius: 4px;
+}
+input[type="radio"] {
+  border-radius: 50%;
+}
+input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: var(--on-accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3l2.4 2.4L9.6 3.6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3l2.4 2.4L9.6 3.6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transform: scale(0);
+  transition: transform 0.14s cubic-bezier(0.3, 1.5, 0.6, 1);
+}
+input[type="radio"]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--on-accent);
+  transform: scale(0);
+  transition: transform 0.14s cubic-bezier(0.3, 1.5, 0.6, 1);
+}
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"]:checked::before,
+input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+input[type="checkbox"]:indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"]:indeterminate::before {
+  height: 2px;
+  -webkit-mask: none;
+  mask: none;
+  border-radius: 1px;
+  transform: scale(1);
+}
+input[type="checkbox"]:hover:not(:disabled):not(:checked),
+input[type="radio"]:hover:not(:disabled):not(:checked) {
+  border-color: var(--accent);
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+label:has(> input[type="checkbox"]:disabled),
+label:has(> input[type="radio"]:disabled) {
+  color: var(--ink-3);
+}
+.check {
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+/* ---------- Sliders ---------- */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.3);
+  transition:
+    transform 0.1s,
+    box-shadow 0.12s;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.3);
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------- Segmented controls and icon tabs ----------
+   One look for every "pick one of these" row: a tinted track with the chosen option raised. */
+.view-tabs,
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: visible;
+}
+.view-tabs button,
+.segmented button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 600;
+  box-shadow: none;
+}
+.view-tabs button:hover:not(:disabled),
+.segmented button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+.view-tabs button[aria-pressed="true"],
+.segmented button.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.14),
+    0 0 0 0.5px rgb(15 23 42 / 0.06);
+}
+html:root[data-theme="dark"] .view-tabs button[aria-pressed="true"],
+html:root[data-theme="dark"] .segmented button.active {
+  background: color-mix(in srgb, var(--ink) 16%, var(--surface));
+}
+.view-tabs button[aria-pressed="true"] svg {
+  color: var(--accent-text);
+}
+.view-tabs button:focus-visible,
+.segmented button:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.view-tabs.wide,
+.segmented.wide {
+  display: flex;
+}
+.view-tabs.wide button {
+  flex: 1;
+  min-height: 32px;
+}
+.sidebar .segmented {
+  display: flex;
+}
+.sidebar .segmented button {
+  flex: 1;
+}
+.building-view-switch .view-tabs button {
+  min-width: 36px;
+}
+/* The results switch sits under the run buttons; the old two-button version had its own colours. */
+.presentation-switch.view-tabs {
+  margin-top: var(--space-3);
+}
+.presentation-switch.view-tabs button[aria-pressed="true"] {
+  border-color: transparent;
+  color: var(--ink);
+}
+
+/* Tooltips for icon buttons: shown below, after a short pause. */
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 90;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #15171b;
+  color: #f3f4f6;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -2px);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+}
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 0.35s;
+}
+
+/* ---------- 3D toolbar (Simulate) ---------- */
+.walk-controls {
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+.walk-controls > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-small);
+  color: var(--ink-2);
+}
+.walk-controls select {
+  height: 30px;
+  font-size: var(--text-small);
+}
+.walk-toggles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+}
+.walk-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-small);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.sim-sun-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--space-3);
+  font-size: var(--text-caption);
+  border-bottom: 1px solid var(--line);
+}
+.info-tip {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, serif;
+  color: var(--ink-3);
+  cursor: help;
+}
+.info-tip[data-tip]::after {
+  left: 0;
+  transform: translate(-20%, -2px);
+  white-space: normal;
+  width: 260px;
+  line-height: 1.4;
+}
+.info-tip[data-tip]:hover::after,
+.info-tip[data-tip]:focus-visible::after {
+  transform: translate(-20%, 0);
+}
+.walk-status span:empty {
+  display: none;
+}

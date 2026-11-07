@@ -173,7 +173,7 @@ export function TopBar() {
     "separator",
     { label: "Dark theme", checked: dark, onSelect: () => setDark(!dark) },
     { label: ASSISTANT_NAME, checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
-    { label: "Dock the assistant", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
+    { label: "Dock Ella", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
   ];
 
   return (

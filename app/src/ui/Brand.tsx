@@ -5,7 +5,8 @@ import { useId } from "react";
  * (`assets/brand/nine-arches-logo.svg`). The dark face and the wordmark switch to light versions in
  * the dark theme through CSS variables in `shell.css`, so the logo stays visible on both.
  */
-export const ASSISTANT_NAME = "Assistant";
+/** The assistant is called Ella, after the hill town where the Nine Arches Bridge stands. */
+export const ASSISTANT_NAME = "Ella";
 
 const RIGHT = "M181.5 7.5 L290 56.2 Q295 58.5 295 74.5 L295 251 L204 251 L204 45.5 C203 28 193.5 12 181.5 7.5 Z";
 const LEFT = "M0 92 L99 107 L99 205 L0 254 L0 103 Q0 96 0 92 Z";

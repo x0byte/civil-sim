@@ -125,35 +125,42 @@ export function Experience3D({ run }: { run: SimRun }) {
           <option value="noise">Loudest average · quiet → loud</option>
           <option value="light">Dimmest light · dim → bright</option>
         </select>
-        <label>
-          <input
-            type="checkbox"
-            checked={surroundings}
-            onChange={(e) => setSurroundings(e.target.checked)}
-            disabled={!plan.site?.neighbours?.length && !plan.site?.roads?.length}
-          />
-          Neighbours
-        </label>
-        <label>
-          <input type="checkbox" checked={shadows} onChange={(e) => setShadows(e.target.checked)} />
-          Shadows
-        </label>
-        {ux.camera === "overview" && (
+        <div className="walk-toggles" role="group" aria-label="Show">
           <label>
-            <input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} />
-            Cut walls away
+            <input
+              type="checkbox"
+              checked={surroundings}
+              onChange={(e) => setSurroundings(e.target.checked)}
+              disabled={!plan.site?.neighbours?.length && !plan.site?.roads?.length}
+            />
+            Neighbours
           </label>
-        )}
+          <label>
+            <input type="checkbox" checked={shadows} onChange={(e) => setShadows(e.target.checked)} />
+            Shadows
+          </label>
+          {ux.camera === "overview" && (
+            <label>
+              <input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} />
+              Cut walls away
+            </label>
+          )}
+        </div>
         {ux.camera === "overview" && (plan.site?.neighbours?.length || plan.site?.roads?.length) ? (
           <button onClick={() => setFitContext((v) => !v)}>{fitContext ? "Fit building" : "Fit surroundings"}</button>
         ) : null}
       </div>
       <p className="sim-sun-note">
-        Sun, shadows and people share the playback clock · {clockAt(run.scenario.workday.start, clock.t)} · {sunDate(lightingScenario)}
+        Sun, shadows and people follow the playback clock · {clockAt(run.scenario.workday.start, clock.t)} · {sunDate(lightingScenario)}
         {peel ? " · Peeled view is illustrative" : ""}
-      </p>
-      <p className="overlap-note">
-        In very crowded spots people may overlap: crowds are modelled as density and flow, not as bodies stepping around each other.
+        <span
+          className="info-tip"
+          tabIndex={0}
+          data-tip="Crowds are modelled as density and flow, so in very crowded spots figures may overlap."
+          aria-label="In very crowded spots people may overlap: crowds are modelled as density and flow, not as bodies stepping around each other."
+        >
+          i
+        </span>
       </p>
       <div className="walk-canvas">
         <SceneSkeleton ready={scene.ready} />
@@ -255,9 +262,7 @@ export function Experience3D({ run }: { run: SimRun }) {
                 ? `Alarm at ${clockAt(run.scenario.workday.start, alarm)}`
                 : `Alarm sounding · ${present} still inside`}
           </strong>
-          <span>
-            {count} figures · <output aria-label="Frame rate">{fps ? `${fps.toFixed(1)} fps` : "Measuring frame rate…"}</output>
-          </span>
+
         </div>
         {ux.camera !== "overview" && (
           <MiniMap
@@ -332,7 +337,9 @@ export function Experience3D({ run }: { run: SimRun }) {
       )}
       {import.meta.env.DEV && (
         <details className="performance-tools">
-          <summary>Performance check</summary>
+          <summary>
+            Performance check · {count} figures · <output aria-label="Frame rate">{fps ? `${fps.toFixed(1)} fps` : "measuring…"}</output>
+          </summary>
           <label>
             <input type="checkbox" checked={stress} onChange={(e) => setStress(e.target.checked)} /> Draw 850 figures for a display-only stress check
           </label>

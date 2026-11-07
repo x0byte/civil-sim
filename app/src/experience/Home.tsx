@@ -88,8 +88,8 @@ export function Home() {
               <Tile icon={<PenIcon />} title="Draw from scratch" note="Walls, doors and rooms" onClick={() => bring("draw")} />
               <Tile
                 icon={<Mark size={22} />}
-                title="Describe it to the assistant"
-                note="The assistant sets it up"
+                title="Describe it to Ella"
+                note="Ella sets it up for you"
                 onClick={() => bring("describe")}
                 accent
               />
@@ -145,7 +145,7 @@ export function Home() {
               <li>
                 <strong>People</strong>
                 <span>
-                  Pick an office or a mall and a kind of day. The assistant fills in who comes, including people who need step-free routes or find
+                  Pick an office or a mall and a kind of day. Ella fills in who comes, including people who need step-free routes or find
                   crowds hard.
                 </span>
               </li>
@@ -196,7 +196,7 @@ export function Home() {
               {
                 [
                   "",
-                  "Start from a sample, trace a plan, draw one, or describe your building to the assistant.",
+                  "Start from a sample, trace a plan, draw one, or describe your building to Ella.",
                   "A typical day is already filled in. Choose the crowd and kinds of people; Fine-tune holds the details.",
                   "Run the day, see what to fix first, and walk beside the people. Try a fix prepares a proposal for you to review.",
                 ][tour]
