@@ -1,3 +1,4 @@
+import { RESULTS_VERSION } from "../../contracts/results.ts";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +30,7 @@ const shopperTracks = (r: SimulationResult): Track[] => r.tracks.filter((t) => t
 describe("v0.5 compatibility and generation", () => {
   it.each(["office-a", "office-b", "sealed-room", "mall-2f"])("preserves the complete v0.4 result without shoppers: %s", (name) => {
     const result = simulate(plan(name), scenario(name === "sealed-room" ? "sealed-day" : name === "mall-2f" ? "mall-day" : "office-day"));
-    expect(result.version).toBe("0.9");
+    expect(result.version).toBe(RESULTS_VERSION);
     expect(result.metrics.shoppers).toEqual({ count: 0, meanStayMin: 0, meanShopsVisited: 0, meanWalkM: 0 });
     expect(result.metrics.shops.every((s) => s.visits === 0 && s.passBys === 0 && s.peak === 0)).toBe(true);
     const legacy = JSON.parse(JSON.stringify(result)); delete legacy.metrics.accessibility; delete legacy.metrics.evacuation; legacy.warnings=legacy.warnings.filter((w: {code:string})=>w.code!=="accessibility"); legacy.assumptions=legacy.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations."); delete legacy.metrics.comfort; delete legacy.metrics.profiles; delete legacy.metrics.crowding; legacy.heatmaps.levels.forEach((l: { peakDensity?: number[]; noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => { delete l.peakDensity; delete l.noiseDbA; delete l.lightLux; delete l.glare; }); legacy.version = "0.4";

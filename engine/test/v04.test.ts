@@ -1,3 +1,6 @@
+import { RESULTS_VERSION } from "../../contracts/results.ts";
+import { SCENARIO_VERSION } from "../../contracts/scenario.ts";
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -14,13 +17,13 @@ import { plan, scenario } from "./fixtures.ts";
 
 const rect = (x: number, y: number, w: number, h: number): Vec2[] => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
 function building(count = 2): FloorPlan {
-  return { version: "0.6", id: "floors", name: "Floors", units: "m", bounds: { width: 12, height: 10 },
+  return { version: FLOORPLAN_VERSION, id: "floors", name: "Floors", units: "m", bounds: { width: 12, height: 10 },
     levels: Array.from({ length: count }, (_, i) => ({ id: `l${i}`, name: `Floor ${i}`, elevation: i * 4.5 })),
     walls: [], openings: [], spaces: [], fixtures: [], connectors: [
       { id: "lift", name: "Lift", kind: "lift", polygon: rect(4, 4, 2, 2), levelIds: Array.from({ length: count }, (_, i) => `l${i}`), capacity: 2 },
     ] };
 }
-const emptyScenario = (): Scenario => ({ version: "0.9", id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
+const emptyScenario = (): Scenario => ({ version: SCENARIO_VERSION, id: "day", name: "Day", seed: 1, workday: { start: "09:00", end: "17:00" },
   teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 } });
 
 function changes(result: SimulationResult): { track: Track; index: number }[] {
@@ -61,7 +64,7 @@ function liftIntervals(tracks: Track[]) {
 describe("v0.4 floors and compatibility", () => {
   it.each(["office-a", "office-b", "sealed-room"])("preserves the complete v0.3 output for %s apart from new fields", (id) => {
     const result = simulate(plan(id), scenario(id === "sealed-room" ? "sealed-day" : "office-day"));
-    expect(result.version).toBe("0.9");
+    expect(result.version).toBe(RESULTS_VERSION);
     expect(result.metrics.connectors).toEqual([]);
     expect(result.heatmaps.levels.map(({ peakDensity: _density, noiseDbA: _noise, lightLux: _light, glare: _glare, ...legacy }) => legacy)).toEqual([{ levelId: "ground", footfall: result.heatmaps.footfall, dwellS: result.heatmaps.dwellS }]);
     expect(result.tracks.every((t) => t.points.every((p) => p.levelId === "ground"))).toBe(true);

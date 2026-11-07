@@ -1,3 +1,4 @@
+import { SCENARIO_VERSION } from "../../contracts/scenario.ts";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Scenario } from "../../contracts/scenario.ts";
@@ -9,7 +10,7 @@ import { plan, scenario } from "./fixtures.ts";
 describe("v0.6.1 review regressions", () => {
   it.each(["office-a", "office-b"])("attends meetings and continues attendance with crowding: %s", (id) => {
     const p = plan(id); const s = JSON.parse(readFileSync(new URL("../../docs/repro/office-a-crowding.scenario.json", import.meta.url), "utf8")) as Scenario;
-    s.version = "0.9";
+    s.version = SCENARIO_VERSION;
     const r = simulate(p, s); expect(r.warnings.filter(w=>w.code!=="accessibility")).toEqual([]);
     for (const meeting of s.meetings) for (const id of meeting.attendeeIds) {
       const start = r.events.find((e) => e.personId === id && e.type === "meeting_start" && e.spaceId === meeting.spaceId)!;

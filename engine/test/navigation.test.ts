@@ -1,3 +1,4 @@
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import { rasterise, WalkableGrid } from "../src/modules/grid.ts";
@@ -5,7 +6,7 @@ import { Pathfinder } from "../src/modules/pathfinding.ts";
 import { seededRandom } from "../src/modules/random.ts";
 
 function divider(kind: "door" | "window"): FloorPlan {
-  return { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "grid-test", name: "Grid test", units: "m", bounds: { width: 4, height: 4 },
+  return { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "grid-test", name: "Grid test", units: "m", bounds: { width: 4, height: 4 },
     walls: [{ id: "divider", levelId: "ground", a: { x: 2, y: 0 }, b: { x: 2, y: 4 }, thickness: 0.1, height: 3 }],
     openings: [{ id: "opening", wallId: "divider", kind, offset: 2, width: 1 }], spaces: [], fixtures: [] };
 }

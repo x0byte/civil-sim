@@ -1,3 +1,5 @@
+import { SCENARIO_VERSION } from "../../contracts/scenario.ts";
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import type { SimEvent, Track, Warning } from "../../contracts/results.ts";
@@ -13,10 +15,10 @@ function setup(strips = false) {
   const polygon = strips
     ? [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 8 }, { x: 4, y: 8 }]
     : [{ x: 4, y: 1 }, { x: 6, y: 1 }, { x: 6, y: 3 }, { x: 4, y: 3 }];
-  const plan: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
+  const plan: FloorPlan = { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "movement", name: "Movement", units: "m", bounds: { width: 10, height: 8 },
     walls: [], openings: [], fixtures: [], spaces: [{ id: "pantry", levelId: "ground", name: "Pantry", type: "pantry", privacy: "shared", capacity: 1, polygon, doorIds: [] }] };
   const navigation = createNavigation(plan, () => {});
-  const scenario: Scenario = { version: "0.9", id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
+  const scenario: Scenario = { version: SCENARIO_VERSION, id: "movement", name: "Movement", seed: 1, workday: { start: "08:00", end: "17:00" },
     teams: [], people: [], meetings: [], rates: { toiletVisitsPerDay: 0, pantryVisitsPerDay: 0 }, queueing: { maxWaitMin: 1 } };
   const events: SimEvent[] = [];
   const warnings: Warning[] = [];
