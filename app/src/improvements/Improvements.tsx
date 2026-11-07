@@ -1,3 +1,4 @@
+import { LoadingState } from "../loading/LoadingState.tsx";
 import { useEffect, useRef, useState } from "react";
 import { useAssistant } from "../assistant/assistant.ts";
 import { ProposalView } from "../assistant/ProposalView.tsx";
@@ -109,18 +110,26 @@ export function Improvements() {
           </p>
         )}
         {state.error && (
-          <p role="alert" className="improvements-error">
-            {state.error}
-          </p>
+          <LoadingState
+            task={{ status: "error", message: state.error, startedAt: state.startedAt, steps: [] }}
+            onRetry={() => void state.start(goal, constraints)}
+          />
         )}
         {busy ? (
           <section aria-live="polite">
             <h2>{state.phase === "proposing" ? "Trying three different changes" : "Comparing with the same people"}</h2>
-            <p>{state.message}</p>
-            <progress aria-label="Layout comparison progress" {...(state.phase === "running" ? { value: state.progress, max: 1 } : {})} />
+            <LoadingState
+              task={{
+                status: "working",
+                startedAt: state.startedAt,
+                steps: [],
+                message: state.message,
+                fraction: state.phase === "running" ? state.progress : undefined,
+              }}
+              onCancel={state.cancel}
+            />
             <p>Each option starts from your current layout. Your building changes only when you choose Apply.</p>
             <div className="improvements-actions">
-              <button onClick={state.cancel}>Cancel</button>
               <button
                 onClick={() => {
                   state.close();

@@ -286,7 +286,7 @@ describe("independent assistant drafts and fair simulations", () => {
     const controller = new AbortController();
     const pending = runInWorker({ plan: run.plan, source: run, evacuation: false }, controller.signal);
     controller.abort();
-    await expect(pending).rejects.toThrow("Cancelled");
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(terminate).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
   });

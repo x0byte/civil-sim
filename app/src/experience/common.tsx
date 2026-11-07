@@ -1,33 +1,21 @@
+import { DeferredDetails } from "../loading/DeferredDetails.tsx";
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import { useExperience } from "./state.ts";
-export function FineTune({
-  children,
-  label = "Fine-tune",
-  detailed: override,
-}: {
-  children: ReactNode;
-  label?: string;
-  detailed?: boolean;
-}) {
+export function FineTune({ children, label = "Fine-tune", detailed: override }: { children: ReactNode; label?: string; detailed?: boolean }) {
   const saved = useExperience((s) => s.detailed);
   const detailed = override ?? saved;
   return detailed ? (
     <>{children}</>
   ) : (
-    <details className="fine-tune">
-      <summary>{label}</summary>
+    <DeferredDetails className="fine-tune" summary={label}>
       {children}
-    </details>
+    </DeferredDetails>
   );
 }
 const text = (node: ReactNode): string =>
   Children.toArray(node)
     .map((n) =>
-      typeof n === "string" || typeof n === "number"
-        ? String(n)
-        : isValidElement<{ children?: ReactNode }>(n)
-          ? text(n.props.children)
-          : "",
+      typeof n === "string" || typeof n === "number" ? String(n) : isValidElement<{ children?: ReactNode }>(n) ? text(n.props.children) : "",
     )
     .join(" ");
 function title(node: ReactNode): string | undefined {
@@ -52,15 +40,20 @@ export function DetailSections({ children, prefix = "" }: { children: ReactNode;
           );
         if (child.props.className?.includes("stale")) return child;
         return (
-          <details className="detail-section" key={i}>
-            <summary>
-              {prefix}
-              {child.props["data-title"] ??
-                (title(child.props.children) === "Problems found" ? "Review warnings" : title(child.props.children)) ??
-                "More results"}
-            </summary>
+          <DeferredDetails
+            className="detail-section"
+            key={i}
+            summary={
+              <>
+                {prefix}
+                {child.props["data-title"] ??
+                  (title(child.props.children) === "Problems found" ? "Review warnings" : title(child.props.children)) ??
+                  "More results"}
+              </>
+            }
+          >
             {child}
-          </details>
+          </DeferredDetails>
         );
       })}
     </>

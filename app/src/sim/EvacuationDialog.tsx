@@ -1,8 +1,7 @@
-import { plainText } from "../experience/wording.ts";
 import { useState } from "react";
 import type { Evacuation } from "../../../contracts/scenario.ts";
 import type { SimRun } from "./runSimulation.ts";
-import { runSimulation } from "./runSimulation.ts";
+import { runSimulationJob } from "./jobs.tsx";
 import { useEditor } from "../state/store.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { clockAt } from "../playback/tracks.ts";
@@ -22,32 +21,18 @@ export function EvacuationDialog({ onClose }: { onClose: () => void }) {
     profile = state.profiles[plan.id] ?? defaultProfile(plan);
   const [alarm, setAlarm] = useState(profile.evacuation?.alarmAt ?? defaultAlarm(state.run, profile.workday.start, profile.workday.end));
   const [blocked, setBlocked] = useState<string[]>(profile.evacuation?.blockedExitIds ?? []);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const run = () => {
-    setBusy(true);
-    setError("");
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        try {
-          const evacuation: Evacuation = { alarmAt: alarm, blockedExitIds: blocked };
-          const settings = { ...profile, evacuation };
-          const out = runSimulation(plan, settings, evacuation);
-          if ("errors" in out) {
-            setError(plainText(plan, out.errors[0]));
-            return;
-          }
-          state.setProfile(plan.id, settings, true);
-          state.setRun(out.run);
-          state.setView("sim");
-          onClose();
-        } catch {
-          setError("We couldn’t finish that evacuation. Check the plan and try again.");
-        } finally {
-          setBusy(false);
-        }
-      }, 0),
-    );
+    const evacuation: Evacuation = { alarmAt: alarm, blockedExitIds: blocked };
+    const settings = { ...profile, evacuation };
+    void runSimulationJob({ kind: "day", plan, profile: settings, evacuation }, (out) => {
+      if ("errors" in out) return;
+      const current = useEditor.getState();
+      current.setProfile(plan.id, settings, true);
+      current.setRun({ ...out.run, plan });
+      current.setComparison(null);
+      current.setView("sim");
+    });
+    onClose();
   };
 
   return (
@@ -57,13 +42,7 @@ export function EvacuationDialog({ onClose }: { onClose: () => void }) {
         <p>The same people and day, until the alarm. Then everyone reacts and heads for an exit or refuge.</p>
         <label className="field">
           <span>Alarm time</span>
-          <input
-            disabled={busy}
-            type="time"
-            value={alarm}
-            onChange={(e) => setAlarm(e.target.value)}
-            onBlur={(e) => setAlarm(e.target.value)}
-          />
+          <input type="time" value={alarm} onChange={(e) => setAlarm(e.target.value)} onBlur={(e) => setAlarm(e.target.value)} />
         </label>
         <h3>Exits to block</h3>
         {plan.openings
@@ -71,7 +50,6 @@ export function EvacuationDialog({ onClose }: { onClose: () => void }) {
           .map((o, i) => (
             <label key={o.id} className="check">
               <input
-                disabled={busy}
                 type="checkbox"
                 checked={blocked.includes(o.id)}
                 onChange={(e) => setBlocked(e.target.checked ? [...blocked, o.id] : blocked.filter((id) => id !== o.id))}
@@ -80,13 +58,10 @@ export function EvacuationDialog({ onClose }: { onClose: () => void }) {
               {plan.levels.find((l) => l.id === plan.walls.find((w) => w.id === o.wallId)!.levelId)!.name}
             </label>
           ))}
-        {error && <p role="alert">{error}</p>}
         <div className="dialog-actions">
-          <button disabled={busy} onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary" disabled={busy} onClick={run}>
-            {busy ? "People are preparing to leave…" : "Run evacuation"}
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" onClick={run}>
+            Run evacuation
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
+import { runInBackground } from "../sim/background.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { MODEL, SYSTEM, toolActivity } from "./assistant.ts";
-import { TOOLS, describe, runTool, type Change, type Draft } from "./tools.ts";
+import { TOOLS, describe, type Change, type Draft } from "./tools.ts";
 
 export interface Variant {
   id: string;
@@ -109,7 +110,7 @@ export async function proposeVariants(
             result = "Option recorded.";
           }
         } else if (PLAN_TOOLS.has(call.name)) {
-          const out = runTool(call.name, input, draft);
+          const out = await runInBackground({ kind: "assistantTool", name: call.name, input, draft }, signal);
           // Enforce the same people, even if a future tool changes both plan and profile.
           if (JSON.stringify(out.draft.profile) !== JSON.stringify(base.profile)) {
             result = "People and experiment settings must stay unchanged.";

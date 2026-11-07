@@ -1,3 +1,4 @@
+import { useImprovements } from "../improvements/store.ts";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useExperience } from "../experience/state.ts";
 import { Mark } from "../ui/Brand.tsx";
@@ -103,7 +104,19 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
             </div>
           ),
         )}
-        {busy && <Thinking />}
+        {busy && (
+          <>
+            <Thinking />
+            <button
+              onClick={() => {
+                useAssistant.getState().cancel();
+                useImprovements.getState().cancel();
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        )}
 
         {proposal && !busy && (
           <div className="proposal-card">
@@ -126,7 +139,20 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
             </div>
           </div>
         )}
-        {error && <p className="warn">{error}</p>}
+        {error && (
+          <div role="status">
+            <p className="warn">{error}</p>
+            <button
+              disabled={busy}
+              onClick={() => {
+                const last = [...lines].reverse().find((line) => line.role === "user");
+                if (last) void send(last.text);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 

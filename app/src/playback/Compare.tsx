@@ -4,7 +4,9 @@ import { defaultProfile } from "../population/officeProfile.ts";
 import { useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
-import { type Comparison, runComparison } from "../sim/runSimulation.ts";
+import type { Comparison } from "../sim/runSimulation.ts";
+import { runSimulationJob } from "../sim/jobs.tsx";
+import { useExperience } from "../experience/state.ts";
 import { scoreRows, summarySentences, verdict } from "../sim/scorecard.ts";
 import { useEditor } from "../state/store.ts";
 import { HeatToggle, Legend, PlanPlayer, Timeline, heatPeak, usePlayClock } from "./Playback.tsx";
@@ -14,10 +16,10 @@ const INSETS = { top: 56, right: 24, bottom: 84, left: 24 };
 /** Two layouts, same people, one clock and one shared heatmap scale. */
 export function CompareView({ comparison }: { comparison: Comparison }) {
   const { a, b, labels } = comparison;
-  const alarm=a.result.events.find(e=>e.type==="alarm")?.t;
-  const clock = usePlayClock(Math.max(a.result.durationS, b.result.durationS), comparison,alarm===undefined?0:Math.max(0,alarm-60));
+  const alarm = a.result.events.find((e) => e.type === "alarm")?.t;
+  const clock = usePlayClock(Math.max(a.result.durationS, b.result.durationS), comparison, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const savedHeat = useEditor((s) => s.heat);
-  const heat = (["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort)) ? "off" : savedHeat;
+  const heat = ["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort) ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
   // One scale for both (and every floor), so the same colour means the same amount in each layout.
   const heatMax = Math.max(heatPeak(a.result, heat), heatPeak(b.result, heat));
@@ -30,7 +32,21 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
       <div className="view-controls">
         <HeatToggle value={heat} onChange={setHeat} comfort={!!a.result.metrics.comfort && !!b.result.metrics.comfort} />
       </div>
-      <Timeline clock={clock} start={a.scenario.workday.start} end={a.scenario.workday.end} alarm={alarm} out={alarm===undefined?undefined:alarm+Math.max(a.result.metrics.evacuation?.outS??0,b.result.metrics.evacuation?.outS??0)} refuges={!!(a.result.metrics.evacuation?.refuges.length||b.result.metrics.evacuation?.refuges.length||a.result.metrics.evacuation?.stranded||b.result.metrics.evacuation?.stranded)} />
+      <Timeline
+        clock={clock}
+        start={a.scenario.workday.start}
+        end={a.scenario.workday.end}
+        alarm={alarm}
+        out={alarm === undefined ? undefined : alarm + Math.max(a.result.metrics.evacuation?.outS ?? 0, b.result.metrics.evacuation?.outS ?? 0)}
+        refuges={
+          !!(
+            a.result.metrics.evacuation?.refuges.length ||
+            b.result.metrics.evacuation?.refuges.length ||
+            a.result.metrics.evacuation?.stranded ||
+            b.result.metrics.evacuation?.stranded
+          )
+        }
+      />
     </div>
   );
 }
@@ -38,11 +54,19 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
 export function CompareResults({ comparison }: { comparison: Comparison }) {
   const { a, b, labels } = comparison;
   const savedHeat = useEditor((s) => s.heat);
-  const heat = (["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort)) ? "off" : savedHeat;
+  const heat = ["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort) ? "off" : savedHeat;
   const rows = scoreRows(a, b);
   const sentences = summarySentences(a, b, labels);
   const notes = [...a.notes.map((n) => `${labels[0]}: ${n}`), ...b.notes.map((n) => `${labels[1]}: ${n}`)];
-  if(a.result.metrics.evacuation&&b.result.metrics.evacuation) return <><h2>A · {labels[0]}</h2><EvacuationResults run={a}/><h2>B · {labels[1]}</h2><EvacuationResults run={b}/></>;
+  if (a.result.metrics.evacuation && b.result.metrics.evacuation)
+    return (
+      <>
+        <h2>A · {labels[0]}</h2>
+        <EvacuationResults run={a} />
+        <h2>B · {labels[1]}</h2>
+        <EvacuationResults run={b} />
+      </>
+    );
   return (
     <>
       <section className="panel">
@@ -129,15 +153,17 @@ interface Source {
 export function CompareDialog({ onClose }: { onClose: () => void }) {
   const plan = useEditor((s) => s.plan);
   const options = useEditor((s) => s.options);
-  const { setComparison, setView, notify } = useEditor.getState();
+  const { setComparison, setView } = useEditor.getState();
   const sources: Source[] = [
     { key: "current", label: `Current plan: ${plan.name}`, plan },
     ...options.map((o) => ({ key: o.id, label: `Saved option: ${o.name}`, plan: o.plan })),
     ...SAMPLE_PLANS.map((s) => ({ key: `sample-${s.id}`, label: `Sample: ${s.label}`, plan: s.plan })),
   ];
-  const profile=useEditor.getState().profiles[plan.id]??defaultProfile(plan);
-  const [evac,setEvac]=useState(!!useEditor.getState().run?.scenario.evacuation);
-  const [alarm,setAlarm]=useState(profile.evacuation?.alarmAt??defaultAlarm(useEditor.getState().run,profile.workday.start,profile.workday.end));
+  const profile = useEditor.getState().profiles[plan.id] ?? defaultProfile(plan);
+  const [evac, setEvac] = useState(!!useEditor.getState().run?.scenario.evacuation);
+  const [alarm, setAlarm] = useState(
+    profile.evacuation?.alarmAt ?? defaultAlarm(useEditor.getState().run, profile.workday.start, profile.workday.end),
+  );
   const [aKey, setA] = useState(sources[0].key);
   const [bKey, setB] = useState(sources[1]?.key ?? sources[0].key);
   const short = (s: Source) => s.label.replace(/^(Current plan|Saved option|Sample): /, "");
@@ -145,13 +171,22 @@ export function CompareDialog({ onClose }: { onClose: () => void }) {
   const run = () => {
     const sa = sources.find((s) => s.key === aKey)!;
     const sb = sources.find((s) => s.key === bKey)!;
-    const out = runComparison(sa.plan, sb.plan, [short(sa), short(sb)], useEditor.getState().profiles[sa.plan.id],evac?{alarmAt:alarm,blockedExitIds:profile.evacuation?.blockedExitIds}:undefined);
-    if ("errors" in out) {
-      notify(`Can't compare yet: ${out.errors[0]}`);
-      return;
-    }
-    setComparison(out.comparison);
-    setView("compare");
+    useExperience.getState().go(3);
+    void runSimulationJob(
+      {
+        kind: "compare",
+        a: sa.plan,
+        b: sb.plan,
+        labels: [short(sa), short(sb)],
+        profile: useEditor.getState().profiles[sa.plan.id],
+        evacuation: evac ? { alarmAt: alarm, blockedExitIds: profile.evacuation?.blockedExitIds } : undefined,
+      },
+      (out) => {
+        if ("errors" in out) return;
+        setComparison(out.comparison);
+        setView("compare");
+      },
+    );
     onClose();
   };
 
@@ -166,10 +201,19 @@ export function CompareDialog({ onClose }: { onClose: () => void }) {
         }}
       >
         <h3>Compare two layouts</h3>
-        <label className="check"><input type="checkbox" checked={evac} onChange={e=>setEvac(e.target.checked)}/>Compare evacuations</label>{evac&&<label className="field"><span>Alarm time</span><input type="time" value={alarm} onChange={e=>setAlarm(e.target.value)} onBlur={e=>setAlarm(e.target.value)}/></label>}
+        <label className="check">
+          <input type="checkbox" checked={evac} onChange={(e) => setEvac(e.target.checked)} />
+          Compare evacuations
+        </label>
+        {evac && (
+          <label className="field">
+            <span>Alarm time</span>
+            <input type="time" value={alarm} onChange={(e) => setAlarm(e.target.value)} onBlur={(e) => setAlarm(e.target.value)} />
+          </label>
+        )}
         <p>
-          The same people spend the same day in both. They come from layout A's People settings, so any difference
-          in the results comes from the layout.
+          The same people spend the same day in both. They come from layout A's People settings, so any difference in the results comes from the
+          layout.
         </p>
         <label>
           Layout A

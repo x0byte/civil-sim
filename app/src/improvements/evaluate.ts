@@ -3,6 +3,7 @@ import type { Scenario } from "../../../contracts/scenario.ts";
 import { recastScenario } from "../sim/comparison.ts";
 import { runFixedScenario, type SimRun } from "../sim/runSimulation.ts";
 import { plainText } from "../experience/wording.ts";
+import type { ReportProgress } from "../loading/progress.ts";
 import type { Evaluation } from "./measures.ts";
 
 export interface EvaluationInput {
@@ -12,7 +13,7 @@ export interface EvaluationInput {
 }
 
 /** Reuse the frozen base people and seed, rather than expanding a changed layout's profile. */
-export function evaluateLayout({ plan, source, evacuation }: EvaluationInput): Evaluation {
+export function evaluateLayout({ plan, source, evacuation }: EvaluationInput, report: ReportProgress = () => {}): Evaluation {
   const recast = recastScenario(structuredClone(source.scenario), plan);
   if (
     recast.scenario.people.length !== source.scenario.people.length ||
@@ -25,7 +26,24 @@ export function evaluateLayout({ plan, source, evacuation }: EvaluationInput): E
   if (recast.scenario.meetings.length !== source.scenario.meetings.length)
     throw new Error("This option loses a booked meeting. It cannot be compared fairly.");
   const run = (scenario: Scenario): SimRun => {
-    const out = runFixedScenario(plan, scenario, { notes: recast.notes, collaborations: source.collaborations });
+    const out = runFixedScenario(
+      plan,
+      scenario,
+      { notes: recast.notes, collaborations: source.collaborations },
+      {
+        onProgress: (p) =>
+          report({
+            message:
+              p.stage === "comfort"
+                ? "Measuring comfort…"
+                : p.stage === "simulating"
+                  ? "Simulating this layout…"
+                  : p.stage === "complete"
+                    ? "Preparing this layout’s results…"
+                    : "Checking this layout…",
+          }),
+      },
+    );
     if ("errors" in out) throw new Error(plainText(plan, out.errors.join(" ")));
     out.run.profile = source.profile;
     return out.run;

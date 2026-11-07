@@ -11,7 +11,7 @@ import { kindsFromPreset, type KindsPreset } from "../population/kinds.ts";
 import { TextField } from "../ui/fields.tsx";
 import { runDay } from "../sim/runDay.ts";
 import { EvacuationDialog } from "../sim/EvacuationDialog.tsx";
-import { runComparison } from "../sim/runSimulation.ts";
+import { runSimulationJob, SimulationStatus, useSimulationJob } from "../sim/jobs.tsx";
 
 export function SimpleBuilding() {
   const state = useEditor(),
@@ -167,46 +167,27 @@ export function SimplePeople() {
 export function RunControls() {
   const state = useEditor(),
     ux = useExperience();
-  const [evac, setEvac] = useState(false),
-    [busy, setBusy] = useState(false);
-  const run = () => {
-    setBusy(true);
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        try {
-          runDay();
-          ux.go(3);
-        } catch {
-          state.notify("We couldn’t finish that day. Check the plan and try again.");
-        } finally {
-          setBusy(false);
-        }
-      }, 0),
-    );
-  };
+  const [evac, setEvac] = useState(false);
+  const job = useSimulationJob();
+  const busy = job.status === "working";
   const last = state.past.at(-1);
   const compare = () => {
     if (!last) return;
-    setBusy(true);
-    setTimeout(() => {
-      try {
-        const out = runComparison(last.plan, state.plan, ["Before", "Your change"], last.profiles[last.plan.id]);
-        if ("errors" in out) state.notify(`We couldn’t compare those layouts: ${out.errors[0]}`);
-        else {
-          state.setComparison(out.comparison);
-          state.setView("compare");
-        }
-      } finally {
-        setBusy(false);
-      }
-    }, 0);
+    void runSimulationJob(
+      { kind: "compare", a: last.plan, b: state.plan, labels: ["Before", "Your change"], profile: last.profiles[last.plan.id] },
+      (out) => {
+        if ("errors" in out) return;
+        state.setComparison(out.comparison);
+        state.setView("compare");
+      },
+    );
   };
   return (
     <div className="run-controls">
       <h2>See what happens</h2>
       <p>Try the day, then look for one thing to improve.</p>
-      <button className="primary big-run" disabled={busy} onClick={run}>
-        {busy ? "People are getting ready…" : "▶ Run the day"}
+      <button className="primary big-run" disabled={busy} onClick={() => void runDay()}>
+        {busy ? "Working in the background…" : "▶ Run the day"}
       </button>
       <button disabled={busy} onClick={() => setEvac(true)}>
         Run an evacuation…
@@ -216,6 +197,7 @@ export function RunControls() {
           Compare with before
         </button>
       )}
+      <SimulationStatus />
       {state.run && <ImprovementsButton />}
       {state.run && (
         <div className="presentation-switch" role="group" aria-label="View results">

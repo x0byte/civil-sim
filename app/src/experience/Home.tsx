@@ -1,4 +1,5 @@
-import { type ReactNode, useState } from "react";
+import { Skeleton } from "../loading/LoadingState.tsx";
+import { type ReactNode, useEffect, useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
@@ -62,7 +63,9 @@ export function Home() {
         ))}
         <div className="home-nav-foot">
           <Logo height={18} />
-          <p><a href="https://ninearches.ai">ninearches.ai</a></p>
+          <p>
+            <a href="https://ninearches.ai">ninearches.ai</a>
+          </p>
           <p>People's behaviour, sound and light are estimates until checked against a real building.</p>
         </div>
       </nav>
@@ -151,13 +154,14 @@ export function Home() {
             </ol>
             <section className="home-name">
               <h2>Why Nine Arches</h2>
-              <p>The Nine Arches Bridge near Ella carries the hill-country railway in a tight curve high above a
-              tea-covered valley. Completed in 1919, it was built by local workers under British engineers from
-              concrete, stone and brick: about 91 metres long and 24 metres high, and still carrying trains more
-              than a century later. Local legend says it was built without steel, and credits a village builder,
-              P. K. Appuhami. Whatever the full story, the bridge shows what careful design and skilled hands
-              can do together: a structure that works beautifully for the people who use it. That's what Nine
-              Arches is for: testing a building with the people who will use it, before it's built.</p>
+              <p>
+                The Nine Arches Bridge near Ella carries the hill-country railway in a tight curve high above a tea-covered valley. Completed in 1919,
+                it was built by local workers under British engineers from concrete, stone and brick: about 91 metres long and 24 metres high, and
+                still carrying trains more than a century later. Local legend says it was built without steel, and credits a village builder, P. K.
+                Appuhami. Whatever the full story, the bridge shows what careful design and skilled hands can do together: a structure that works
+                beautifully for the people who use it. That's what Nine Arches is for: testing a building with the people who will use it, before it's
+                built.
+              </p>
             </section>
             <h2>Handy keys</h2>
             <dl className="home-keys">
@@ -209,19 +213,7 @@ export function Home() {
   );
 }
 
-function Tile({
-  icon,
-  title,
-  note,
-  onClick,
-  accent,
-}: {
-  icon: ReactNode;
-  title: string;
-  note: string;
-  onClick: () => void;
-  accent?: boolean;
-}) {
+function Tile({ icon, title, note, onClick, accent }: { icon: ReactNode; title: string; note: string; onClick: () => void; accent?: boolean }) {
   return (
     <button className={`home-tile ${accent ? "accent" : ""}`} onClick={onClick}>
       <span className="home-tile-icon">{icon}</span>
@@ -258,16 +250,22 @@ const ROOM_TINT: Partial<Record<string, string>> = {
 
 /** A small drawing of the plan's ground floor: rooms tinted by use, walls on top. */
 function PlanThumb({ plan }: { plan: FloorPlan }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 0);
+    return () => clearTimeout(timer);
+  }, [plan]);
+  if (!ready)
+    return (
+      <div className="plan-thumb" aria-hidden="true">
+        <Skeleton label="Preparing preview…" />
+      </div>
+    );
   const level = plan.levels[0]?.id;
   const { width: w, height: h } = plan.bounds;
   const pad = Math.max(w, h) * 0.06;
   return (
-    <svg
-      className="plan-thumb"
-      viewBox={`${-pad} ${-pad} ${w + pad * 2} ${h + pad * 2}`}
-      preserveAspectRatio="xMidYMid meet"
-      aria-hidden="true"
-    >
+    <svg className="plan-thumb" viewBox={`${-pad} ${-pad} ${w + pad * 2} ${h + pad * 2}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       {plan.spaces
         .filter((s) => s.levelId === level)
         .map((s) => (

@@ -50,7 +50,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
   });
 }
 
-export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}, duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start)): { heatmaps: Heatmaps; metrics: Metrics } {
+export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}, duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start), onMeasureComfort?: () => void): { heatmaps: Heatmaps; metrics: Metrics } {
   const cols = Math.ceil(plan.bounds.width / HEAT_CELL_M);
   const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
   const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: Array<number>(cols * rows).fill(0), dwellS: Array<number>(cols * rows).fill(0) }));
@@ -99,6 +99,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
   for (const metric of profiles) metric.blocked = events.filter((e) => e.type === "blocked" && profileByPerson.get(e.personId) === metric.profileId).length;
   const densityByLevel = new Map(density.levels.map((level) => [level.levelId, level.peakDensity]));
   const resultLevels = levels.map((level) => ({ ...level, peakDensity: densityByLevel.get(level.levelId)!, noiseDbA: [] as number[], lightLux: [] as number[], glare: [] as number[] }));
+  if (scenario.comfort) onMeasureComfort?.();
   const comfort = scenario.comfort ? analyseComfort(plan, scenario, tracks, resultLevels, people, occupancy, crowded, warn) : null;
   return {
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS, levels: resultLevels },

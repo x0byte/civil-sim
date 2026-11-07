@@ -1,3 +1,4 @@
+import { SceneReady, SceneSkeleton, SceneFallback, useSceneLoading } from "../view3d/SceneReady.tsx";
 import { SunLight } from "../view3d/SunLight.tsx";
 import { sceneBounds, runSunScenario, clockSeconds, sunDate } from "../view3d/sun.ts";
 import { SceneCamera, MiniMap } from "../view3d/SceneCamera.tsx";
@@ -20,6 +21,7 @@ export function Experience3D({ run }: { run: SimRun }) {
   const ux = useExperience(),
     plan = run.plan,
     alarm = run.result.events.find((e) => e.type === "alarm")?.t;
+  const scene = useSceneLoading(run);
   const clock = usePlayClock(run.result.durationS, run, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const time = useRef(clock.t);
   time.current = clock.t;
@@ -154,14 +156,18 @@ export function Experience3D({ run }: { run: SimRun }) {
         In very crowded spots people may overlap: crowds are modelled as density and flow, not as bodies stepping around each other.
       </p>
       <div className="walk-canvas">
+        <SceneSkeleton ready={scene.ready} />
         <Canvas
           shadows
           fallback={
-            <div className="panel-body">
-              <h2>3D isn’t available in this browser.</h2>
-              <p>You can still explore the whole day in 2D.</p>
-              <button onClick={() => ux.setPresentation("2d")}>Open 2D analysis</button>
-            </div>
+            <SceneFallback onReady={scene.markReady}>
+              {" "}
+              <div className="panel-body">
+                <h2>3D isn’t available in this browser.</h2>
+                <p>You can still explore the whole day in 2D.</p>
+                <button onClick={() => ux.setPresentation("2d")}>Open 2D analysis</button>
+              </div>
+            </SceneFallback>
           }
           dpr={[1, 1.5]}
           camera={{
@@ -171,13 +177,8 @@ export function Experience3D({ run }: { run: SimRun }) {
             far: 500,
           }}
         >
-          <SunLight
-            plan={plan}
-            scenario={lightingScenario}
-            clock={clockSeconds(run.scenario.workday.start, clock.t)}
-            shadows={shadows}
-            dark={dark}
-          />
+          <SceneReady onReady={scene.markReady} />
+          <SunLight plan={plan} scenario={lightingScenario} clock={clockSeconds(run.scenario.workday.start, clock.t)} shadows={shadows} dark={dark} />
           <Building
             plan={plan}
             level={plan.levels.at(-1)!.id}
@@ -187,15 +188,7 @@ export function Experience3D({ run }: { run: SimRun }) {
             surroundings={surroundings}
             labels={ux.camera === "overview"}
           />
-          <Figures
-            run={run}
-            time={time}
-            levels={levels}
-            peel={peel}
-            onPick={(id) => ux.follow(id)}
-            stress={stress ? 850 : 0}
-            onCount={setCount}
-          />
+          <Figures run={run} time={time} levels={levels} peel={peel} onPick={(id) => ux.follow(id)} stress={stress ? 850 : 0} onCount={setCount} />
           <Heat run={run} levels={levels} peel={peel} mode={heat} />
           {ux.focus?.levelId && levels.includes(ux.focus.levelId) && (
             <mesh
@@ -309,19 +302,14 @@ export function Experience3D({ run }: { run: SimRun }) {
                 tr?.points.reduce((n, a, i, ps) => {
                   const b = ps[i + 1];
                   return (
-                    n +
-                    (b && a.activity === "in_lift" && a.levelId === b.levelId && a.t < clock.t
-                      ? Math.max(0, Math.min(clock.t, b.t) - a.t)
-                      : 0)
+                    n + (b && a.activity === "in_lift" && a.levelId === b.levelId && a.t < clock.t ? Math.max(0, Math.min(clock.t, b.t) - a.t) : 0)
                   );
                 }, 0) ?? 0,
               )}{" "}
               s waiting for lifts so far
             </p>
             <strong>
-              {follow
-                ? (ACTIVITY_STYLE[follow.activity as keyof typeof ACTIVITY_STYLE]?.label ?? "Away")
-                : "Not in the building at this time"}
+              {follow ? (ACTIVITY_STYLE[follow.activity as keyof typeof ACTIVITY_STYLE]?.label ?? "Away") : "Not in the building at this time"}
             </strong>
             <button onClick={() => ux.setCamera("overview")}>Stop following</button>
           </div>
@@ -346,13 +334,9 @@ export function Experience3D({ run }: { run: SimRun }) {
         <details className="performance-tools">
           <summary>Performance check</summary>
           <label>
-            <input type="checkbox" checked={stress} onChange={(e) => setStress(e.target.checked)} /> Draw 850 figures for a display-only
-            stress check
+            <input type="checkbox" checked={stress} onChange={(e) => setStress(e.target.checked)} /> Draw 850 figures for a display-only stress check
           </label>
-          <p>
-            This changes only the drawing. Simulation results and tracks stay the same. Frame rate is a rolling five-second browser
-            measurement.
-          </p>
+          <p>This changes only the drawing. Simulation results and tracks stay the same. Frame rate is a rolling five-second browser measurement.</p>
         </details>
       )}
     </div>

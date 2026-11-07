@@ -1,14 +1,18 @@
+import { DeferredDetails } from "./loading/DeferredDetails.tsx";
+import { BackgroundStatus, useSimulationJob } from "./sim/jobs.tsx";
+import { Skeleton } from "./loading/LoadingState.tsx";
 import { Improvements, ImprovementPreview } from "./improvements/Improvements.tsx";
 import { useImprovements } from "./improvements/store.ts";
 import { plainText } from "./experience/wording.ts";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { LoadBoundary } from "./loading/LoadBoundary.tsx";
 import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
 import { Home } from "./experience/Home.tsx";
 import { AssistantWindow } from "./assistant/AssistantWindow.tsx";
 import { isCurrentRun, useExperience } from "./experience/state.ts";
 import { FineTune } from "./experience/common.tsx";
 import { Story } from "./experience/Story.tsx";
-import { Experience3D } from "./experience/Experience3D.tsx";
+const Experience3D = lazy(() => import("./experience/Experience3D.tsx").then((m) => ({ default: m.Experience3D })));
 import "./experience/experience.css";
 import "./ui/shell.css";
 import { ProposalView } from "./assistant/ProposalView.tsx";
@@ -27,6 +31,7 @@ import { TopBar } from "./ui/TopBar.tsx";
 import { BuildingWorkspace } from "./view3d/BuildingWorkspace.tsx";
 
 export function App() {
+  const jobStatus = useSimulationJob((s) => s.status);
   const view = useEditor((s) => s.view);
   const toast = useEditor((s) => s.toast);
   const run = useEditor((s) => s.run);
@@ -83,7 +88,11 @@ export function App() {
               <CompareView comparison={cmp} />
             ) : ux.step === 3 && run ? (
               ux.presentation === "3d" ? (
-                <Experience3D run={run} />
+                <LoadBoundary>
+                  <Suspense fallback={<Skeleton label="Loading the 3D walk-through…" />}>
+                    <Experience3D run={run} />
+                  </Suspense>
+                </LoadBoundary>
               ) : (
                 <Playback run={run} />
               )
@@ -92,7 +101,7 @@ export function App() {
             ) : (
               <Canvas2D />
             )}
-            {ux.step === 3 && !run && !cmp && (
+            {ux.step === 3 && !run && !cmp && jobStatus !== "working" && (
               <div className="run-empty">
                 <h1>Let’s see how your building feels.</h1>
                 <p>Run a typical day to see people move, where they wait and what could work better.</p>
@@ -124,14 +133,17 @@ export function App() {
                       <p className="stale-banner">The building or people have changed. Run the day again to update these results.</p>
                     )}
                     <Story run={run} />
-                    <details className="more-detail">
-                      <summary>More detail</summary>
+                    <DeferredDetails className="more-detail" summary="More detail">
                       <ResultsPanel run={run} onRerun={runDay} />
-                    </details>
+                    </DeferredDetails>
                   </>
                 ) : (
                   <section className="panel">
-                    <div className="panel-body">Your results will appear here. You can change the people or the building at any time.</div>
+                    {jobStatus === "working" ? (
+                      <Skeleton label="Results will appear here when the run is ready…" />
+                    ) : (
+                      <div className="panel-body">Your results will appear here. You can change the people or the building at any time.</div>
+                    )}
                   </section>
                 )}
               </>
@@ -139,6 +151,7 @@ export function App() {
           </aside>
         </main>
       )}
+      <BackgroundStatus />
       <AssistantWindow />
       <Improvements />
       {toast && (

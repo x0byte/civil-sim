@@ -1,3 +1,4 @@
+import { runInBackground } from "../sim/background.ts";
 import { create } from "zustand";
 import { errorText, useAssistant } from "../assistant/assistant.ts";
 import { proposeVariants, type Variant } from "../assistant/variants.ts";
@@ -25,6 +26,7 @@ interface ImprovementsState {
   open: boolean;
   phase: "idle" | "proposing" | "running" | "done" | "cancelled" | "error";
   progress: number;
+  startedAt: number;
   message: string;
   error: string | null;
   experiment: Experiment | null;
@@ -40,31 +42,14 @@ interface ImprovementsState {
   apply: (id: string) => boolean;
 }
 
-/** The implementation is injectable in tests; production always uses a terminable worker. */
-export function runInWorker(input: EvaluationInput, signal: AbortSignal): Promise<Evaluation> {
-  return new Promise((resolve, reject) => {
-    signal.throwIfAborted();
-    const worker = new Worker(new URL("./simulation.worker.ts", import.meta.url), { type: "module" });
-    const finish = () => {
-      worker.terminate();
-      signal.removeEventListener("abort", abort);
-    };
-    const abort = () => {
-      finish();
-      reject(new DOMException("Cancelled", "AbortError"));
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    worker.onmessage = (event: MessageEvent<{ evaluation?: Evaluation; error?: string }>) => {
-      finish();
-      if (event.data.evaluation) resolve(event.data.evaluation);
-      else reject(new Error(event.data.error ?? "Couldn't finish this layout."));
-    };
-    worker.onerror = () => {
-      finish();
-      reject(new Error("Couldn't run this layout. Check the plan and try again."));
-    };
-    worker.postMessage(input);
-  });
+/** Shared worker client; injectable in tests as before. */
+export function runInWorker(
+  input: EvaluationInput,
+  signal: AbortSignal,
+  report?: import("../loading/progress.ts").ReportProgress,
+): Promise<Evaluation> {
+  const { scenario, profile, collaborations } = input.source;
+  return runInBackground({ kind: "evaluate", ...input, source: { scenario, profile, collaborations } }, signal, report);
 }
 
 export async function runExperiment(
@@ -96,7 +81,9 @@ export async function runExperiment(
     signal.throwIfAborted();
     callbacks.activity(`Running option ${i + 1} of ${variants.length}: ${variant.title}`);
     try {
-      const evaluation = await evaluate({ plan: variant.draft.plan, source, evacuation }, signal);
+      const evaluation = await evaluate({ plan: variant.draft.plan, source, evacuation }, signal, (progress) =>
+        callbacks.activity(`${variant.title} · ${progress.message}`),
+      );
       signal.throwIfAborted();
       callbacks.variant({ ...variant, evaluation });
     } catch (error) {
@@ -112,6 +99,7 @@ export const useImprovements = create<ImprovementsState>((set, get) => ({
   open: false,
   phase: "idle",
   progress: 0,
+  startedAt: 0,
   message: "",
   error: null,
   experiment: null,
@@ -152,6 +140,7 @@ export const useImprovements = create<ImprovementsState>((set, get) => ({
     controller = active;
     set({
       phase: "proposing",
+      startedAt: Date.now(),
       experiment,
       baseline: null,
       variants: [],
@@ -169,6 +158,10 @@ export const useImprovements = create<ImprovementsState>((set, get) => ({
         ...assistant.lines,
         { role: "user", text: `Find improvements: ${GOALS[goal]}${constraints.trim() ? `. Keep: ${constraints.trim()}` : ""}` },
       ],
+    });
+    const unsubscribe = useEditor.subscribe((next) => {
+      if (next.plan !== base.plan || next.profiles !== editor.profiles)
+        active.abort("The plan or people changed, so finding improvements was stopped.");
     });
     try {
       await runExperiment(experiment, assistant.key, active.signal, {
@@ -193,9 +186,14 @@ export const useImprovements = create<ImprovementsState>((set, get) => ({
         ],
       }));
     } catch (error) {
-      if (active.signal.aborted) set({ phase: "cancelled", message: "Stopped. Your building has not changed." });
+      if (active.signal.aborted)
+        set({
+          phase: "cancelled",
+          message: typeof active.signal.reason === "string" ? active.signal.reason : "Stopped. Your building has not changed.",
+        });
       else set({ phase: "error", error: errorText(error) });
     } finally {
+      unsubscribe();
       useAssistant.setState({ busy: false, activity: [] });
       if (controller === active) controller = undefined;
     }

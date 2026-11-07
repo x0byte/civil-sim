@@ -1,9 +1,14 @@
+import { useLoadingTask } from "../loading/useLoadingTask.ts";
+import { LoadingState } from "../loading/LoadingState.tsx";
+import { runInBackground } from "../sim/background.ts";
+import { readImage } from "../loading/files.ts";
+import { stoppedError } from "../loading/progress.ts";
 import { type Step, completedSteps, useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
-import { buildProject, readProjectFile, projectFileName } from "../model/projectFile.ts";
+import { buildProject, projectFileName } from "../model/projectFile.ts";
 import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
-import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
+import { type DxfDrawing } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
@@ -11,6 +16,7 @@ import { ASSISTANT_NAME, Logo, Mark } from "./Brand.tsx";
 import { Menu, type MenuItem } from "./Menu.tsx";
 
 export function TopBar() {
+  const fileTask = useLoadingTask();
   const [dark, setDark] = useState(() => {
     try {
       const saved = localStorage.getItem("volt:theme");
@@ -55,60 +61,62 @@ export function TopBar() {
     window.addEventListener("volt:bring", bring);
     return () => window.removeEventListener("volt:bring", bring);
   }, []);
-  const saveProject = () => {
-    const { options, profiles } = useEditor.getState();
-    const file = buildProject(plan, options, profiles);
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = projectFileName(plan);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    const n = options.length;
-    notify(`Saved ${a.download}: the plan, its People settings${n ? ` and ${n} saved option${n > 1 ? "s" : ""}` : ""}.`);
-  };
+  const saveProject = () =>
+    fileTask.run(async (signal, report) => {
+      const { plan, options, profiles } = useEditor.getState();
+      report({ message: "Preparing the project file…" });
+      const text = await runInBackground({ kind: "serialize", value: buildProject(plan, options, profiles) }, signal, report);
+      signal.throwIfAborted();
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = projectFileName(plan);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      notify(`Saved ${a.download}: the plan, its People settings and saved options.`);
+    });
 
-  const openFile = async (file: File) => {
-    ux.newBuilding();
-    try {
+  const openFile = (file: File) =>
+    fileTask.run(async (signal, report) => {
+      const before = useEditor.getState().plan;
+      report({ message: `Reading ${file.name}…` });
+      const text = await file.text();
+      signal.throwIfAborted();
       if (/\.dxf$/i.test(file.name)) {
-        const drawing = parseDxf(await file.text());
-        if (!drawing.layers.size) throw new Error("it has no straight lines to turn into walls");
+        const drawing = await runInBackground({ kind: "dxf", text }, signal, report);
+        signal.throwIfAborted();
+        if (!drawing.layers.size) throw new Error("This drawing has no straight lines to turn into walls.");
+        if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so opening the drawing was stopped.");
         setDxf({ drawing, name: file.name });
         return;
       }
-      const opened = await readProjectFile(file);
+      const opened = await runInBackground({ kind: "project", text }, signal, report);
+      signal.throwIfAborted();
+      if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so opening the file was stopped.");
+      report({ message: "Opening the building and saved settings…" });
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
-        const n = opened.project.options.length;
-        notify(
-          [`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "),
-        );
+        notify([`Opened ${opened.project.plan.name}.`, ...opened.warnings].join(" "));
       } else {
         load(opened.plan);
         notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
       }
-    } catch (e) {
-      notify(`Couldn't open that file: ${(e as Error).message}.`);
-    }
-  };
+      ux.newBuilding();
+    });
 
-  const uploadImage = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = String(reader.result);
-      const img = new Image();
-      img.onload = () => {
-        // First guess: the image spans the plan's width. The scale tool fixes it properly.
-        const metresPerPixel = plan.bounds.width / img.naturalWidth;
-        commit((p) => ({ ...p, underlay: { image, metresPerPixel, origin: { x: 0, y: 0 }, opacity: 0.5 } }));
-        setTool("calibrate");
-        notify("Plan image added. Now click both ends of a wall or dimension you know the length of.");
-      };
-      img.src = image;
-    };
-    reader.readAsDataURL(file);
-  };
+  const uploadImage = (file: File) =>
+    fileTask.run(async (signal, report) => {
+      const before = useEditor.getState().plan;
+      report({ message: "Loading the plan image…" });
+      const image = await readImage(file, signal);
+      signal.throwIfAborted();
+      if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so loading the image was stopped.");
+      report({ message: "Preparing the image for tracing…" });
+      commit((p) => ({ ...p, underlay: { image: image.image, metresPerPixel: p.bounds.width / image.width, origin: { x: 0, y: 0 }, opacity: 0.5 } }));
+      ux.newBuilding();
+      setTool("calibrate");
+      notify("Plan image added. Now click both ends of a wall or dimension you know the length of.");
+    });
 
   const activeRun = view === "compare" ? (comparison?.b ?? null) : run;
   const done = completedSteps(plan, ux.peopleReady, activeRun, profile);
@@ -233,6 +241,9 @@ export function TopBar() {
           e.target.value = "";
         }}
       />
+      <div className="file-work-status">
+        <LoadingState task={fileTask} onCancel={() => fileTask.cancel()} onRetry={fileTask.retry} onDismiss={fileTask.clear} />
+      </div>
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (
