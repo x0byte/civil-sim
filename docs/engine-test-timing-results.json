@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-07",
+  "base": "08bde54",
+  "node": "v25.9.0",
+  "protocol": "One untimed warm-up, then median of three simulate() calls. Fixture loading, hashing and assertions excluded. Two consecutive full suites; Vite servers stopped and no concurrent project test/build/benchmark jobs.",
+  "runs": [
+    {
+      "run": 1,
+      "passed": 284,
+      "failed": 1,
+      "total": 285,
+      "durationS": 135.3,
+      "measurements": [
+        {
+          "scenario": "mall-weekend-people",
+          "scale": 1,
+          "warmupRuns": 1,
+          "runsMs": [
+            1978.866082999999,
+            1944.8529159999998,
+            1962.8428749999985
+          ],
+          "medianMs": 1962.8428749999985,
+          "targetMs": 6000
+        },
+        {
+          "scenario": "mall-weekend-people",
+          "scale": 3.5,
+          "warmupRuns": 1,
+          "runsMs": [
+            4756.322832999998,
+            4720.138499999997,
+            4712.177458999999
+          ],
+          "medianMs": 4720.138499999997,
+          "targetMs": 6000
+        },
+        {
+          "scenario": "mall-weekend-evac",
+          "warmupRuns": 1,
+          "runsMs": [
+            3162.233375,
+            3236.406166999999,
+            3089.835082999998
+          ],
+          "medianMs": 3162.233375,
+          "targetMs": 3000
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "passed": 284,
+      "failed": 1,
+      "total": 285,
+      "durationS": 133.34,
+      "measurements": [
+        {
+          "scenario": "mall-weekend-people",
+          "scale": 1,
+          "warmupRuns": 1,
+          "runsMs": [
+            1975.8705419999987,
+            1936.2511249999989,
+            1921.2721660000007
+          ],
+          "medianMs": 1936.2511249999989,
+          "targetMs": 6000
+        },
+        {
+          "scenario": "mall-weekend-people",
+          "scale": 3.5,
+          "warmupRuns": 1,
+          "runsMs": [
+            4643.962916,
+            4645.635125000001,
+            4618.855333000003
+          ],
+          "medianMs": 4643.962916,
+          "targetMs": 6000
+        },
+        {
+          "scenario": "mall-weekend-evac",
+          "warmupRuns": 1,
+          "runsMs": [
+            3125.681666999999,
+            3074.711625,
+            3018.6823750000003
+          ],
+          "medianMs": 3074.711625,
+          "targetMs": 3000
+        }
+      ]
+    }
+  ]
+}

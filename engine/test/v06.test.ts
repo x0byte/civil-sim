@@ -212,10 +212,13 @@ describe("mall crowd acceptance", () => {
   it.each([1, 3.5])("keeps arrivals × %s safe and deterministic, median of three under six seconds", (scale) => {
     const p = plan("mall-2f"); const s = scenario("mall-weekend-people"); s.shoppers!.arrivals.forEach((a) => { a.perHour *= scale; });
     const before = JSON.stringify([p, s]); const times: number[] = []; const hashes: string[] = []; let r!: SimulationResult;
+    simulate(p, s); // Warm up before collecting the three simulation-only samples.
     for (let i = 0; i < 3; i++) { const start = performance.now(); r = simulate(p, s); times.push(performance.now() - start); hashes.push(createHash("sha256").update(JSON.stringify(r)).digest("hex")); }
     expect(new Set(hashes).size).toBe(1); expect(JSON.stringify([p, s])).toBe(before); safety(p, s, r);
     expect(Math.max(...r.metrics.crowding.map((m) => m.peakDensity))).toBeLessThan(5.4);
     for (const level of r.heatmaps.levels) expect(Math.max(...level.peakDensity)).toBeLessThan(5.4);
-    expect(r.metrics.headcount.at(-1)!.count).toBe(0); expect(times.sort((a, b) => a - b)[1]).toBeLessThan(6000);
+    expect(r.metrics.headcount.at(-1)!.count).toBe(0); const medianMs = [...times].sort((a, b) => a - b)[1];
+    console.info("[simulation timing]", JSON.stringify({ scenario: "mall-weekend-people", scale, warmupRuns: 1, runsMs: times, medianMs, targetMs: 6000 }));
+    expect(medianMs).toBeLessThan(6000);
   }, 60000);
 });
