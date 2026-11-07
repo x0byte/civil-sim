@@ -1,3 +1,4 @@
+import { EvidenceStatus } from "./sim/evidenceJob.tsx";
 import { DeferredDetails } from "./loading/DeferredDetails.tsx";
 import { BackgroundStatus, useSimulationJob } from "./sim/jobs.tsx";
 import { Skeleton } from "./loading/LoadingState.tsx";
@@ -152,6 +153,7 @@ export function App() {
         </main>
       )}
       <BackgroundStatus />
+      <EvidenceStatus />
       <AssistantWindow />
       <Improvements />
       {toast && (

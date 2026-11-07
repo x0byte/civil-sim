@@ -357,3 +357,9 @@ assumed ±30% bounds; settings stay fixed. The split-normal sampler gives each h
 the requested median at the value; population shares close on a bounded simplex. Sensitivity uses fixed office/retail
 sample budgets, scaled arrival endpoints and batch-scoped geometry caches keyed by routing parameters; mutable
 queues/counters and personal route choices stay per run. See `docs/parameters.md` and the research/review report.
+
+## 2026-11-08 · Publish central results before sensitivity
+App day runs publish without sensitivity, then use a separate cancellable worker with independent progress to patch
+only evidence. A new run, comparison, or plan/people edit cancels that work; generation and result identity guards
+reject late messages. Evidence updates preserve track identity so playback does not restart. Comparisons omit
+sensitivity. Secondary failures retain the central result and offer retry.

@@ -108,8 +108,9 @@ unconstrained parameters stay at their central values.
 simulate(plan, scenario, { sensitivity: true, onProgress: p => { /* worker progress */ } });
 ```
 
-The app worker enables sensitivity for fixed/day/comparison runs. Scalar engine
-calls opt in. The seed selects up to 24 staff/visitors per category in offices and up to 12 per
+The app publishes a central day run first, then starts a separate cancellable worker
+for sensitivity. Its progress reads “Checking what the result depends on · n of m”.
+Comparisons never run sensitivity. Scalar engine calls opt in. The seed selects up to 24 staff/visitors per category in offices and up to 12 per
 category in retail, with shopper demand scaled toward 12 expected arrivals. Original order, geometry and day remain.
 Arrival-rate endpoints and calibrated arrival overrides receive the **same scale**;
 they cannot accidentally restore the full crowd in a screening run.

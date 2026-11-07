@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type { FloorPlan } from '../../contracts/floorplan.ts';
 import type { Scenario } from '../../contracts/scenario.ts';
-import { simulate } from '../src/index.ts';
+import { simulate, analyseSensitivity } from '../src/index.ts';
 
 const pairs = [
   ['office-a','office-day'], ['office-b','office-day'], ['sealed-room','sealed-day'],
@@ -15,15 +15,18 @@ for (const [planId, scenarioId] of pairs.filter(pair => !process.argv[2] || pair
   const scenario = JSON.parse(readFileSync(new URL(`../../samples/${scenarioId}.scenario.json`, import.meta.url), 'utf8')) as Scenario;
   const start = performance.now();
   let endpointRuns = 0, progressUpdates = 0, completed = 0, total = 0;
-  const result = simulate(plan, scenario, { sensitivity: true, onProgress: progress => {
-    if (progress.detail === 'sensitivity') {
-      endpointRuns = (progress.total ?? 0) * 2; progressUpdates++;
-      completed = progress.completed ?? 0; total = progress.total ?? 0;
-    }
-  } });
+  const result = simulate(plan, scenario);
+  const centralMs = performance.now() - start;
+  const sensitivityStart = performance.now();
+  result.evidence!.sensitivity = analyseSensitivity(plan, scenario, result.evidence!,
+    (p, s, movementOnly) => simulate(p, s, { measurement: movementOnly ? 'movement' : undefined }),
+    { onProgress: (done, count) => {
+      endpointRuns = count * 2; progressUpdates++; completed = done; total = count;
+    } });
+  const sensitivityMs = performance.now() - sensitivityStart;
   const elapsedMs = performance.now() - start;
   const parameters = result.evidence!.parameters;
-  console.log(JSON.stringify({ planId, scenarioId, elapsedMs, endpointRuns, progressUpdates, completed, total,
+  console.log(JSON.stringify({ planId, scenarioId, centralMs, sensitivityMs, elapsedMs, endpointRuns, progressUpdates, completed, total,
     parameters: parameters.length,
     assumptionGaps: parameters.filter(p => p.source.startsWith('Assumption:')).length,
     sensitivity: result.evidence!.sensitivity,

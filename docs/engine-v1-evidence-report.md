@@ -8,10 +8,9 @@ not edited.
 
 ## Blockers addressed
 
-1. All four background comparisons use `simulate(...,{ sensitivity: true })`,
-   including the no-worker fallback. The thread test permits 45 seconds for its
-   **two** complete runs plus startup; the independent benchmark still enforces
-   **under 20 seconds per run**. The whole app suite is run, not a selected subset.
+1. Background thread and fallback comparisons now match plain `simulate(...)`.
+   Following the re-review, the day publishes before a separate sensitivity task
+   starts. Comparisons omit sensitivity. See the follow-up timings below.
 2. Every registry definition has a behaviour/setting kind. Unverified behaviours
    have explicitly assumed bounds instead of being hidden by pinned defaults.
    Sources, distributions, sampling, composition constraints and measured priorities
@@ -123,9 +122,9 @@ an unnecessary run. No wall-clock early cutoff or incomplete ranking is used.
 | mall-2f-evac / mall-weekend-evac | 15.480 | 248 | 124/124 |
 | office-a-evac / office-day-evac | 0.405 | 56 | 28/28 |
 
-All 11 completed below 20 seconds. The existing worker reports
-“Checking parameter sensitivity · completed of total” before preparing the result;
-progress callbacks were observed at start and completion for every sample. These
+All 11 completed below 20 seconds in that revision. These are historical combined
+timings; the follow-up below measures central and secondary tasks separately.
+Progress callbacks were observed at start and completion for every sample. These
 measurements are not a guarantee for every machine or arbitrarily large plan.
 
 ## Final validation
@@ -144,3 +143,42 @@ measurements are not a guarantee for every machine or arbitrarily large plan.
   valid scenario distributions/shares. Documentation-key coverage is tested.
 - NOAA/Spencer formula source comment now names the open two-page calculation note,
   including the exact p. 1 equations. Formula coefficients are unchanged.
+
+## Re-review follow-up: non-blocking sensitivity (2026-11-08)
+
+Day runs now publish the central result first, with sensitivity empty. An independent
+worker then adds `evidence.sensitivity`; its chip reads “Checking what the result
+depends on · n of m”. Another run, comparison, plan edit or people edit cancels it.
+Generation and run identity checks reject late progress/results. Secondary failure
+keeps the central result, with Retry. Metadata updates preserve playback position,
+speed, selected person and scene readiness. Comparisons do no sensitivity work.
+
+`npm run benchmark:evidence --prefix engine` now measures the actual two-task
+algorithm separately (simulation CPU time; excludes browser worker startup, structured
+clone and rendering). The central run is not repeated to begin sensitivity.
+
+| Plan / scenario | Central result (s) | Secondary sensitivity (s) | Completed |
+|---|---:|---:|---:|
+| office-a / office-day | 0.075 | 0.237 | 18/18 |
+| office-b / office-day | 0.034 | 0.213 | 18/18 |
+| sealed-room / sealed-day | 0.002 | 0.003 | 4/4 |
+| mall-2f / mall-day | 1.026 | 3.402 | 17/17 |
+| mall-2f / mall-weekend | 0.843 | 3.910 | 49/49 |
+| mall-2f / mall-weekend-people | 1.578 | 11.050 | 115/115 |
+| office-a-comfort / office-day-comfort | 0.264 | 1.013 | 47/47 |
+| mall-2f-comfort / mall-weekend-comfort | 3.455 | 13.155 | 117/117 |
+| office-a-site / office-day-site | 0.321 | 1.074 | 47/47 |
+| mall-2f-evac / mall-weekend-evac | 2.273 | 13.046 | 124/124 |
+| office-a-evac / office-day-evac | 0.039 | 0.367 | 28/28 |
+
+All 11 secondary tasks completed below 20 s and emitted start/completion progress.
+
+Validation, suites run sequentially:
+- Whole engine: **312/312**, 25 files, **152.62 s**.
+- Whole app (`npx vitest run` in `app/`): **201/201**, 29 files, **34.39 s**.
+- Contracts: **11/11** sample pairs. Engine and app TypeScript checks passed.
+- New coverage: real second worker equality/progress; central-before-evidence
+  lifecycle; cancellation on next run, comparison and editing; late-message guards;
+  failure retaining playback; track identity preserved by the evidence patch.
+
+Part A is ready for Claude's final review; it remains unmerged.
