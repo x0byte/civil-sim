@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nine Arches · Know how your building feels before it's built</title>
+    <meta
+      name="description"
+      content="Draw a floor plan, fill it with people and watch them live a day in it. When something doesn't work, ask Ella to fix it. Building simulation for architects, builders and clients."
+    />
+    <meta property="og:title" content="Nine Arches" />
+    <meta
+      property="og:description"
+      content="Draw a floor plan, fill it with people and watch them live a day in it. When something doesn't work, ask Ella to fix it."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..600,0..100;1,9..144,400..600,0..100&family=Inter:wght@400..600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Preloader only on the first visit in a session; reduced motion gets a short still logo.
+      try {
+        if (sessionStorage.getItem("na:seen")) document.documentElement.classList.add("no-preloader");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="paper-grain" aria-hidden="true"></div>
+
+    <!-- 6.0 Preloader -->
+    <div id="preloader" aria-hidden="true">
+      <div class="burst">
+        <span class="blob" style="--c: #4f8ff0; --x: -180px; --y: -90px; --s: 300px"></span>
+        <span class="blob" style="--c: #9b7cf6; --x: 160px; --y: -120px; --s: 260px"></span>
+        <span class="blob" style="--c: #2fc7c0; --x: 200px; --y: 110px; --s: 280px"></span>
+        <span class="blob" style="--c: #ffb38a; --x: -150px; --y: 140px; --s: 240px"></span>
+        <span class="blob" style="--c: #7cc4ff; --x: 30px; --y: -200px; --s: 220px"></span>
+        <span class="blob" style="--c: #f58fbf; --x: -40px; --y: 200px; --s: 250px"></span>
+        <span class="ring r1"></span><span class="ring r2"></span>
+      </div>
+      <div class="pre-logo" data-logo="72"></div>
+    </div>
+
+    <!-- 4.1 Navigation -->
+    <header class="nav" id="nav">
+      <div class="nav-inner">
+        <a class="nav-brand" href="#top" aria-label="Nine Arches, back to top" data-logo="28"></a>
+        <nav class="nav-links" aria-label="Sections">
+          <a href="#story">Story</a>
+          <a href="#how">How it works</a>
+          <a href="#ella">Ella</a>
+          <a href="#buildings">Any building</a>
+          <a href="#site">On site</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn ghost m hide-sm" href="mailto:TODO_CONTACT">Talk to us</a>
+          <a class="btn primary m" href="https://app.ninearches.ai">Try Nine Arches</a>
+          <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sheet">
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+    <div class="sheet" id="sheet" hidden>
+      <nav aria-label="Sections">
+        <a href="#story">Story</a>
+        <a href="#how">How it works</a>
+        <a href="#ella">Ella</a>
+        <a href="#buildings">Any building</a>
+        <a href="#site">On site</a>
+      </nav>
+      <div class="sheet-actions">
+        <a class="btn primary l" href="https://app.ninearches.ai">Try Nine Arches →</a>
+        <a class="btn ghost m" href="mailto:TODO_CONTACT">Talk to us</a>
+        <button class="text-btn pause-toggle" type="button">Pause animations</button>
+      </div>
+    </div>
+
+    <!-- 5.5 Railway progress line -->
+    <div class="rail-progress" aria-hidden="true">
+      <div class="rail-track"></div>
+      <div class="rail-train"></div>
+    </div>
+
+    <main id="main">
+      <!-- 6.1 Hero -->
+      <section class="hero" id="top">
+        <div class="hero-valley" data-scene="valley" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <div class="hero-text">
+            <p class="eyebrow">Building simulation, with Ella</p>
+            <h1 class="t-hero">Know how your building <em>feels</em> before it's built.</h1>
+            <p class="lead">
+              Draw a floor plan, fill it with people, and watch them live a day in it. When something doesn't work, tell Ella. She'll change the plan
+              while you watch.
+            </p>
+            <div class="hero-actions">
+              <a class="btn primary l squiggle" href="https://app.ninearches.ai">Try Nine Arches <span class="arrow">→</span></a>
+              <a class="btn ghost m" href="#ella">Watch Ella work</a>
+            </div>
+            <p class="caption">For architects, builders and the people they build for.</p>
+          </div>
+          <div class="hero-demo" data-scene="hero-demo">
+            <div class="paper-card plan-card">
+              <div class="plan-host"></div>
+              <div class="mini-metric" hidden>
+                <span>Wait at the door</span>
+                <strong><span data-from>1 min 40 s</span> → <span data-to>10 s</span></strong>
+                <span class="chip good">−1 min 30 s</span>
+                <span class="chip illustrative" title="Numbers in this demo are illustrative">Illustrative</span>
+              </div>
+            </div>
+            <div class="chat chat-mini" aria-label="Demo conversation with Ella">
+              <div class="chat-title"><span data-mark="20"></span><strong>Ella</strong><span class="status">here to help</span></div>
+              <div class="chat-body" aria-live="off"></div>
+              <div class="chat-composer"><span class="composer-input">Ask Ella to change something…</span><span class="send" aria-hidden="true">↑</span></div>
+            </div>
+            <button class="text-btn replay" type="button" hidden>Replay</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.2 The bridge -->
+      <section class="bridge-story" id="story">
+        <div class="bridge-pin">
+          <div class="bridge-text">
+            <p class="eyebrow">Why Nine Arches</p>
+            <div class="chapters">
+              <div class="chapter is-on" data-chapter="0">
+                <h2 class="t-h2">In the hills near Ella, a railway needed to cross a valley.</h2>
+                <p>The line curves high above the tea, where a bridge would have to be strong, beautiful and right for the people riding over it.</p>
+              </div>
+              <div class="chapter" data-chapter="1">
+                <h2 class="t-h2">Completed in 1919, it was built by local workers under British engineers.</h2>
+                <p>Concrete, stone and brick, raised pier by pier.</p>
+              </div>
+              <div class="chapter" data-chapter="2">
+                <h2 class="t-h2">Local legend says it was built without steel.</h2>
+                <p>It credits a village builder, P. K. Appuhami.</p>
+                <p class="caption">Told in Ella as a legend; the full history is debated.</p>
+              </div>
+              <div class="chapter" data-chapter="3">
+                <h2 class="t-h2">About 91 metres long and 24 metres high.</h2>
+                <p>It's still carrying trains more than a century later.</p>
+              </div>
+              <div class="chapter" data-chapter="4">
+                <h2 class="t-h2">Careful design and skilled hands, for the people who use it. <em>That's what we're building for.</em></h2>
+              </div>
+            </div>
+          </div>
+          <div class="bridge-art" data-scene="bridge" role="img" aria-label="A pencil drawing of the Nine Arches Bridge being built, pier by pier and arch by arch, with a train crossing it."></div>
+          <div class="arch-count" aria-hidden="true"><span>0</span> / 9</div>
+        </div>
+        <p class="bridge-after">
+          Nine Arches tests a building with the people who will use it, before it's built, so it can work as well on opening day as that bridge still
+          does today.
+        </p>
+      </section>
+
+      <!-- 6.3 Opening day -->
+      <section class="problem section alt">
+        <div class="wrap">
+          <header class="sec-head center">
+            <p class="eyebrow">The problem</p>
+            <h2 class="t-h1">Most buildings meet their people on <em>opening day</em>.</h2>
+            <p class="lead">
+              By then, the corridor that jams at the bell, the toilet nobody can reach without steps, the exit everyone walks past… they're built in
+              concrete. Fixing them costs months, money, or both.
+            </p>
+          </header>
+          <div class="film">
+            <figure class="film-card" data-sketch="corridor">
+              <div class="film-art"></div>
+              <figcaption><strong>The bell rings.</strong> Corridors that jam at break time.</figcaption>
+            </figure>
+            <figure class="film-card" data-sketch="exit">
+              <div class="film-art"></div>
+              <figcaption><strong>Which way out?</strong> Exits people don't find.</figcaption>
+            </figure>
+            <figure class="film-card" data-sketch="step">
+              <div class="film-art"></div>
+              <figcaption><strong>Step-free?</strong> Routes that stop at a step.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.4 How it works -->
+      <section class="how" id="how">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow">How it works</p>
+            <h2 class="t-h1">Let the people in <em>early</em>.</h2>
+            <p class="lead">Four steps, one plan, and a day of people telling you what works.</p>
+          </header>
+        </div>
+        <div class="how-pin">
+          <div class="wrap how-grid">
+            <ol class="steps">
+              <li class="step is-on" data-step="0">
+                <span class="step-n">1</span>
+                <h3 class="t-h3">Draw it, or trace it.</h3>
+                <p>Sketch walls on a blank page, trace a photo or PDF of an existing plan, or import a CAD drawing. Or just describe it to Ella.</p>
+              </li>
+              <li class="step" data-step="1">
+                <span class="step-n">2</span>
+                <h3 class="t-h3">Fill it with people.</h3>
+                <p>
+                  Say who uses the building and when: staff, students, patients, visitors, residents. Each one is a little different: walking speed,
+                  how well they know the place, how much crowding they'll put up with.
+                </p>
+              </li>
+              <li class="step" data-step="2">
+                <span class="step-n">3</span>
+                <h3 class="t-h3">Watch a day happen.</h3>
+                <p>Press play. People arrive, move, wait, meet and leave. Heatmaps show where they crowd, how long they wait, and where it's loud, dim or glary.</p>
+              </li>
+              <li class="step" data-step="3">
+                <span class="step-n">4</span>
+                <h3 class="t-h3">Fix it, and try again.</h3>
+                <p>Move a wall, add a door, or ask Ella. Run the day again and compare before and after, side by side.</p>
+              </li>
+            </ol>
+            <div class="frame how-frame">
+              <div class="frame-bar"><i></i><i></i><i></i><span>Nine Arches</span></div>
+              <div class="how-toolbar">
+                <span class="chip" data-how-chip>Trace a plan image</span>
+                <span class="chip accent" data-how-count>0 people</span>
+                <span class="chip" data-how-clock>08:00</span>
+              </div>
+              <div class="plan-host" data-scene="how"></div>
+              <div class="how-metrics" hidden>
+                <div class="metric small"><span class="m-label">Longest wait</span><span class="m-value">9 min → 2 min</span></div>
+                <span class="chip good">−7 min</span>
+                <span class="chip illustrative" title="Numbers in this demo are illustrative">Illustrative</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.5 Ella -->
+      <section class="ella" id="ella">
+        <div class="ella-glow" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="wrap">
+          <header class="sec-head center">
+            <p class="eyebrow">Meet Ella</p>
+            <h2 class="t-h1"><span class="ella-word">Tell Ella</span> what's wrong. <em>Watch her fix it.</em></h2>
+            <p class="lead">
+              You don't need to know how a simulation works. Describe the problem in your own words. Ella reads the plan, watches the people, proposes a
+              change, and shows you exactly what she did, before anything is applied.
+            </p>
+            <p class="ella-aside note" aria-hidden="true">named after the town by the bridge</p>
+          </header>
+        </div>
+        <p class="sr-only">
+          Demo: Ella adds a second stair and a step-free entrance to a school block; break-time clearing drops from about 6 minutes to about 2 minutes
+          (illustrative).
+        </p>
+        <div class="ella-pin">
+          <div class="stage">
+            <div class="stage-plan">
+              <div class="stage-toolbar">
+                <strong>Hillside School · Block B</strong>
+                <div class="seg" role="group" aria-label="Floor">
+                  <button type="button" data-floor="ground">Ground</button>
+                  <button type="button" data-floor="first" class="on">First</button>
+                </div>
+                <span class="chip clock-chip"><span class="bell" aria-hidden="true">🔔</span> <span data-clock>10:20</span></span>
+                <div class="seg icons" role="group" aria-label="View">
+                  <button type="button" class="on" aria-label="2D plan"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><path d="M2.5 9.5h6M8.5 3.5v9M12.5 9.5v7M12.5 9.5h5"/></svg></button>
+                  <button type="button" aria-label="3D walk-through" data-tip="3D walk-through in the app"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5 16.5 6v8L10 17.5 3.5 14V6z"/><path d="M3.5 6 10 9.5 16.5 6M10 9.5v8"/></svg></button>
+                </div>
+              </div>
+              <div class="plan-host" data-scene="ella"></div>
+              <div class="stage-metrics">
+                <div class="metric"><span class="m-label">Time to clear the corridor</span><span class="m-value" data-metric="clear">–</span><span class="chip good" data-delta="clear" hidden></span></div>
+                <div class="metric"><span class="m-label">Longest wait at the stair</span><span class="m-value" data-metric="wait">–</span><span class="chip good" data-delta="wait" hidden></span></div>
+                <div class="metric"><span class="m-label">Step-free routes</span><span class="m-value" data-metric="access">–</span><span class="chip good" data-delta="access" hidden></span></div>
+                <span class="chip illustrative" title="Numbers in this demo are illustrative">Illustrative</span>
+              </div>
+            </div>
+            <div class="chat chat-stage" aria-label="Demo conversation with Ella">
+              <div class="chat-title"><span data-mark="20"></span><strong>Ella</strong><span class="status">here to help</span></div>
+              <div class="chat-body" aria-live="off"></div>
+              <div class="chat-composer"><span class="composer-input">Ask Ella to change something…</span><span class="send" aria-hidden="true">↑</span></div>
+            </div>
+          </div>
+          <div class="beats" role="group" aria-label="Demo steps">
+            <button type="button" aria-label="Step 1"></button><button type="button" aria-label="Step 2"></button><button type="button" aria-label="Step 3"></button><button type="button" aria-label="Step 4"></button><button type="button" aria-label="Step 5"></button>
+          </div>
+        </div>
+        <div class="wrap">
+          <div class="ella-points">
+            <div><span class="pt-ico" data-icon="pencil"></span><h3>You stay in charge.</h3><p>Ella proposes; you apply. Every change is listed and can be undone.</p></div>
+            <div><span class="pt-ico" data-icon="eye"></span><h3>She shows her work.</h3><p>You see what she changed on the plan, and how the people respond.</p></div>
+            <div><span class="pt-ico" data-icon="undo"></span><h3>She's honest about limits.</h3><p>Ella tells you what's an estimate, and what to check with an engineer or local code.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.6 What you can see -->
+      <section class="see section">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow">What you can see</p>
+            <h2 class="t-h2">Every way a building can work, <em>or not</em>.</h2>
+            <p class="lead">Watch the day as it happens, then look at it through different lenses.</p>
+          </header>
+          <div class="bento">
+            <article class="tile a"><div class="tile-art" data-loop="moving"></div><h3>People moving</h3><p>Every person walks their own way, at their own pace, to the places their day takes them.</p></article>
+            <article class="tile b"><div class="tile-art" data-loop="crowd"></div><h3>Crowding</h3><p>See where it gets tight, and when.</p></article>
+            <article class="tile c"><div class="tile-art" data-loop="wait"></div><h3>Waiting</h3><p>Queues at lifts, counters, toilets and doors.</p></article>
+            <article class="tile d"><div class="tile-art" data-loop="access"></div><h3>Step-free access</h3><p>Who can get where, without a step.</p></article>
+            <article class="tile e"><div class="tile-art" data-loop="light"></div><h3>Light and glare</h3><p>Where it's dim, and where the sun is in someone's eyes.</p></article>
+            <article class="tile f"><div class="tile-art" data-loop="noise"></div><h3>Noise</h3><p>Where it's loud enough to make focus hard.</p></article>
+          </div>
+          <article class="evac" data-evac>
+            <div class="evac-text">
+              <span class="chip alarm">Alarm</span>
+              <h3 class="t-h3">When the alarm sounds.</h3>
+              <p>Watch everyone leave, see which exits they choose, and how long the last person takes.</p>
+              <p class="evac-count">Everyone out in <strong data-evac-time>0 s</strong> <span class="chip illustrative">Illustrative</span></p>
+            </div>
+            <div class="evac-art plan-host" data-loop="evac"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- 6.7 Any building -->
+      <section class="buildings" id="buildings">
+        <div class="wrap">
+          <header class="sec-head center">
+            <p class="eyebrow">Any building</p>
+            <h2 class="t-h1">From a house to a <em>stadium</em>.</h2>
+            <p class="lead">
+              If people use it, you can test it. Homes, schools, clinics, hospitals, offices, shops, libraries, hotels, stations, factories, stadiums…
+              draw it, fill it with the people who'll use it, and watch.
+            </p>
+          </header>
+        </div>
+        <div class="parade-pin">
+          <div class="parade">
+            <div class="parade-row"></div>
+            <div class="parade-rail" aria-hidden="true"><div class="parade-train"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.8 On site -->
+      <section class="site section alt" id="site">
+        <div class="wrap site-grid">
+          <div class="site-text">
+            <p class="eyebrow">On site</p>
+            <h2 class="t-h2">On the real map, under the <em>real sun</em>.</h2>
+            <p class="lead">
+              Pin your building on the map. Nine Arches brings in the streets and neighbouring buildings around it, so you can move and turn it into
+              place, see what it replaces, and watch the shadows cross it through the day and the year.
+            </p>
+            <ul class="features">
+              <li><strong>Neighbours, live.</strong> Move your building and the ones it would replace step aside, in real time.</li>
+              <li><strong>Sun and shade.</strong> The sun's real path for that place and date, with shadows from the buildings around you.</li>
+              <li><strong>Real weather.</strong> Typical cloud, temperature and rain for the site, from historical records.</li>
+            </ul>
+          </div>
+          <div class="site-art">
+            <div data-scene="site" role="img" aria-label="A pencil map: a building slides onto its plot, replacing two old buildings, while the sun crosses and shadows swing."></div>
+            <div class="site-chips"><span class="chip" data-sun>Sun 07:00</span><span class="chip">21 March</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.9 Who it's for -->
+      <section class="who section">
+        <div class="wrap">
+          <header class="sec-head center">
+            <p class="eyebrow">Who it's for</p>
+            <h2 class="t-h2">Everyone looking at the <em>same</em> building.</h2>
+            <p class="lead">Drawings mean different things to different people. A day of people moving through a plan means the same thing to everyone.</p>
+          </header>
+          <div class="who-cards">
+            <article class="card"><div class="card-art" data-sketch="architect"></div><h3>Architects</h3><p>Test ideas while they're still lines. Show clients why a corridor needs to be wider, not just tell them.</p></article>
+            <article class="card"><div class="card-art" data-sketch="builder"></div><h3>Builders and developers</h3><p>Catch the expensive problems before they're poured. Compare options with the same people, side by side.</p></article>
+            <article class="card"><div class="card-art" data-sketch="client"></div><h3>Clients and the people who'll use it</h3><p>See your building working before you've paid for it. No training needed: press play, ask Ella.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6.10 Principles -->
+      <section class="principles section alt">
+        <div class="narrow">
+          <blockquote class="quote">
+            <span class="quote-mark" aria-hidden="true">“</span>
+            <p>A building should work beautifully for the people who use it. We'd like you to know it does, before it's built.</p>
+          </blockquote>
+          <div class="principle"><h3>Estimates you can check.</h3><p>People's behaviour, light and sound are modelled, not measured. We tell you what each number assumes, so you can check it, and we never dress estimates up as predictions.</p></div>
+          <div class="principle"><h3>The same result every time.</h3><p>Run the same day twice and you get the same day. Change one thing, and you see exactly what that change did.</p></div>
+          <div class="principle"><h3>Ella proposes; you decide.</h3><p>Nothing changes in your building until you apply it, and anything applied can be undone.</p></div>
+        </div>
+      </section>
+
+      <!-- 6.12 Final call to action -->
+      <section class="finale" data-night>
+        <div class="finale-valley" data-scene="night" aria-hidden="true"></div>
+        <div class="finale-text">
+          <p class="eyebrow">Ready when you are</p>
+          <h2 class="t-h1">Test your next building with the people who'll use it.</h2>
+          <div class="hero-actions center">
+            <a class="btn primary l squiggle" href="https://app.ninearches.ai">Try Nine Arches <span class="arrow">→</span></a>
+            <a class="btn ghost m" href="mailto:TODO_CONTACT">Talk to us</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 4.10 Footer -->
+    <footer class="footer">
+      <div class="wrap footer-grid">
+        <div class="footer-brand">
+          <span data-logo="26"></span>
+          <p>Test a building with the people who'll use it, before it's built.</p>
+          <div class="footer-bridge" data-scene="footer-bridge" aria-hidden="true"></div>
+        </div>
+        <div><h4>Product</h4><a href="#how">How it works</a><a href="#ella">Ella</a><a href="#buildings">Any building</a><a href="#site">On site</a></div>
+        <div><h4>Company</h4><a href="#story">Why Nine Arches</a><a href="mailto:TODO_CONTACT">Contact</a></div>
+        <div><h4>Legal</h4><a href="#">Privacy</a><a href="#">Terms</a><button class="text-btn pause-toggle" type="button">Pause animations</button></div>
+      </div>
+      <div class="wrap footer-bottom">
+        <span>© 2026 Nine Arches</span><span>Named for a bridge near Ella, Sri Lanka</span><span>ninearches.ai</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,136 @@
+/* Design tokens for ninearches.ai — see docs/website-spec.md §2. Every value in the site comes from here. */
+:root {
+  /* Paper */
+  --paper: #f7f4ee;
+  --paper-2: #efeae0;
+  --paper-edge: #e3dccf;
+  --card: #fffdf9;
+  --graphite: #1e2430;
+  --graphite-2: #4a5263;
+  --graphite-3: #7a8090;
+  --pencil: #9aa0ac;
+  --navy: #082856;
+  --accent: #245dc6;
+  --accent-ink: #1c4ba3;
+  --accent-wash: #e6eefc;
+  --on-accent: #ffffff;
+  --tea: #5e8c61;
+  --tea-wash: #e4eedf;
+  --train: #2f5da8;
+  --train-red: #b8433a;
+  --stone: #b9a68c;
+  --brick: #c27c5a;
+  --sun: #f2b45a;
+  --heat-1: #fbe3a9;
+  --heat-2: #f6c177;
+  --heat-3: #ee9a5a;
+  --heat-4: #de6b48;
+  --heat-5: #b8433a;
+  --good: #2f7d55;
+  --attention: #b8433a;
+  --hill-far: #dfe6dc;
+  --hill-mid: #cfdcc8;
+  --hill-near: #b9cfae;
+  --sky-top: #e6eefc;
+  --brand-ink: #082856;
+  --face-1: #082b5d;
+  --face-2: #082653;
+
+  /* Type */
+  --f-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --f-text: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --f-note: "Caveat", "Bradley Hand", cursive;
+  --t-hero: clamp(48px, 1.6rem + 5.4vw, 96px);
+  --t-h1: clamp(38px, 1.7rem + 2.9vw, 64px);
+  --t-h2: clamp(30px, 1.4rem + 1.6vw, 44px);
+  --t-h3: clamp(22px, 1.2rem + 0.4vw, 26px);
+  --t-lead: clamp(18px, 0.95rem + 0.4vw, 22px);
+  --t-body: clamp(16px, 0.95rem + 0.1vw, 17px);
+  --t-small: 14px;
+  --t-eyebrow: clamp(12px, 0.7rem + 0.1vw, 13px);
+  --t-caption: 12px;
+  --t-note: clamp(22px, 1.2rem + 0.3vw, 26px);
+  --t-metric: clamp(40px, 1.8rem + 1.4vw, 56px);
+
+  /* Space */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --s-11: 160px;
+  --s-12: 200px;
+  --section-y: var(--s-11);
+  --margin: max(24px, calc((100vw - 1200px) / 2));
+  --gutter: 24px;
+
+  /* Shape */
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 16px;
+  --r-4: 24px;
+  --r-pill: 999px;
+  --hair: 1px solid var(--paper-edge);
+  --shadow-1: 0 1px 2px rgb(30 36 48 / 0.06);
+  --shadow-2: 0 1px 2px rgb(30 36 48 / 0.06), 0 12px 32px -8px rgb(30 36 48 / 0.14);
+  --shadow-3: 0 2px 4px rgb(30 36 48 / 0.06), 0 32px 64px -16px rgb(30 36 48 / 0.22);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --d-1: 120ms;
+  --d-2: 240ms;
+  --d-3: 480ms;
+  --d-4: 900ms;
+  --d-5: 1600ms;
+}
+
+@media (max-width: 1199px) {
+  :root {
+    --section-y: var(--s-9);
+    --margin: 20px;
+    --gutter: 20px;
+  }
+}
+@media (max-width: 639px) {
+  :root {
+    --section-y: var(--s-8);
+    --margin: 16px;
+    --gutter: 16px;
+  }
+}
+
+/* Night mood (§2.1.3): the final call to action switches the page; the evacuation card switches itself. */
+[data-mood="night"] {
+  --paper: #0f1626;
+  --paper-2: #162036;
+  --paper-edge: #26314a;
+  --card: #1b2640;
+  --graphite: #eef2f8;
+  --graphite-2: #b5bed0;
+  --graphite-3: #8590a6;
+  --pencil: #4a5773;
+  --accent: #7ca7f5;
+  --accent-ink: #9dbdf8;
+  --accent-wash: #1f2d4c;
+  --on-accent: #0f1626;
+  --navy: #eef2f8;
+  --brand-ink: #eef2f8;
+  --face-1: #3f74c6;
+  --face-2: #2f5ea8;
+  --hill-far: #1a2436;
+  --hill-mid: #17283a;
+  --hill-near: #1a2a2a;
+  --sky-top: #0f1626;
+  --stone: #4a4a52;
+  --brick: #5a3e3a;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-2: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --shadow-3: 0 2px 4px rgb(0 0 0 / 0.3), 0 32px 64px -16px rgb(0 0 0 / 0.6);
+}

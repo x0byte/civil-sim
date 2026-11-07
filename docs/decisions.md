@@ -320,3 +320,11 @@ their system list with the styled closed control. Selects stay native elements, 
   (`button:where(...)`) so purpose-built buttons keep their own looks.
 - In the 3D walk-through, the frame rate moved into the dev-only performance panel, and the crowding caveat sits
   behind an ⓘ next to the clock line.
+
+## 2026-11-08 · Landing page (`site/`)
+The ninearches.ai landing page lives in `site/` (Vite, vanilla TypeScript, GSAP + ScrollTrigger, Lenis, Rough.js),
+built from `docs/website-spec.md`. Sketches are generated with Rough.js at runtime (seeded, so every load is the same)
+and drawn on with `pathLength=1` stroke animation. The demo floor plans use a small crowd model made for the site
+(`site/src/plan.ts`: routes, queues at gates with a flow rate, a heat trail), not the real engine; demo numbers are
+labelled Illustrative. Run with `npm run dev` in `site/` (port 5180). Placeholders still to replace: the app URL and
+`TODO_CONTACT`.
