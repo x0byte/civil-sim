@@ -217,7 +217,7 @@ Keep it fast: run sensitivity only for the parameters the run actually used, on 
 
 ### B1. Uncertainty runs
 
-A result is no longer one run. Run `uncertainty.runs` (default 12) simulations, each with a different seed **and** parameters drawn within their ranges (Latin hypercube sampling over the registry ranges, seeded so the whole set is reproducible). Report median and 10th–90th percentile as `Ranged`. The viewer still plays one representative run (the one closest to the median on time lost).
+A result is no longer one run. Run `uncertainty.runs` (default 12) simulations, each with a different seed **and** parameters drawn from a bell curve between their bounds: a normal curve peaking at the registry value, truncated at `low` and `high`, with the bounds about two standard deviations out (split normal when the value isn't centred). Use Latin hypercube sampling on the curves' quantiles, seeded so the whole set is reproducible. Parameters tagged `kind: "setting"` stay fixed. See `docs/review-v1-part-a.md` for the full rule. Report median and 10th–90th percentile as `Ranged`. The viewer still plays one representative run (the one closest to the median on time lost).
 
 Determinism is unchanged: the same scenario and seed always give the same set of runs and the same ranges.
 

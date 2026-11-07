@@ -335,3 +335,10 @@ answers: money only when the user enters a staff hour value (no default salary);
 evacuation pass/fail only against a limit the user states (no country's code is built in); the first optimiser moves
 teams between zones only. All new fields are optional, so v0.6 plans and v0.9 scenarios upgrade by taking the new
 version. Office samples now carry two team zones, a relationship and a keep goal.
+
+## 2026-11-08 · Every parameter has bounds and a bell curve
+Product owner's call. Each behavioural parameter has a lower and upper bound; uncertainty runs draw from a normal
+curve peaking at the registry value, truncated at the bounds (about two standard deviations out; split normal when
+off-centre). Sourced parameters use published envelopes; unsourced ones default to ±30%, labelled "range assumed, not
+measured". Model settings (speed floor, caches, time steps) are tagged and stay fixed. Sensitivity ranks the assumed
+ranges too, which becomes the list of what to measure first.

@@ -50,20 +50,29 @@ itself is too thin to answer the question Part A exists for. Both are listed bel
    - Shopper speed and dwell.
    Same rules as before: read the page, record the table, no invented citations.
 
-   **b. For what stays unsourced, a decision from the product owner** (below).
+   **b. For what stays unsourced: assumed bounds and a bell curve**, as decided below.
 
-## Decision needed from the product owner
+## Product owner's decision (2026-11-08): bounds and a bell curve for every parameter
 
-For parameters with no source yet, which behaviour do you want?
+Every behavioural parameter gets a lower and an upper bound, and values are drawn from a bell curve between them.
 
-- **Option 1: assumed ranges (recommended).** Give each unsourced parameter a deliberately wide range, e.g. ±30%,
-  labelled `Assumption: … (range assumed, not measured)`. Sensitivity then flags which assumptions matter most, which
-  tells us which ones to measure first, and Part B's ranges include that doubt. The Evidence tab shows these rows as
-  "assumed range" so nobody mistakes them for sourced ones.
-- **Option 2: keep them pinned** (what Codex did). More conservative, but ranges and sensitivity understate
-  uncertainty until each value is sourced, and the sensitivity table can look reassuring when it shouldn't.
+- **Distribution.** A normal curve peaking at the registry `value`, truncated at `low` and `high`, with `low` and
+  `high` about two standard deviations out. When `value` isn't centred between the bounds, use a split normal: each
+  side's spread is set by its own bound (σ_low = (value − low) / 2, σ_high = (high − value) / 2). Draws outside the
+  bounds are rejected and redrawn (seeded, so runs stay reproducible).
+- **Sourced parameters** keep their published envelopes as bounds.
+- **Unsourced parameters** get assumed bounds, ±30% of the value unless there's a better reason (then say it),
+  clipped to physical limits (no negative times or rates, shares within 0–1). Label the source
+  `Assumption: <reason> (range assumed, not measured)`.
+- **Model settings stay fixed.** Numbers that keep the simulation working rather than describing people or buildings
+  (speed floor, cache sizes, time steps, tolerances) get a `kind: "setting"` tag in the registry and are neither
+  varied nor shown as uncertain. Everything describing behaviour or capacity is `kind: "behaviour"` and varies.
+- **Sensitivity** keeps using the two bounds (one at a time), so it now ranks the assumptions too: that ranking is
+  the list of what to measure or source first. Show it in the report.
+- **Part B** draws each uncertainty run's parameter set from these curves (Latin hypercube on the truncated
+  normals' quantiles, seeded) instead of uniformly. `docs/codex-brief-v1.0.md` is updated to match.
 
-Option 1 can be expressed with today's contract (`source` text carries the label); no contract change needed.
+No contract change: `Evidence.parameters` already carries `low`, `high` and `source`.
 
 ## Smaller notes (fix when convenient)
 
@@ -75,5 +84,5 @@ Option 1 can be expressed with today's contract (`source` text carries the label
 
 ## To merge
 
-Fix blocker 1, do 2a for at least the first three priority groups, apply the product owner's choice for 2b, rerun
+Fix blocker 1, do 2a for at least the first three priority groups, apply the bounds-and-bell-curve decision, rerun
 the full engine and app suites, and update the report with the new sourced/assumed counts.
