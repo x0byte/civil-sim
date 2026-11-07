@@ -7,7 +7,7 @@ import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
-import { ASSISTANT_NAME, Mark } from "./Brand.tsx";
+import { ASSISTANT_NAME, Logo, Mark } from "./Brand.tsx";
 import { Menu, type MenuItem } from "./Menu.tsx";
 
 export function TopBar() {
@@ -172,8 +172,7 @@ export function TopBar() {
     <header className="appbar">
       <div className="appbar-left">
         <button className="appbar-brand" onClick={() => ux.setHome(true)} title="Home">
-          <Mark size={18} />
-          <span>Nine Arches</span>
+          <Logo height={22} />
         </button>
         <Menu label="File" items={fileItems} />
         <Menu label="Edit" items={editItems} />

@@ -50,10 +50,20 @@ body {
   vertical-align: middle;
 }
 .brand-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 650;
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+/* Logo colours: as supplied on light; on dark, the navy face and wordmark lighten so they stay visible. */
+:root {
+  --brand-ink: #082856;
+  --brand-face-1: #082b5d;
+  --brand-face-2: #082653;
+}
+html:root[data-theme="dark"] {
+  --brand-ink: #eef3fb;
+  --brand-face-1: #3f74c6;
+  --brand-face-2: #2f5ea8;
 }
 
 /* ---------- app bar ---------- */
