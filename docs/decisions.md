@@ -343,3 +343,10 @@ labelled and pinned instead of receiving invented uncertainty bounds. Sourced sc
 range (the contract has no override range). Worker runs enable deterministic reduced-sample sensitivity; direct scalar
 calls opt in. Until Part B supplies decision metrics, sensitivity names only existing measured outputs. Calibration
 reports inconsistency and candidate parameters, never unique causes or automatic fits. See `docs/parameters.md`.
+
+## 2026-11-08 · Every parameter has bounds and a bell curve
+Product owner's call. Each behavioural parameter has a lower and upper bound; uncertainty runs draw from a normal
+curve peaking at the registry value, truncated at the bounds (about two standard deviations out; split normal when
+off-centre). Sourced parameters use published envelopes; unsourced ones default to ±30%, labelled "range assumed, not
+measured". Model settings (speed floor, caches, time steps) are tagged and stay fixed. Sensitivity ranks the assumed
+ranges too, which becomes the list of what to measure first.
