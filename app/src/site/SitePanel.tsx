@@ -1,8 +1,8 @@
 import { useLoadingTask } from "../loading/useLoadingTask.ts";
+import { changeSite, coveredIds, placeOnSite, placementOf, surroundingsFromOverpass, useSurroundings } from "./surroundings.ts";
 import { LoadingState } from "../loading/LoadingState.tsx";
 import { useState } from "react";
 import type { Site } from "../../../contracts/floorplan.ts";
-import { setSite, setSurroundings } from "../model/planOps.ts";
 import { useEditor } from "../state/store.ts";
 import { NumField } from "../ui/fields.tsx";
 import { mapsLocation } from "./coordinates.ts";
@@ -17,7 +17,7 @@ export function SitePanel() {
   const task = useLoadingTask();
   const busy = task.busy;
   const set = (patch: Partial<Site>) => {
-    commit((p) => setSite(p, patch));
+    commit((p) => changeSite(p, patch));
     if (patch.location || patch.utcOffsetHours !== undefined) {
       const profile = useEditor.getState().profiles[plan.id];
       if (profile?.comfort?.weather) useEditor.getState().setProfile(plan.id, { ...profile, comfort: { ...profile.comfort, weather: undefined } });
@@ -33,9 +33,17 @@ export function SitePanel() {
         const data = await fetchSurroundings(plan, signal);
         signal.throwIfAborted();
         if (context(useEditor.getState().plan) !== before) throw new Error("The location or north changed. Retry for the new position.");
-        report({ message: "Saving nearby buildings and roads…" });
-        commit((p) => setSurroundings(p, data.neighbours, data.roads, data.credits));
-        setMessage(`Saved ${data.neighbours.length} neighbouring buildings and ${data.roads.length} roads. Check estimated heights.`);
+        report({ message: "Placing your building among them…" });
+        const cache = surroundingsFromOverpass(data.raw, plan.site!.location!, data.credits);
+        useSurroundings.getState().set(plan.id, cache);
+        const placement = placementOf(useEditor.getState().plan)!;
+        commit((p) => placeOnSite(p, cache, placement));
+        const replaced = coveredIds(useEditor.getState().plan, cache, placement).size;
+        setMessage(
+          `Found ${cache.buildings.length} buildings and ${cache.roads.length} roads.` +
+            (replaced ? ` ${replaced} on your plot will be replaced by your building.` : "") +
+            " Check estimated heights. Move it in 3D → Place on site.",
+        );
       } catch (error) {
         if (signal.aborted) throw error;
         throw new Error(surroundingsError(error));
@@ -115,8 +123,8 @@ export function SitePanel() {
           </p>
         )}
         <p className="muted">
-          Buildings and roads within 200 m, saved in this project. Building heights from floors or assumptions need checking. Features overlapping
-          this plan's bounds are left out to avoid shading the building with itself.
+          Buildings and roads within 200 m, kept in this browser. Buildings your building stands on are replaced; move or turn it and they
+          come back. Heights from floors or assumptions need checking.
         </p>
         {!!site?.neighbours?.length && (
           <details>

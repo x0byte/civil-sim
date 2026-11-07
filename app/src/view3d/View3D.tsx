@@ -28,6 +28,7 @@ export function Building({
   peel = 0,
   labels = true,
   surroundings = true,
+  ground = true,
 }: {
   plan: FloorPlan;
   level: string;
@@ -36,6 +37,8 @@ export function Building({
   peel?: number;
   labels?: boolean;
   surroundings?: boolean;
+  /** Draw a grey ground patch under the building. Off when something else (a map) is the ground. */
+  ground?: boolean;
 }) {
   const bounds = sceneBounds(plan, surroundings);
   const top = Math.max(
@@ -47,10 +50,12 @@ export function Building({
   const holes = useMemo(() => new Map(plan.levels.map((l) => [l.id, wells(plan, l.id)])), [plan]);
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[bounds.cx, -0.04, bounds.cy]} receiveShadow>
-        <planeGeometry args={[bounds.width + Math.max(16, bounds.top * 6), bounds.depth + Math.max(16, bounds.top * 6)]} />
-        <meshStandardMaterial color="#dfe3e8" />
-      </mesh>
+      {ground && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[bounds.cx, -0.04, bounds.cy]} receiveShadow>
+          <planeGeometry args={[bounds.width + Math.max(16, bounds.top * 6), bounds.depth + Math.max(16, bounds.top * 6)]} />
+          <meshStandardMaterial color="#dfe3e8" />
+        </mesh>
+      )}
       {(surroundings ? (plan.site?.neighbours ?? []) : []).map((n) => (
         <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />
       ))}

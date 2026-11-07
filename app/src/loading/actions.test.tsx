@@ -149,14 +149,25 @@ describe("loading state integration", () => {
     await act(async () => network[1].reject(new TypeError("Failed to fetch")));
     expect(container.textContent).toContain("Check the connection");
     await click("Retry");
+    // Two buildings well away from the plot and one road, as OpenStreetMap returns them.
+    const at = original.site!.location!;
+    const box = (dLat: number, dLon: number) => [0, 1, 2, 3, 0].map((k) => ({ lat: at.lat + dLat + (k === 2 || k === 3 ? 0.0001 : 0), lon: at.lon + dLon + (k === 1 || k === 2 ? 0.0001 : 0) }));
     await act(async () =>
       network[2].resolve({
-        neighbours: original.site!.neighbours!.map((n, i) => ({ ...n, id: `osm:building-${i}` })),
-        roads: original.site!.roads!.map((r, i) => ({ ...r, id: `osm:road-${i}` })),
+        neighbours: [],
+        roads: [],
         credits: ["Fixture map"],
+        raw: {
+          elements: [
+            { type: "way", id: 1, tags: { building: "yes", height: "12" }, geometry: box(0.001, 0.001) },
+            { type: "way", id: 2, tags: { building: "yes" }, geometry: box(-0.001, 0.001) },
+            { type: "way", id: 3, tags: { highway: "primary", name: "Galle Road" }, geometry: [at, { lat: at.lat + 0.001, lon: at.lon }] },
+          ],
+        },
       }),
     );
-    expect(container.textContent).toContain("Saved 2 neighbouring buildings and 1 roads");
+    expect(container.textContent).toContain("Found 2 buildings and 1 roads");
+    expect(useEditor.getState().plan.site!.neighbours!.filter((n) => n.id.startsWith("osm-way-"))).toHaveLength(2);
   });
 
   it("uses received-day weather progress, preserves old weather on errors and saves on success", async () => {

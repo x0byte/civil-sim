@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { changeSite } from "../site/surroundings.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { dist, pointAlong, projectOntoSegment, samePoint, wallDir } from "../model/geometry.ts";
 import {
@@ -8,7 +9,6 @@ import {
   addNoiseSource,
   addNeighbour,
   updateNoiseSource,
-  setSite,
   addOpening,
   addSpace,
   addWall,
@@ -277,7 +277,7 @@ export function Canvas2D() {
         }
         if (!d.started) { beginDrag(); d.started = true; }
         const northDeg = Math.atan2(raw.x - northAt.x, northAt.y - raw.y) * 180 / Math.PI;
-        dragPlan((p) => setSite(p, { northDeg }));
+        dragPlan((p) => changeSite(p, { northDeg }));
         return;
       }
       case "noise": {

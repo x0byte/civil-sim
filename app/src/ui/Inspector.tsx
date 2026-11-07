@@ -1,4 +1,5 @@
 import { rampGradient } from "../../../engine/src/modules/accessibility.ts";
+import { changeSite } from "../site/surroundings.ts";
 import { useEffect, useState } from "react";
 import type { Connector, ConnectorKind, Level, Privacy, Space, SpaceType } from "../../../contracts/floorplan.ts";
 import { polygonArea, wallLength } from "../model/geometry.ts";
@@ -12,7 +13,6 @@ import {
   removeItem,
   removeLevel,
   setBounds,
-  setSite,
   updateNeighbour,
   setConnectorKind,
   setSafetyFlag,
@@ -328,7 +328,7 @@ function PlanPanel() {
         unit="°"
         step={15}
         value={plan.site?.northDeg ?? DEFAULT_SITE.northDeg}
-        onCommit={(northDeg) => commit((p) => setSite(p, { northDeg }))}
+        onCommit={(northDeg) => commit((p) => changeSite(p, { northDeg }))}
       />
       <p className="muted">North is clockwise from up the page. Site location is below.</p>
       <Floors levels={plan.levels} />

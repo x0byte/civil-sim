@@ -5,16 +5,17 @@ import { Canvas2D } from "../editor/Canvas2D.tsx";
 import { Skeleton } from "../loading/LoadingState.tsx";
 import { LoadBoundary } from "../loading/LoadBoundary.tsx";
 const BuildingPreview = lazy(() => import("./BuildingPreview.tsx"));
+const SitePlacement = lazy(() => import("./SitePlacement.tsx"));
 
 export function BuildingWorkspace() {
   const view = useEditor((s) => s.view),
-    [mode, setMode] = useState<"overview" | "walk">("overview");
-  const rememberMode = (next: "overview" | "walk") => {
+    [mode, setMode] = useState<"overview" | "walk" | "site">("overview");
+  const rememberMode = (next: "overview" | "walk" | "site") => {
     setMode(next);
-    useExperience.getState().setCamera(next);
+    if (next !== "site") useExperience.getState().setCamera(next);
     useExperience.getState().setPresentation("3d");
   };
-  const choose = (next: "2d" | "overview" | "walk") => {
+  const choose = (next: "2d" | "overview" | "walk" | "site") => {
     if (next !== "2d") rememberMode(next);
     else useExperience.getState().setPresentation("2d");
     useEditor.getState().setView(next === "2d" ? "2d" : "3d");
@@ -32,12 +33,15 @@ export function BuildingWorkspace() {
         <button aria-pressed={view === "3d" && mode === "walk"} onClick={() => choose("walk")}>
           Walk
         </button>
+        <button aria-pressed={view === "3d" && mode === "site"} onClick={() => choose("site")}>
+          Place on site
+        </button>
       </div>
       <div className="building-view-content">
         {view === "3d" ? (
           <LoadBoundary>
             <Suspense fallback={<Skeleton label="Loading the 3D view…" />}>
-              <BuildingPreview mode={mode} setMode={rememberMode} />
+              {mode === "site" ? <SitePlacement /> : <BuildingPreview mode={mode} setMode={rememberMode} />}
             </Suspense>
           </LoadBoundary>
         ) : (

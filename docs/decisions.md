@@ -53,6 +53,11 @@ The app uses explicit user fetches only: a single 200 m Overpass query, four vis
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-07: Place on site
+- **Everything fetched from OpenStreetMap is remembered in real-world coordinates**, and the neighbours the simulation sees are worked out for wherever the building stands: buildings it covers are replaced, and come back when it moves away. Before, buildings on the plot were dropped at fetch time and lost. *(Product owner: "move the building and in real time it should remove the other buildings")*
+- **Demolish and keep are read off the plan, not stored separately:** a fetched building left out of `site.neighbours` while not covered is demolished; one included while covered is kept. Undo and redo stay consistent with no contract change; the remembered surroundings live in this browser per plan. *(Claude)*
+- **A "Place on site" view** shows the building on the real map among 3D neighbours: drag to move, Q / E or a slider to turn about its centre, live "will be replaced" as it moves, click a building to demolish, keep or correct its height, sun and date for shadows. Letting go is one undo step; a burst of turns is one step. The camera starts from the direction with the least in the way, high enough to see over nearby towers. *(Claude)*
+
 ## 2026-11-04: Volt Design: name, app shell and assistant window
 - **The product is called Volt Design**, with the Volt logo. The repository, packages and saved-data keys keep `civil-sim`, so existing saved plans, options and API keys still load; saved project files are now named `….volt.json` and old ones still open. *(Product owner)*
 - **It looks like a desktop design tool, not a website:** one app bar (Volt mark, File / Edit / View menus, the three steps as Building · People · Simulate, undo and redo, the Assistant button); dark by default with a light theme; a home screen with "Start something new" tiles, Continue, and real plan thumbnails of the samples, instead of a marketing-style landing page. *(Product owner: "like a proper application, like Adobe")*

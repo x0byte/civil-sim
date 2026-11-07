@@ -10,7 +10,7 @@ import { sceneBounds, previewSunScenario, sunDate, sunLighting } from "./sun.ts"
 import { safeWalker, canStand, connectorHere, type Walker } from "../experience/walk.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { DEFAULT_COMFORT, validDate } from "../model/comfortDefaults.ts";
-import { setSite } from "../model/planOps.ts";
+import { changeSite } from "../site/surroundings.ts";
 import { NumField } from "../ui/fields.tsx";
 import { Estimate } from "../experience/Story.tsx";
 
@@ -247,7 +247,7 @@ export default function BuildingPreview({ mode, setMode }: { mode: "overview" | 
             max={89.9}
             step={0.001}
             value={plan.site?.location?.lat ?? plan.site?.latitude ?? 6.9}
-            onCommit={(lat) => useEditor.getState().commit((p) => setSite(p, { location: { lat, lon: p.site?.location?.lon ?? 79.86 } }))}
+            onCommit={(lat) => useEditor.getState().commit((p) => changeSite(p, { location: { lat, lon: p.site?.location?.lon ?? 79.86 } }))}
           />
           <NumField
             label="Longitude"
@@ -257,7 +257,7 @@ export default function BuildingPreview({ mode, setMode }: { mode: "overview" | 
             step={0.001}
             value={plan.site?.location?.lon ?? 79.86}
             onCommit={(lon) =>
-              useEditor.getState().commit((p) => setSite(p, { location: { lat: p.site?.location?.lat ?? p.site?.latitude ?? 6.9, lon } }))
+              useEditor.getState().commit((p) => changeSite(p, { location: { lat: p.site?.location?.lat ?? p.site?.latitude ?? 6.9, lon } }))
             }
           />
           <NumField
@@ -267,7 +267,7 @@ export default function BuildingPreview({ mode, setMode }: { mode: "overview" | 
             max={14}
             step={0.5}
             value={plan.site?.utcOffsetHours ?? 5.5}
-            onCommit={(utcOffsetHours) => useEditor.getState().commit((p) => setSite(p, { utcOffsetHours }))}
+            onCommit={(utcOffsetHours) => useEditor.getState().commit((p) => changeSite(p, { utcOffsetHours }))}
           />
           <NumField
             label="North clockwise from plan up"
@@ -276,7 +276,7 @@ export default function BuildingPreview({ mode, setMode }: { mode: "overview" | 
             max={359.9}
             step={5}
             value={plan.site?.northDeg ?? 0}
-            onCommit={(northDeg) => useEditor.getState().commit((p) => setSite(p, { northDeg }))}
+            onCommit={(northDeg) => useEditor.getState().commit((p) => changeSite(p, { northDeg }))}
           />
         </div>
         <p>
