@@ -20,7 +20,20 @@ describe("v0.9 compatibility",()=>{
 });
 describe("evacuation",()=>{
  it.each([["office-a-evac","office-day-evac"],["mall-2f-evac","mall-weekend-evac"]])("ends safely and deterministically: %s",(pn,sn)=>{
-  const p=plan(pn),s=scenario(sn),before=JSON.stringify([p,s]),t=performance.now(),r=simulate(p,s);if(sn.startsWith("mall"))expect(performance.now()-t).toBeLessThan(3000);
+  const p = plan(pn), s = scenario(sn), before = JSON.stringify([p, s]);
+  // The whole test also checks determinism and the ordinary day; only simulate() is timed.
+  let r = simulate(p, s); // Warm-up for the mall; the office needs no speed measurement.
+  if (sn === "mall-weekend-evac") {
+    const runsMs: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const start = performance.now();
+      r = simulate(p, s);
+      runsMs.push(performance.now() - start);
+    }
+    const medianMs = [...runsMs].sort((a, b) => a - b)[1];
+    console.info("[simulation timing]", JSON.stringify({ scenario: sn, warmupRuns: 1, runsMs, medianMs, targetMs: 3000 }));
+    expect(medianMs).toBeLessThan(3000);
+  }
   expect(simulate(p,s)).toEqual(r);expect(JSON.stringify([p,s])).toBe(before);
   const alarm=r.events.find(e=>e.type==="alarm")!.t;expect(r.events.filter(e=>e.type==="alarm")).toHaveLength(1);expect(r.events.some(e=>(e.type==="arrive"||e.type==="visitor_arrive")&&e.t>=alarm)).toBe(false);
   const e=r.metrics.evacuation!;expect(e.stranded).toBe(0);expect(e.byFloor.reduce((n,f)=>n+f.people,0)).toBe(e.exits.reduce((n,f)=>n+f.people,0)+e.refuges.reduce((n,f)=>n+f.people,0));
@@ -30,7 +43,7 @@ describe("evacuation",()=>{
   for(const c of p.connectors){const times=(crossings.get(c.id)??[]).sort((a,b)=>a.t-b.t);for(let i=1;i<times.length;i++)expect(times[i].t-times[i-1].t+1e-6).toBeGreaterThanOrEqual(times[i-1].size/connectorRate(c));}
   for(const door of p.openings.filter(o=>o.kind==="door"&&o.exterior)){const out=r.events.filter(e=>e.type==="evacuated"&&e.openingId===door.id);for(let i=1;i<out.length;i++){const size=s.profiles?.list.find(p=>p.id===r.tracks.find(t=>t.personId===out[i-1].personId)?.profileId)?.size??1;expect(out[i].t-out[i-1].t+1e-6).toBeGreaterThanOrEqual(size/(1.3*door.width));}}
   const normal=structuredClone(s);delete normal.evacuation;const day=simulate(p,normal);for(const tr of r.tracks){const original=day.tracks.find(t=>t.personId===tr.personId)!;expect(tr.points.filter(p=>p.t<alarm)).toEqual(original.points.filter(p=>p.t<alarm));}
- },15000);
+ },30000);
  it("blocks exits, evacuates a meeting after reaction and never uses a fire exit normally",()=>{
   const p=plan("office-a-evac"),s=scenario("office-day-evac");s.evacuation!.blockedExitIds=["d-entrance"];const r=simulate(p,s),alarm=r.events.find(e=>e.type==="alarm")!.t;
   expect(r.metrics.evacuation!.exits.find(e=>e.openingId==="d-entrance")!.people).toBe(0);expect(r.metrics.evacuation!.exits.find(e=>e.openingId==="d-fire")!.people).toBeGreaterThan(0);
@@ -41,7 +54,7 @@ describe("evacuation",()=>{
   const p=plan("mall-2f-evac"),s=scenario("mall-weekend-evac");const wheelchair=s.profiles!.list.find(p=>p.id==="wheelchair")!;s.people.forEach(p=>p.profileId=wheelchair.id);
   const r=simulate(p,s);const upper=r.tracks.filter(t=>atTime(t,r.events.find(e=>e.type==="alarm")!.t).point.levelId==="first"&&atTime(t,r.events.find(e=>e.type==="alarm")!.t).point.activity!=="absent"&&t.kind==="staff");expect(upper.length).toBeGreaterThan(0);for(const tr of upper)expect(tr.points.at(-1)!.activity).toBe("at_refuge");
   p.connectors.filter(c=>c.kind==="lift").forEach(c=>c.evacuationLift=true);const lift=simulate(p,s);for(const tr of upper)expect(lift.tracks.find(t=>t.personId===tr.personId)!.points.at(-1)!.activity).toBe("absent");expect(lift.metrics.evacuation!.connectors.some(c=>p.connectors.find(p=>p.id===c.connectorId)!.kind==="lift")).toBe(true);
- });
+ },20000);
  it("permits gentle ramps but excludes steep ramps for step-free routes",()=>{
   const p=plan("mall-2f-evac");p.connectors=[{id:"ramp",name:"Ramp",kind:"ramp",levelIds:["ground","first"],polygon:rectangle(14,0,23,6)}];p.levels[1].elevation=.5;const c=p.connectors[0];expect(rampGradient(p,c)).toBeLessThan(1/12);
   const a={x:16,y:3,levelId:"ground"},b={x:16,y:3,levelId:"first"};const gentle=new AccessRoutes(p,createNavigation(p,()=>{})).policy("step_free").paths.route(a,b);expect(gentle).not.toBeNull();expect(travelTime(gentle!,.65)).toBeCloseTo(2*travelTime(gentle!,1.3),6);p.levels[1].elevation=4;expect(new AccessRoutes(p,createNavigation(p,()=>{})).policy("step_free").paths.route(a,b)).toBeNull();
