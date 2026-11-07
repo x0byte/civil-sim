@@ -8,7 +8,7 @@ export const ROAD_DB: Record<Road["kind"], number> = { main: 75, secondary: 70, 
 export interface OverpassResponse { elements: { type: string; id: number; tags?: Record<string, string>; geometry?: { lat: number; lon: number }[] }[] }
 export function overpassQuery(p: NonNullable<Site["location"]>): string {
   if (!validLocation(p)) throw new Error("Set a valid site location first.");
-  return `[out:json][timeout:25];(way["building"](around:200,${p.lat},${p.lon});way["highway"](around:200,${p.lat},${p.lon}););out tags geom;`;
+  return `[out:json][timeout:60];(way["building"](around:200,${p.lat},${p.lon});way["highway"](around:200,${p.lat},${p.lon}););out tags geom;`;
 }
 export function convertOverpass(raw: OverpassResponse, plan: FloorPlan): { neighbours: Neighbour[]; roads: Road[] } {
   const origin = plan.site?.location; if (!origin || !validLocation(origin)) throw new Error("Set a site location first.");
@@ -39,7 +39,7 @@ export async function fetchSurroundings(plan: FloorPlan, signal?: AbortSignal, e
   const location = plan.site?.location; if (!location) throw new Error("Set the site location first.");
   const body = new URLSearchParams({ data: overpassQuery(location) });
   const request = async (url: string): Promise<OverpassResponse> => {
-    const timeout = new AbortController(); const timer = setTimeout(() => timeout.abort(), 40000);
+    const timeout = new AbortController(); const timer = setTimeout(() => timeout.abort(), 75000);
     const abort = () => timeout.abort(); signal?.addEventListener("abort", abort, { once: true });
     try { if(signal?.aborted) throw new Error("The surroundings request was cancelled."); return await responseJson(await fetch(url, { method: "POST", body, signal: timeout.signal }), "OpenStreetMap surroundings") as OverpassResponse; }
     finally { clearTimeout(timer); signal?.removeEventListener("abort",abort); }
