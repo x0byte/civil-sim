@@ -1,24 +1,62 @@
-# Brief for Codex: polish, then "Find improvements"
+# Brief for Codex: rename to Nine Arches, polish, then "Find improvements"
 
 Paste everything below the line into Codex.
 
 ---
 
-Two pieces of app work, each on its own branch so Claude can review them separately. Same rules
+Three pieces of app work: the rename and polish on one branch, "Find improvements" on its own,
+so Claude can review them separately. Same rules
 as before (`AGENTS.md`, including the temporary app permission; never edit `contracts/`). Read
 `docs/v1-plan.md` first: its UX principles are the acceptance criteria. Plain words for
 non-technical users throughout; match the existing code style (the app is formatted like
 Prettier at 150 columns; no compressed one-line code).
 
-## Part 1: polish (`app/polish`)
+## Part 0: rename to Nine Arches (first commit on `app/polish`)
 
 ```bash
 cd ../civil-sim-engine
 git switch -c app/polish app/ux-walkthrough
 ```
 
-`app/ux-walkthrough` already holds master (Volt Design shell, home, assistant window, assistant
+`app/ux-walkthrough` already holds master (the Volt Design shell, home, assistant window, assistant
 fixes) plus your walk-through, toolbar and 3D sun-shadow commits.
+
+The product owner has renamed the product **Nine Arches** (they own **ninearches.ai**). It replaces
+"Volt Design" and "Volt" everywhere a user can see it.
+
+1. **Names:** product "Nine Arches"; browser title "Nine Arches"; the app bar brand "Nine Arches";
+   the home heading "Welcome to Nine Arches". The assistant becomes **"Assistant"** in the UI
+   ("Ask the assistant" on the floating button, "Assistant" in its title bar); the owner may name
+   it later, so keep the name in one constant. In the assistant's system prompt it is "the design
+   assistant inside Nine Arches". Saved project files: `….ninearches.json` (still open
+   `….volt.json`, `….civilsim.json` and any `.json`). Mention ninearches.ai once, in the home
+   sidebar footer.
+2. **Logo: placeholder until the owner supplies one.** Replace the Volt artwork
+   (`app/src/assets/volt-*.png`, `app/public/favicon.png`) with a simple placeholder mark drawn as
+   inline SVG: a single line drawing of a viaduct with nine round arches on slim piers, readable at
+   16 px, in `currentColor` so it follows the theme; plus the wordmark "Nine Arches" in the app font.
+   Keep `Brand.tsx` as the only place the logo lives (`<Mark>` and `<Logo>` components; rename from
+   `VoltMark`/`VoltLogo`), so the real logo can be dropped in later by changing one file. Regenerate
+   the favicon from the placeholder mark. Remove the Volt files once nothing uses them.
+3. **About the name:** a short "Why Nine Arches" panel on the home screen's Learn page. Use this
+   text (it has been checked against sources; keep the legends worded as legends):
+
+   > The Nine Arches Bridge near Ella carries the hill-country railway in a tight curve high above a
+   > tea-covered valley. Completed in 1919, it was built by local workers under British engineers from
+   > concrete, stone and brick: about 91 metres long and 24 metres high, and still in daily use more
+   > than a century later. Local legend says it was built without steel, and credits a village builder,
+   > P. K. Appuhami. Whatever the full story, the bridge shows what careful design and skilled hands
+   > can do together: a structure that works beautifully for the people who use it. That's what Nine
+   > Arches is for: testing a building with the people who will use it, before it's built.
+
+4. **Keep internal names:** the repository, packages, `PROJECT_FORMAT` and saved-data keys
+   (`civil-sim:*`, `volt:*`) stay as they are, so existing saved plans, settings and API keys keep
+   loading. Don't rename folders.
+5. Update `README.md`'s title and first line to Nine Arches, and record the rename in
+   `docs/decisions.md`.
+6. Tests: update the ones that check names or file names; add one that the old file names still open.
+
+## Part 1: polish (also on `app/polish`, after Part 0)
 
 1. **People step in the new design:** go through it as a first-time user for the office and mall
    samples. Simple mode should show only building type, kind of day, crowd size, the
