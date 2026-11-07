@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan, Opening, Space, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Warning } from "../../../contracts/results.ts";
 import { distance, openingCentre } from "./geometry.ts";
@@ -39,7 +40,7 @@ export class ShopperWorld {
     for (const lift of lifts) {
       const elevations = lift.levelIds.map((id) => plan.levels.find((l) => l.id === id)!.elevation);
       const height = Math.max(...elevations) - Math.min(...elevations);
-      cycle = Math.max(cycle, (lift.levelIds.length + 1) * (8 + height / 1.5));
+      cycle = Math.max(cycle, (lift.levelIds.length + 1) * (parameter("capacity.lift.stop") + height / parameter("capacity.lift.speed")));
     }
     // If stairs cannot provide an escape, allow the car to clear every queued
     // call and every potential returning person, even without a shared pickup.
@@ -105,7 +106,7 @@ export class ShopperWorld {
   choices(from: Vec2, kind: Space["type"], visited: Set<string>): { venue: Venue; path: Vec2[]; weight: number }[] {
     return this.venues.filter((v) => v.space.type === kind && !visited.has(v.space.id)).flatMap((venue) => {
       const path = this.route(from, venue.point);
-      return path ? [{ venue, path, weight: (venue.space.attraction ?? 1) * Math.exp(-pathLength(path) / 50) }] : [];
+      return path ? [{ venue, path, weight: (venue.space.attraction ?? parameter("wayfinding.shop.attraction_default")) * Math.exp(-pathLength(path) / parameter("wayfinding.shop.distance_scale")) }] : [];
     });
   }
   spot(venue: Venue, draw: number): LevelPoint {
@@ -146,10 +147,10 @@ export class ShopperWorld {
   /** An exit must be reachable in the direction of travel. */
   exit(from: Vec2, preferred: Entrance): { entrance: Entrance; path: Vec2[]; seconds: number } | null {
     const path = this.route(from, preferred.point);
-    if (path) return { entrance: preferred, path, seconds: travelTime(path, 1.1) };
+    if (path) return { entrance: preferred, path, seconds: travelTime(path, parameter("walk.speed.shopper")) };
     const candidates = this.entrances.flatMap((entrance) => {
       const route = this.route(from, entrance.point);
-      return route ? [{ entrance, path: route, seconds: travelTime(route, 1.1) }] : [];
+      return route ? [{ entrance, path: route, seconds: travelTime(route, parameter("walk.speed.shopper")) }] : [];
     }).sort((a, b) => a.seconds - b.seconds);
     return candidates[0] ?? null;
   }
@@ -165,7 +166,7 @@ export function firstDoorEncounter(path: Vec2[], venue: Venue): { prefix: Vec2[]
     const dx = b.x - a.x; const dy = b.y - a.y; const lengthSq = dx * dx + dy * dy;
     for (const door of venue.doors) {
       const fx = a.x - door.x; const fy = a.y - door.y;
-      const c = fx * fx + fy * fy - 4;
+      const c = fx * fx + fy * fy - parameter("wayfinding.exposure.radius") ** 2;
       if (c < 0) { first = 0; break; }
       if (!lengthSq) continue;
       const bb = 2 * (fx * dx + fy * dy); const discriminant = bb * bb - 4 * lengthSq * c;

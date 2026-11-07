@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { Connector, FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { distance } from "./geometry.ts";
 import { levelOf } from "./levels.ts";
@@ -24,7 +25,7 @@ export function doorGates(plan: FloorPlan, path: Vec2[]): DoorGate[] {
       if (Math.abs(along - door.offset) > door.width / 2 + 1e-8) continue;
       const at = travelled + t * length;
       if (result.some((g) => g.id === door.id && Math.abs(g.at - at) < 1e-7)) continue;
-      result.push({ id: door.id, rate: 1.3 * door.width, at, point, direction: Math.sign(nb - na), exterior: !!door.exterior });
+      result.push({ id: door.id, rate: parameter("capacity.door.specific_flow") * door.width, at, point, direction: Math.sign(nb - na), exterior: !!door.exterior });
     }
     travelled += length;
   }
@@ -33,7 +34,7 @@ export function doorGates(plan: FloorPlan, path: Vec2[]): DoorGate[] {
 }
 
 export function connectorRate(connector: Connector): number {
-  if (connector.kind === "escalator") return 1;
+  if (connector.kind === "escalator") return parameter("capacity.escalator.flow");
   let bestArea = Infinity; let short = 0;
   for (let i = 0; i < connector.polygon.length; i++) {
     const a = connector.polygon[i]; const b = connector.polygon[(i + 1) % connector.polygon.length]; const length = distance(a, b);
@@ -43,5 +44,5 @@ export function connectorRate(connector: Connector): number {
     const width = Math.max(...xs) - Math.min(...xs); const height = Math.max(...ys) - Math.min(...ys);
     if (width * height < bestArea) { bestArea = width * height; short = Math.min(width, height); }
   }
-  return 1.1 * short;
+  return parameter("capacity.stair.specific_flow") * short;
 }

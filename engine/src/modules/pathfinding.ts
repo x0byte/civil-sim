@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import { connectorTime } from "./levels.ts";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import { distance, EPSILON } from "./geometry.ts";
@@ -12,16 +13,16 @@ export function pathLength(path: Vec2[]): number {
   let length = 0;
   for (let i = 1; i < path.length; i++) {
     const seconds = connectorTime(path[i - 1], path[i]);
-    length += seconds === undefined ? distance(path[i - 1], path[i]) : seconds * 1.3;
+    length += seconds === undefined ? distance(path[i - 1], path[i]) : seconds * parameter("walk.speed.adult");
   }
   return length;
 }
 
 /** Stairs/lifts keep fixed durations; ramps scale with the person's walking speed. */
 export function travelTime(path: Vec2[], speed: number): number {
-  if (speed === 1.3) return pathLength(path) / 1.3;
+  if (speed === parameter("walk.speed.adult")) return pathLength(path) / parameter("walk.speed.adult");
   let seconds = 0;
-  for (let i = 1; i < path.length; i++) { const fixed=connectorTime(path[i - 1], path[i]); seconds += fixed === undefined ? distance(path[i - 1], path[i]) / speed : fixed * ((path[i] as {rampWalk?:boolean}).rampWalk ? 1.3/speed : 1); }
+  for (let i = 1; i < path.length; i++) { const fixed=connectorTime(path[i - 1], path[i]); seconds += fixed === undefined ? distance(path[i - 1], path[i]) / speed : fixed * ((path[i] as {rampWalk?:boolean}).rampWalk ? parameter("walk.speed.adult")/speed : 1); }
   return seconds;
 }
 

@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { Traveller } from "./profiles.ts";
 import { travelTime } from "./pathfinding.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
@@ -10,11 +11,11 @@ import type { Admission, PersonSchedule, RoomRequest } from "./queues.ts";
 import { RoomMovement } from "./movement.ts";
 import { roomTrip } from "./room-trip.ts";
 import type { RoomSpots } from "./spots.ts";
-import { absentTrack, TrackBuilder, WALK_SPEED_M_S } from "./track.ts";
+import { absentTrack, TrackBuilder } from "./track.ts";
 
 export function* scheduleVisitor(plan: FloorPlan, scenario: Scenario, visitor: Visitor, duration: number,
   navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void, personTraits?: Traveller): PersonSchedule {
-  const speed = personTraits?.speed ?? WALK_SPEED_M_S;
+  const speed = personTraits?.speed ?? parameter("walk.speed.adult");
   const { grid, entrances, targets, paths } = navigation;
   const absent = (): Track => absentTrack(visitor.id, "visitor", duration, grid, entrances[0] ?? { x: 0, y: 0 });
   const candidates = entrances.flatMap((entrance) => {

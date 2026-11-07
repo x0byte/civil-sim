@@ -1,3 +1,5 @@
+import { parameter, parameterDefault } from "../parameters.ts";
+export const SHOPPER_SPEED = parameterDefault("walk.speed.shopper");
 import type { Traveller } from "./profiles.ts";
 import { crowdReserve } from "./profiles.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
@@ -18,8 +20,8 @@ import { absentTrack, TrackBuilder } from "./track.ts";
 
 export interface ShopperRequest { id: string; arrival: number; type: ShopperType; shops: number; seed: number }
 const exponential = (random: () => number, mean: number) => -Math.log(1 - random()) * mean;
-const stay = (random: () => number, mean: number, min = 60, max = mean * 3) => Math.max(min, Math.min(Math.max(min, max), exponential(random, mean)));
-export const SHOPPER_SPEED = 1.1;
+const stay = (random: () => number, mean: number, min = parameter("service.shop.minimum"), max = mean * parameter("service.shop.maximum_multiplier")) => Math.max(min, Math.min(Math.max(min, max), exponential(random, mean)));
+
 const routeFunctions = new WeakMap<PathRoutes, (a: Vec2, b: Vec2) => Vec2[] | null>();
 function stableRoute(paths: PathRoutes): (a: Vec2, b: Vec2) => Vec2[] | null {
   let route = routeFunctions.get(paths);
@@ -58,15 +60,15 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
   const entrance = world.entrance(random(), usableEntrance);
   // The validator rejects a missing exterior door for shopper scenarios.
   if (!entrance) return absentTrack(request.id, "shopper", duration, world.navigation.grid, { x: 0, y: 0 }, world.navigation.first);
-  const exitEntrance = random() < 0.8 ? entrance : world.entrance(random(), usableEntrance) ?? entrance;
-  const speed = person?.speed ?? SHOPPER_SPEED;
+  const exitEntrance = random() < parameter("arrival.shopper.same_exit_share") ? entrance : world.entrance(random(), usableEntrance) ?? entrance;
+  const speed = person?.speed ?? (parameter("walk.speed.shopper"));
   const navigation = person?.navigation ?? world.navigation;
   const rawRoute = (a: Vec2, b: Vec2) => person ? navigation.paths.route(a, b) : world.route(a, b);
   const route = (a: Vec2, b: Vec2) => world.journey(a, b, rawRoute, navigation);
   const choicesFor = (from: Vec2, kind: Venue["space"]["type"], excluded: Set<string>) => world.choices(from, kind, excluded).map((choice) => {
     if (!person) return { ...choice, blocked: false };
     const usable = rawRoute(from, choice.venue.point);
-    return { ...choice, path: usable ?? choice.path, blocked: !usable || kind === "toilet" && person.profile?.access === "step_free" && world.plan.spaces.some(s=>s.type==="toilet"&&s.accessible) && !choice.venue.space.accessible, weight: usable ? (choice.venue.space.attraction ?? 1) * Math.exp(-pathLength(usable) / 50) : choice.weight };
+    return { ...choice, path: usable ?? choice.path, blocked: !usable || kind === "toilet" && person.profile?.access === "step_free" && world.plan.spaces.some(s=>s.type==="toilet"&&s.accessible) && !choice.venue.space.accessible, weight: usable ? (choice.venue.space.attraction ?? parameter("wayfinding.shop.attraction_default")) * Math.exp(-pathLength(usable) / parameter("wayfinding.shop.distance_scale")) : choice.weight };
   });
   const blocked = (venue: Venue) => { if (person) events.push({ t: track.t, personId: request.id, type: "blocked", spaceId: venue.space.id }); };
   const track = new TrackBuilder(entrance.point, entrance.point.levelId, speed, person);
@@ -74,7 +76,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
   const visited = new Set<string>();
   const unavailable = new Set<string>();
   const closingDraw = seededRandom(personSeed(request.seed, "latest-leave"))();
-  const latestLeave = duration - closingDraw * Math.min(2700, duration / 4, duration - request.arrival);
+  const latestLeave = duration - closingDraw * Math.min(parameter("arrival.shopper.departure_window"), duration / parameter("arrival.shopper.departure_day_divisor"), duration - request.arrival);
   const hardEnd = Math.min(latestLeave, request.arrival + request.type.maxStayMin * 60);
   // Shared anchors estimate attraction without moving a person to those anchors.
   let decisionPoint: Vec2 = entrance.point;
@@ -101,8 +103,8 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     const physical = person ? crowdReserve(exit.path, person, hardEnd, world.plan) : exit.seconds;
     if (!usesLift(exit.path)) return physical;
     const alternate = alternateFrom(point);
-    const load = person ? 60 + 44 * Math.ceil(person.people.activeSize(hardEnd) / 8) : world.liftClearanceBefore(hardEnd);
-    return alternate ? Math.max(physical + 60, crowdReserve(alternate.path, person, hardEnd, world.plan)) : physical + load;
+    const load = person ? parameter("capacity.lift.closing_margin") + parameter("capacity.lift.closing_cycle") * Math.ceil(person.people.activeSize(hardEnd) / parameter("capacity.lift.car")) : world.liftClearanceBefore(hardEnd);
+    return alternate ? Math.max(physical + parameter("capacity.lift.alternate_margin"), crowdReserve(alternate.path, person, hardEnd, world.plan)) : physical + load;
   };
   const fallbackReserve = (path: Vec2[]) => {
     let seconds = 0;
@@ -116,8 +118,8 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     yield* movement.walk(path, activity, safeDeadline, skipSpaceId);
   }
   const clock = clockSeconds(scenario.workday.start) + request.arrival;
-  const meal = (clock >= 11 * 3600 && clock < 14 * 3600) || (clock >= 18 * 3600 && clock < 21 * 3600);
-  let food = random() < Math.min(1, request.type.foodCourtChance * (meal ? 1.5 : 0.6));
+  const meal = (clock >= parameter("arrival.shopper.lunch_start") * 3600 && clock < parameter("arrival.shopper.lunch_end") * 3600) || (clock >= parameter("arrival.shopper.dinner_start") * 3600 && clock < parameter("arrival.shopper.dinner_end") * 3600);
+  let food = random() < Math.min(1, request.type.foodCourtChance * (meal ? parameter("arrival.shopper.meal_multiplier") : parameter("arrival.shopper.off_meal_multiplier")));
   const planned = Math.min(request.shops, world.choices(entrance.point, "shop", new Set()).length);
   const foodAfter = Math.ceil(planned / 2);
   let completed = 0;
@@ -135,7 +137,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     const arrivalPath = route(from, spot);
     const back = route(spot, from);
     if (!arrivalPath || !back) return;
-    const service = 180 + random() * 120;
+    const service = parameter("service.facility.minimum") + random() * parameter("service.facility.spread");
     const deadline = hardEnd - reserve(from);
     if (track.t + time(arrivalPath) + service + time(back) > deadline) return;
     const space = choice.venue.space;
@@ -178,7 +180,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
     if (track.t + time(inPath) >= end) return false;
     yield* walk(inPath, eating ? "eating" : "shopping", end);
     let emitted = false;
-    let remaining = eating ? stay(random, 1500, 600, 3600) : stay(random, mean);
+    let remaining = eating ? stay(random, parameter("arrival.shopper.food_mean"), parameter("arrival.shopper.food_min"), 3600) : stay(random, mean);
     while (remaining > 0 && track.t < end) {
       const until = Math.min(track.t + remaining, end, nextToilet);
       const elapsed = Math.max(0, until - track.t);
@@ -207,7 +209,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
       if (food && completed >= foodAfter) {
         food = false;
         const choices = choicesFor(decisionPoint, "food_court", visited).sort((a, b) => b.weight - a.weight);
-        for (const choice of choices) { if (choice.blocked) { blocked(choice.venue); continue; } yield* visit(choice.venue, 1500, true); break; }
+        for (const choice of choices) { if (choice.blocked) { blocked(choice.venue); continue; } yield* visit(choice.venue, parameter("arrival.shopper.food_mean"), true); break; }
       }
       if (completed >= planned) break;
       yield* toilet();
@@ -232,7 +234,7 @@ export function* scheduleShopper(world: ShopperWorld, scenario: Scenario, reques
         if (!detour && person) { blocked(impulse.venue); unavailable.add(impulse.venue.space.id); }
         if (detour && track.t + time(impulse.prefix) + time(detour) + reserve(impulse.venue.point) + 60 < hardEnd) {
           yield* walk(impulse.prefix, "walking", hardEnd - reserve(impulse.venue.point) - time(detour) - 60);
-          yield* visit(impulse.venue, request.type.minutesPerShop * 30);
+          yield* visit(impulse.venue, request.type.minutesPerShop * parameter("service.shop.impulse_seconds_per_minute"));
         }
       }
       if (!(yield* visit(choice.venue, request.type.minutesPerShop * 60))) break;
@@ -283,7 +285,7 @@ function alternateExit(world: ShopperWorld, from: Vec2, preferred: Entrance): Re
   }
   for (const entrance of [preferred, ...world.entrances.filter((e) => e !== preferred)]) {
     const path = world.journey(from, entrance.point, stableRoute(paths));
-    if (path) { const result = { entrance, path, seconds: travelTime(path, SHOPPER_SPEED) }; cache.set(key, result); return result; }
+    if (path) { const result = { entrance, path, seconds: travelTime(path, (parameter("walk.speed.shopper"))) }; cache.set(key, result); return result; }
   }
   cache.set(key, null);
   return null;

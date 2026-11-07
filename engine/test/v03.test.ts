@@ -166,7 +166,8 @@ describe("queue order, limits and visitors", () => {
     const explicit = simulate(p, s);
     delete s.queueing;
     const implicit = simulate(p, s);
-    expect(implicit).toEqual(explicit);
+    // Values agree; evidence distinguishes an explicit saved input from a default.
+    expect({ ...implicit, evidence: undefined }).toEqual({ ...explicit, evidence: undefined });
     const waits = queueWaits(implicit.events, "toilet");
     expect(waits.length).toBeGreaterThan(0);
     expect(waits.every((wait) => wait.gaveUp)).toBe(true);

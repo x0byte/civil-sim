@@ -15,7 +15,7 @@ import {rectangle} from "./shopper-fixtures.ts";
 describe("v0.9 compatibility",()=>{
  const hashes=JSON.parse(readFileSync(new URL("data/v08-full-sha256.json",import.meta.url),"utf8")).sha256;
  it.each(Object.keys(hashes))("keeps all v0.8 behavior: %s",key=>{
-  const [p,s]=key.split("/");const r=JSON.parse(JSON.stringify(simulate(plan(p),scenario(s))));r.version="0.8";delete r.metrics.evacuation;delete r.metrics.accessibility;r.warnings=r.warnings.filter((w:{code:string})=>w.code!=="accessibility");r.assumptions=r.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations.");expect(createHash("sha256").update(JSON.stringify(r)).digest("hex")).toBe(hashes[key]);
+  const [p,s]=key.split("/");const r=JSON.parse(JSON.stringify(simulate(plan(p),scenario(s))));delete r.evidence;r.version="0.8";delete r.metrics.evacuation;delete r.metrics.accessibility;r.warnings=r.warnings.filter((w:{code:string})=>w.code!=="accessibility");r.assumptions=r.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations.");expect(createHash("sha256").update(JSON.stringify(r)).digest("hex")).toBe(hashes[key]);
  });
 });
 describe("evacuation",()=>{

@@ -50,13 +50,13 @@ function engineProgress(start: string, report: ReportProgress) {
       seating: `Seating ${p.people ?? "the"} people…`,
       simulating: `Simulating the day · ${clock(start, p.t ?? 0)}…`,
       evacuating: "Helping people reach exits and refuges…",
-      measuring: "Measuring routes and crowds…",
+      measuring: p.detail === "sensitivity" ? `Checking parameter sensitivity · ${p.completed ?? 0} of ${p.total ?? 0}…` : "Measuring routes and crowds…",
       comfort: "Measuring comfort…",
       complete: "Preparing results…",
     };
     report({
       message: messages[p.stage],
-      fraction:
+      fraction: p.detail === "sensitivity" ? 0.9 + 0.07 * (p.completed ?? 0) / Math.max(1, p.total ?? 1) :
         p.stage === "simulating"
           ? 0.1 + 0.65 * Math.min(1, (p.t ?? 0) / Math.max(1, p.durationS ?? 1))
           : ({ checking: 0.02, seating: 0.08, evacuating: 0.76, measuring: 0.8, comfort: 0.9, complete: 0.98 } as const)[p.stage],
@@ -68,10 +68,11 @@ export function executeTask<T extends BackgroundTask>(task: T, report: ReportPro
   const execute = (): unknown => {
     switch (task.kind) {
       case "fixed":
-        return simulate(task.plan, task.scenario, { onProgress: engineProgress(task.scenario.workday.start, report) });
+        return simulate(task.plan, task.scenario, { sensitivity: true, onProgress: engineProgress(task.scenario.workday.start, report) });
       case "day":
         report({ message: "Preparing the people…" });
         return runSimulation(task.plan, task.profile, task.evacuation, {
+          sensitivity: true,
           onProgress: engineProgress(task.profile?.workday.start ?? "08:30", report),
         });
       case "compare":
@@ -80,6 +81,7 @@ export function executeTask<T extends BackgroundTask>(task: T, report: ReportPro
           let layout = task.labels[0],
             layoutIndex = -1;
           return runComparison(task.a, task.b, task.labels, task.profile, task.evacuation, {
+            sensitivity: true,
             onLayout: (label) => {
               layoutIndex++;
               layout = label;

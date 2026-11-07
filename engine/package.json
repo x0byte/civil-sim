@@ -11,6 +11,7 @@
     "benchmark:shoppers": "node scripts/benchmark-shoppers.ts",
     "benchmark:people": "node scripts/benchmark-people.ts",
     "benchmark:evacuation": "node scripts/benchmark-evacuation.ts",
+    "benchmark:evidence": "node scripts/benchmark-evidence.ts",
     "benchmark:site": "node scripts/benchmark-site.ts",
     "benchmark:comfort": "node --expose-gc scripts/benchmark-comfort.ts"
   },

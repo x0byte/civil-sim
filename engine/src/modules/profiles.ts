@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { ConnectorKind, FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { SimEvent, Track, Warning } from "../../../contracts/results.ts";
 import type { PersonProfile, Scenario, Spread } from "../../../contracts/scenario.ts";
@@ -49,10 +50,10 @@ export class People {
         if (score < best) { best = score; profile = this.scenario.profiles!.list.find((p) => p.id === share.profileId); }
       }
     }
-    const trait = (name: "speed" | "familiarity" | "crowdComfort", fallback: number) => profile ? drawSpread(profile[name], personSeed(seed, `${profile.id}:${name}`)) : fallback;
-    const drawnSpeed = trait("speed", 1.3);
-    const person: Traveller = { id, kind, profile, seed, speed: kind === "shopper" ? drawnSpeed / 1.3 * 1.1 : drawnSpeed,
-      drawnSpeed, familiarity: trait("familiarity", 1), comfort: trait("crowdComfort", Infinity), size: profile?.size ?? 1,
+    const trait = (name: "speed" | "familiarity" | "crowdComfort", fallback: number | (() => number)) => profile ? drawSpread(profile[name], personSeed(seed, `${profile.id}:${name}`)) : typeof fallback === "function" ? fallback() : fallback;
+    const drawnSpeed = trait("speed", () => parameter("walk.speed.adult"));
+    const person: Traveller = { id, kind, profile, seed, speed: kind === "shopper" ? drawnSpeed / parameter("walk.speed.adult") * parameter("walk.speed.shopper") : drawnSpeed,
+      drawnSpeed, familiarity: trait("familiarity", () => parameter("wayfinding.familiarity.default")), comfort: trait("crowdComfort", Infinity), size: profile?.size ?? parameter("walk.person.size"),
       arrival, stayS, people: this, trips: 0, detourSum: 0, routeNumber: 0 };
     this.people.set(id, person); return person;
   }
@@ -93,16 +94,16 @@ export function familiarPath(path: Vec2[], person: Traveller, navigation: Naviga
   if (person.familiarity < 1 && random() < 1 - person.familiarity) {
     const legs = path.slice(1).map((b, i) => ({ i, d: levelOf(path[i], first) === levelOf(b, first) ? distance(path[i], b) : 0 })).sort((a, b) => b.d - a.d);
     for (const { i, d } of legs) {
-      if (d < 0.6) continue;
+      if (d < parameter("wayfinding.detour.minimum_leg")) continue;
       const a = path[i]; const b = path[i + 1];
       const grid = navigation.grids.get(levelOf(a, first))!;
       const sign = random() < 0.5 ? -1 : 1;
       for (const factor of [1, -1, 0.5, -0.5]) {
-        const offset = Math.min(3, d * 0.45) * (1 - person.familiarity) * sign * factor;
+        const offset = Math.min(parameter("wayfinding.detour.maximum_offset"), d * parameter("wayfinding.detour.offset_factor")) * (1 - person.familiarity) * sign * factor;
         const via = onLevel({ x: (a.x + b.x) / 2 - (b.y - a.y) / d * offset, y: (a.y + b.y) / 2 + (b.x - a.x) / d * offset }, levelOf(a, first));
         if (!grid.canWalk(a, via) || !grid.canWalk(via, b)) continue;
-        const candidate = [...path.slice(0, i + 1), { ...via, hesitateS: 2 + random() * 4 } as LevelPoint, ...path.slice(i + 1)];
-        if (horizontalLength(candidate, first) <= baseline * 2 + 1e-9) { result = candidate; break; }
+        const candidate = [...path.slice(0, i + 1), { ...via, hesitateS: parameter("wayfinding.detour.hesitation_min") + random() * parameter("wayfinding.detour.hesitation_spread") } as LevelPoint, ...path.slice(i + 1)];
+        if (horizontalLength(candidate, first) <= baseline * parameter("wayfinding.detour.maximum_ratio") + 1e-9) { result = candidate; break; }
       }
       if (result !== path) break;
     }
@@ -133,10 +134,10 @@ export function stepFreeWarnings(plan: FloorPlan, people: People, navigation: Na
 
 /** A cautious physical closing allowance, used only for new crowding scenarios. */
 export function crowdReserve(path: Vec2[], person: Traveller | undefined, deadline: number, plan: FloorPlan): number {
-  const seconds = travelTime(path, person?.speed ?? 1.3);
+  const seconds = travelTime(path, person?.speed ?? parameter("walk.speed.adult"));
   if (!person?.people.scenario.crowding) return seconds;
   const load = person.people.activeSize(deadline);
-  const walking = horizontalLength(path, plan.levels[0].id) / Math.min(0.05, person.speed);
+  const walking = horizontalLength(path, plan.levels[0].id) / Math.min(parameter("walk.speed.minimum"), person.speed);
   let queues = 0;
   for (const gate of doorGates(plan, path)) queues += load / gate.rate;
   let vertical = 0;
@@ -146,5 +147,5 @@ export function crowdReserve(path: Vec2[], person: Traveller | undefined, deadli
     vertical += (point as LevelPoint).travelS ?? 0;
     if (connector.kind !== "lift") queues += load / connectorRate(connector);
   }
-  return Math.max(seconds, walking + vertical + queues + 5);
+  return Math.max(seconds, walking + vertical + queues + parameter("walk.reserve.closing_margin"));
 }

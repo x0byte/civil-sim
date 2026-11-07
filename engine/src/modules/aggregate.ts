@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics, Heatmaps, Metrics, SimEvent, SpaceExposure, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
@@ -14,7 +15,7 @@ import type { CrowdedSamples } from "./comfort.ts";
 import type { Warning } from "../../../contracts/results.ts";
 
 export const HEAT_CELL_M = 0.5;
-const EXPOSURE_RADIUS_M = 2;
+
 
 
 function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceExposure[] {
@@ -32,7 +33,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
         const b = track.points[i + 1];
         if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift") { inside = false; continue; }
         if (a.activity !== "walking" && a.activity !== "evacuating") {
-          inside = doors.some((door) => distance(b, door) <= EXPOSURE_RADIUS_M + EPSILON);
+          inside = doors.some((door) => distance(b, door) <= (parameter("wayfinding.exposure.radius")) + EPSILON);
           continue;
         }
         const intervals = proximityIntervals(a, b, doors);

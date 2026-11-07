@@ -1,3 +1,5 @@
+import { parameter, parameterDefault } from "../parameters.ts";
+export const WALK_SPEED_M_S = parameterDefault("walk.speed.adult");
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, Track, TrackPoint } from "../../../contracts/results.ts";
 import type { Traveller } from "./profiles.ts";
@@ -6,7 +8,7 @@ import { levelOf, onLevel } from "./levels.ts";
 import { distance } from "./geometry.ts";
 import type { WalkableGrid } from "./grid.ts";
 
-export const WALK_SPEED_M_S = 1.3;
+
 
 export class TrackBuilder {
   readonly points: TrackPoint[];
@@ -14,7 +16,7 @@ export class TrackBuilder {
   readonly speed: number;
   readonly person?: Traveller;
   position: Vec2 & { levelId: string };
-  constructor(position: LevelPoint, levelId = "ground", speed = WALK_SPEED_M_S, person?: Traveller) {
+  constructor(position: LevelPoint, levelId = "ground", speed = (parameter("walk.speed.adult")), person?: Traveller) {
     this.speed = speed; this.person = person;
     this.position = { ...onLevel(position, levelOf(position, levelId)), levelId: levelOf(position, levelId) };
     this.points = [{ t: 0, ...this.position, activity: "absent" }];

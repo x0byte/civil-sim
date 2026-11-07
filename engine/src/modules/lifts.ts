@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics } from "../../../contracts/results.ts";
 import type { TrackBuilder } from "./track.ts";
@@ -17,7 +18,7 @@ export class Lifts {
     this.plan = plan;
     this.schedule = schedule;
     for (const c of plan.connectors.filter((c) => c.kind === "lift")) this.cars.set(c.id, {
-      level: plan.levels.find((l) => c.levelIds.includes(l.id))!.id, busy: false, waiting: [], capacity: c.capacity ?? 8,
+      level: plan.levels.find((l) => c.levelIds.includes(l.id))!.id, busy: false, waiting: [], capacity: c.capacity ?? parameter("capacity.lift.car"),
       metric: metrics.find((m) => m.connectorId === c.id)!,
     });
   }
@@ -42,12 +43,12 @@ export class Lifts {
     call.complete(false);
   }
   private travel(from: string, to: string): number {
-    return Math.abs(this.plan.levels.find((l) => l.id === from)!.elevation - this.plan.levels.find((l) => l.id === to)!.elevation) / 1.5;
+    return Math.abs(this.plan.levels.find((l) => l.id === from)!.elevation - this.plan.levels.find((l) => l.id === to)!.elevation) / parameter("capacity.lift.speed");
   }
   private pickup(car: Car, t: number): void {
     if (!car.waiting.length) { car.busy = false; return; }
     const from = car.waiting[0].request.ride!.from;
-    const board = t + this.travel(car.level, from) + 8;
+    const board = t + this.travel(car.level, from) + parameter("capacity.lift.stop");
     this.schedule(board, () => {
       car.level = from;
       const riders: Call[] = [];
@@ -58,7 +59,7 @@ export class Lifts {
         // Include all earlier drop-offs in this batch before accepting a ride.
         let at = board; let level = from;
         const destinations = [...new Set([...riders.map((r) => r.request.ride!.to), call.request.ride!.to])];
-        for (const destination of destinations) { at += this.travel(level, destination) + 8; level = destination; }
+        for (const destination of destinations) { at += this.travel(level, destination) + parameter("capacity.lift.stop"); level = destination; }
         if (at > call.request.deadline) { this.cancel(car, call, board); continue; }
         call.waiting = false;
         car.metric.longestWaitS = Math.max(car.metric.longestWaitS, board - call.arrived);
@@ -73,7 +74,7 @@ export class Lifts {
   private drop(car: Car, riders: Call[], t: number): void {
     if (!riders.length) { this.pickup(car, t); return; }
     const to = riders[0].request.ride!.to;
-    const arrival = t + this.travel(car.level, to) + 8;
+    const arrival = t + this.travel(car.level, to) + parameter("capacity.lift.stop");
     this.schedule(arrival, () => {
       car.level = to;
       for (const call of riders.filter((c) => c.request.ride!.to === to)) {

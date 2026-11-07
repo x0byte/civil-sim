@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { pointInPolygon, polygonCentroid } from "./geometry.ts";
@@ -13,7 +14,7 @@ interface Candidate { point: Vec2; index: number; centreDistanceSq: number }
 interface Assignment { personId: string; point: Vec2 }
 
 const squaredDistance = (a: Vec2, b: Vec2): number => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-const DESIRED_SPACING_SQ = 0.6 ** 2;
+
 
 /** Stable person-specific standing spots, independent of request order or active visits. */
 export class RoomSpots {
@@ -78,7 +79,7 @@ export class RoomSpots {
           let bestClearance = -1;
           for (let i = 0; i < candidates.length; i++) {
             const clearance = owner1[i] === person ? d2[i] : d1[i];
-            if (clearance >= DESIRED_SPACING_SQ - 1e-12) { selectedIndex = i; break; }
+            if (clearance >= (parameter("service.standing.spacing") ** 2) - 1e-12) { selectedIndex = i; break; }
             if (clearance > bestClearance && clearance > 1e-12) { selectedIndex = i; bestClearance = clearance; }
           }
           if (selectedIndex < 0) continue;

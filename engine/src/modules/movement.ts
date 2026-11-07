@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import { connectorRate } from "./flow.ts";
 import { familiarPath, horizontalLength } from "./profiles.ts";
 import { levelOf, onLevel } from "./levels.ts";
@@ -151,7 +152,7 @@ export class RoomMovement {
       if (from === to) continue;
       const remainingS = travelTime(path.slice(i), this.track.speed);
       const connectorDeadline = deadline - remainingS;
-      const expectedS = (path[i] as LevelPoint).travelS! * ((path[i] as LevelPoint).rampWalk ? 1.3/this.track.speed : 1);
+      const expectedS = (path[i] as LevelPoint).travelS! * ((path[i] as LevelPoint).rampWalk ? parameter("walk.speed.adult")/this.track.speed : 1);
       yield* this.walkDirect(path.slice(0, i), "walking", connectorDeadline - expectedS, skipSpaceId, trip);
       const id = (path[i] as LevelPoint).connectorId;
       const connector = this.plan.connectors.find((c) => c.id === id)!;

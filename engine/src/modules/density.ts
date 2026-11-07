@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { CrowdingMetrics, Heatmaps, ProfileMetrics, Track } from "../../../contracts/results.ts";
 import type { People } from "./profiles.ts";
@@ -6,8 +7,8 @@ import { interiorIntervals } from "./occupancy.ts";
 export const DENSITY_RADIUS = 1;
 export const DENSITY_AREA = Math.PI;
 export function densitySpeed(free: number, density: number): number {
-  if (density <= 0.185) return free;
-  return Math.min(free, Math.max(Math.min(0.05, free), free * (1 - Math.exp(-1.913 * (1 / density - 1 / 5.4)))));
+  if (density <= parameter("walk.density.free_threshold")) return free;
+  return Math.min(free, Math.max(Math.min(parameter("walk.speed.minimum"), free), free * (1 - Math.exp(-parameter("walk.density.shape") * (1 / density - 1 / parameter("walk.density.jam"))))));
 }
 
 export interface Body extends Vec2 { id: string; levelId: string; size: number }
@@ -90,7 +91,7 @@ export class DensityField {
   canPlace(body: Body): boolean {
     const old = this.bodies.get(body.id);
     const own = old?.levelId === body.levelId ? new Set(this.kernels.get(body.id)!) : new Set<number>();
-    const values = this.values.get(body.levelId)!; const limit = 4.5 * DENSITY_AREA;
+    const values = this.values.get(body.levelId)!; const limit = parameter("walk.density.admission_limit") * DENSITY_AREA;
     for (const i of this.cells(body)) if (values[i] + body.size - (own.has(i) ? old!.size : 0) > limit + 1e-9) return false;
     const neighbours = this.neighbours(body, body.levelId);
     if (neighbours.reduce((n, other) => n + (other.id === body.id ? 0 : other.size), body.size) > limit + 1e-9) return false;
@@ -150,7 +151,7 @@ export function sampleDensity(plan: FloorPlan, tracks: Track[], duration: number
       const fraction = b && b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
       const x = a.x + (b ? b.x - a.x : 0) * fraction; const y = a.y + (b ? b.y - a.y : 0) * fraction;
       const old = field.bodies.get(track.personId);
-      if (!old || old.x !== x || old.y !== y || old.levelId !== a.levelId) field.set({ id: track.personId, levelId: a.levelId, x, y, size: people?.people.get(track.personId)?.size ?? 1 });
+      if (!old || old.x !== x || old.y !== y || old.levelId !== a.levelId) field.set({ id: track.personId, levelId: a.levelId, x, y, size: people?.people.get(track.personId)?.size ?? parameter("walk.person.size") });
     }
     sampled.fill(0);
     for (const [id, values] of field.values) {

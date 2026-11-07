@@ -16,7 +16,7 @@ describe("v0.7 comfort off compatibility", () => {
   it.each(Object.keys(captures))("preserves the complete captured v0.6.1 output: %s", (key) => {
     const [p, s] = key.split("/"); const r = simulate(plan(p), scenario(s));
     expect(r.version).toBe(RESULTS_VERSION); expect(r.metrics.comfort).toBeNull(); expect(r.tracks.every((t) => t.discomfort === undefined)).toBe(true);
-    const old = JSON.parse(JSON.stringify(r)); old.version = "0.6"; delete old.metrics.accessibility; delete old.metrics.evacuation; old.warnings=old.warnings.filter((w: {code:string})=>w.code!=="accessibility");old.assumptions=old.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations."); delete old.metrics.comfort;
+    const old = JSON.parse(JSON.stringify(r)); delete old.evidence; old.version = "0.6"; delete old.metrics.accessibility; delete old.metrics.evacuation; old.warnings=old.warnings.filter((w: {code:string})=>w.code!=="accessibility");old.assumptions=old.assumptions.filter((a:string)=>a!=="Common guidance; check your local regulations."); delete old.metrics.comfort;
     old.heatmaps.levels.forEach((l: { noiseDbA?: number[]; lightLux?: number[]; glare?: number[] }) => {
       expect([l.noiseDbA, l.lightLux, l.glare]).toEqual([[], [], []]); delete l.noiseDbA; delete l.lightLux; delete l.glare;
     });

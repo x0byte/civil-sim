@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
 import type { ComfortMetrics, DiscomfortCause, Heatmaps, ProfileComfort, Track, Warning } from "../../../contracts/results.ts";
 import type { PersonProfile, Scenario, Spread } from "../../../contracts/scenario.ts";
@@ -12,8 +13,8 @@ import { clockSeconds } from "./schedule.ts";
 export const CAUSES: DiscomfortCause[] = ["loud", "dim", "glare", "low_contrast", "crowded"];
 const zero = (): Record<DiscomfortCause, number> => ({ loud: 0, dim: 0, glare: 0, low_contrast: 0, crowded: 0 });
 export const DEFAULT_TOLERANCES = {
-  noiseComfort: { mean: 70, sd: 4, min: 60, max: 80 }, focusNoiseComfort: { mean: 50, sd: 3, min: 46, max: 58 },
-  taskLux: { mean: 300, sd: 50, min: 200, max: 450 }, glareComfort: { mean: .4, sd: .05, min: .3, max: .5 },
+  noiseComfort: { get mean() { return parameter("comfort.noiseComfort.mean"); }, get sd() { return parameter("comfort.noiseComfort.sd"); }, get min() { return parameter("comfort.noiseComfort.min"); }, get max() { return parameter("comfort.noiseComfort.max"); } }, focusNoiseComfort: { get mean() { return parameter("comfort.focusNoiseComfort.mean"); }, get sd() { return parameter("comfort.focusNoiseComfort.sd"); }, get min() { return parameter("comfort.focusNoiseComfort.min"); }, get max() { return parameter("comfort.focusNoiseComfort.max"); } },
+  taskLux: { get mean() { return parameter("comfort.taskLux.mean"); }, get sd() { return parameter("comfort.taskLux.sd"); }, get min() { return parameter("comfort.taskLux.min"); }, get max() { return parameter("comfort.taskLux.max"); } }, glareComfort: { get mean() { return parameter("comfort.glareComfort.mean"); }, get sd() { return parameter("comfort.glareComfort.sd"); }, get min() { return parameter("comfort.glareComfort.min"); }, get max() { return parameter("comfort.glareComfort.max"); } },
 } satisfies Record<string, Spread>;
 export function tolerances(profile: PersonProfile | undefined, seed: number): { noiseComfort: number; focusNoiseComfort: number; taskLux: number; glareComfort: number; lowVision: boolean } {
   const draw = (key: keyof typeof DEFAULT_TOLERANCES) => profile ? drawSpread(profile[key] ?? DEFAULT_TOLERANCES[key], personSeed(seed, `${profile.id}:${key}`)) : DEFAULT_TOLERANCES[key].mean;
@@ -73,7 +74,7 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
     for (let index = 0; index < spaces.length; index++) for (const cell of soundCells[index]) {
       for (let minute = 0; minute < floor.minutes.length; minute++) {
         const m = bySpace[index]; const db = floor.minutes[minute][cell];
-        if (db > 70) loudMinutes[index][minute] = 1;
+        if (db > parameter("comfort.warning.noise")) loudMinutes[index][minute] = 1;
         if (db > m.loudestDbA || (db === m.loudestDbA && minute * 60 < m.loudestT)) { m.loudestDbA = db; m.loudestT = minute * 60; }
       }
     }
@@ -111,7 +112,7 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
         const light = env.light(p, a.levelId, sun, a.activity === "at_desk" ? desk?.rotation : undefined);
         const db = sound.at(p, a.levelId, t, track.personId); const causes: DiscomfortCause[] = [];
         if (db > (focused(a.activity, env.space(p, a.levelId)) ? traits.focusNoiseComfort : traits.noiseComfort)) causes.push("loud");
-        if (light.lux < traits.taskLux * (taskActivities.has(a.activity) ? 1 : casualActivities.has(a.activity) ? .5 : .25)) causes.push("dim");
+        if (light.lux < traits.taskLux * (taskActivities.has(a.activity) ? 1 : casualActivities.has(a.activity) ? parameter("comfort.light.casual_factor") : parameter("comfort.light.walk_factor"))) causes.push("dim");
         if (Math.max(light.glare, light.facing) > traits.glareComfort) causes.push("glare");
         if (traits.lowVision && a.activity === "walking" && inside.some((index) => bySpace[index].contrast === "low")) causes.push("low_contrast");
         while (crowdCursor < crowd.length && crowd[crowdCursor].to <= begin) crowdCursor++;
@@ -155,9 +156,9 @@ export function analyseComfort(plan: FloorPlan, scenario: Scenario, tracks: Trac
     const number = desk.id.match(/\d+$/)?.[0]; const name = number ? `Desk ${Number(number)}` : `The desk in ${room.name}`;
     warn({ code: "comfort", message: `${name} gets glare between ${time(span.first)} and ${time(span.last)}.`, refIds: [desk.id] });
   }
-  const dim = bySpace.find((m) => m.dimmestLux < roomLux({ ...spaces[spaceIndex.get(m.spaceId)!], lightingLux: undefined }) * .5);
+  const dim = bySpace.find((m) => m.dimmestLux < roomLux({ ...spaces[spaceIndex.get(m.spaceId)!], lightingLux: undefined }) * parameter("comfort.warning.dim_factor"));
   if (dim) warn({ code: "comfort", message: `${spaces[spaceIndex.get(dim.spaceId)!].name} is dim for its use (${Math.round(dim.dimmestLux)} lux).`, refIds: [dim.spaceId] });
-  const noisy = bySpace.find((_, i) => { let run = 0; for (const value of loudMinutes[i]) { run = value ? run + 1 : 0; if (run >= 15) return true; } return false; });
+  const noisy = bySpace.find((_, i) => { let run = 0; for (const value of loudMinutes[i]) { run = value ? run + 1 : 0; if (run >= parameter("comfort.warning.noise_duration")) return true; } return false; });
   if (noisy) warn({ code: "comfort", message: `${spaces[spaceIndex.get(noisy.spaceId)!].name} reaches ${Math.round(noisy.loudestDbA)} dB(A); check the sound level and time people spend there.`, refIds: [noisy.spaceId] });
   const low = spaces.find((s) => lowVisionRooms.has(s.id) && contrast(s) === "low");
   if (low) warn({ code: "comfort", message: `${low.name} has low floor-and-wall contrast and was used by someone with low vision.`, refIds: [low.id] });

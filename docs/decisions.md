@@ -335,3 +335,11 @@ answers: money only when the user enters a staff hour value (no default salary);
 evacuation pass/fail only against a limit the user states (no country's code is built in); the first optimiser moves
 teams between zones only. All new fields are optional, so v0.6 plans and v0.9 scenarios upgrade by taking the new
 version. Office samples now carry two team zones, a relationship and a keep goal.
+
+## 2026-11-08 · Part A evidence (engine)
+Behaviour defaults now resolve through `engine/src/parameters.ts`; numeric saved scenario behaviours receive stable
+`scenario.*` evidence keys. Verified literature spans are screening envelopes; unsourced assumptions stay explicitly
+labelled and pinned instead of receiving invented uncertainty bounds. Sourced scalar overrides pin their effective
+range (the contract has no override range). Worker runs enable deterministic reduced-sample sensitivity; direct scalar
+calls opt in. Until Part B supplies decision metrics, sensitivity names only existing measured outputs. Calibration
+reports inconsistency and candidate parameters, never unique causes or automatic fits. See `docs/parameters.md`.

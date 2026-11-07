@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { Connector, FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { rampRun } from "./accessibility.ts";
 import { distance, pointInPolygon } from "./geometry.ts";
@@ -15,12 +16,12 @@ export interface PathRoutes {
 
 export function rideSeconds(plan: FloorPlan, connector: Connector, from: string, to: string): number {
   const height = Math.abs(plan.levels.find((l) => l.id === from)!.elevation - plan.levels.find((l) => l.id === to)!.elevation);
-  if (connector.kind === "ramp") return Math.hypot(rampRun(connector),height) / (1.3 * .85);
-  if (connector.kind === "stairs") return height / 0.4;
-  if (connector.kind === "escalator") return height * 4;
+  if (connector.kind === "ramp") return Math.hypot(rampRun(connector),height) / (parameter("walk.speed.adult") * parameter("walk.ramp.speed_factor"));
+  if (connector.kind === "stairs") return height / parameter("walk.stair.vertical_speed");
+  if (connector.kind === "escalator") return height * parameter("walk.escalator.rise_time");
   // Expected pickup: one door cycle plus half a traverse of the served shaft.
   const heights = connector.levelIds.map((id) => plan.levels.find((l) => l.id === id)!.elevation);
-  return 8 + (Math.max(...heights) - Math.min(...heights)) / 3 + height / 1.5 + 8;
+  return parameter("capacity.lift.stop") + (Math.max(...heights) - Math.min(...heights)) / (2 * parameter("capacity.lift.speed")) + height / parameter("capacity.lift.speed") + parameter("capacity.lift.stop");
 }
 
 /** Floor paths joined by directed, time-weighted footprint links. */
@@ -124,7 +125,7 @@ export class BuildingPaths {
     const nodes = [...graph.nodes]; const links = graph.links;
     nodes[0] = onLevel(a, from); nodes[1] = onLevel(b, to);
     const targetLevel = this.plan.levels.findIndex((l) => l.id === to);
-    const heuristic = nodes.map((point) => distance(point, b) / 1.3 + this.minimumTime[this.plan.levels.findIndex((l) => l.id === point.levelId)][targetLevel]);
+    const heuristic = nodes.map((point) => distance(point, b) / parameter("walk.speed.adult") + this.minimumTime[this.plan.levels.findIndex((l) => l.id === point.levelId)][targetLevel]);
     const costs = new Float64Array(nodes.length).fill(Infinity);
     const done = new Uint8Array(nodes.length);
     const previous = new Int32Array(nodes.length).fill(-1);
@@ -146,10 +147,10 @@ export class BuildingPaths {
       }
       for (let next = 1; next < nodes.length; next++) {
         if (done[next] || nodes[current].levelId !== nodes[next].levelId) continue;
-        const lower = distance(nodes[current], nodes[next]) / 1.3;
+        const lower = distance(nodes[current], nodes[next]) / parameter("walk.speed.adult");
         if (costs[current] + lower >= costs[next] - 1e-9) continue;
         const path = current === 0 && next === 1 ? direct : this.local(nodes[current], nodes[next]);
-        if (path) offer(next, path, pathLength(path) / 1.3);
+        if (path) offer(next, path, pathLength(path) / parameter("walk.speed.adult"));
       }
     }
     const pieces: Vec2[][] = [];
