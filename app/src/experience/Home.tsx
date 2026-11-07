@@ -1,10 +1,11 @@
-import { Skeleton } from "../loading/LoadingState.tsx";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { useEditor } from "../state/store.ts";
 import { Logo, Mark } from "../ui/Brand.tsx";
+import { hasShops } from "../population/shoppers.ts";
+import { PlanModel } from "./PlanModel.tsx";
 import { useExperience } from "./state.ts";
 
 type Section = "home" | "samples" | "learn";
@@ -21,7 +22,8 @@ const SAMPLE_NOTES: Record<string, string> = {
   "office-a-evac": "A fire exit and an accessible toilet",
   "mall-2f-evac": "A refuge, a fire exit and a busy Saturday",
 };
-const FEATURED = ["office-a-evac", "mall-2f-evac", "office-a-site", "mall-2f-comfort"];
+// In order of interest; the home row shows as many as fit on one line.
+const FEATURED = ["office-a-evac", "mall-2f-evac", "office-a-site", "mall-2f-comfort", "office-a-comfort", "mall-2f"];
 
 /** The start page: new building, continue, samples and a short guide. */
 export function Home() {
@@ -104,12 +106,12 @@ export function Home() {
                 See all {SAMPLE_PLANS.length}
               </button>
             </div>
-            <div className="home-cards">
+            <FeaturedRow>
               {FEATURED.map((id) => {
                 const s = SAMPLE_PLANS.find((x) => x.id === id)!;
                 return <PlanCard key={id} plan={s.plan} title={s.label} note={SAMPLE_NOTES[id]} onClick={() => open(id)} />;
               })}
-            </div>
+            </FeaturedRow>
           </>
         )}
 
@@ -213,6 +215,26 @@ export function Home() {
   );
 }
 
+/** Shows only the cards that fit on one line, so nothing hidden can take keyboard focus. */
+function FeaturedRow({ children }: { children: ReactNode[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(3);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setFit(Math.max(1, Math.floor((el.clientWidth + 14) / (220 + 14))));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div className="home-cards" ref={ref}>
+      {children.slice(0, fit)}
+    </div>
+  );
+}
+
 function Tile({ icon, title, note, onClick, accent }: { icon: ReactNode; title: string; note: string; onClick: () => void; accent?: boolean }) {
   return (
     <button className={`home-tile ${accent ? "accent" : ""}`} onClick={onClick}>
@@ -225,67 +247,22 @@ function Tile({ icon, title, note, onClick, accent }: { icon: ReactNode; title: 
 
 function PlanCard({ plan, title, note, onClick }: { plan: FloorPlan; title: string; note: string; onClick: () => void }) {
   const floors = plan.levels.length;
+  const kind = hasShops(plan) ? "Mall" : "Office";
   return (
     <button className="plan-card" onClick={onClick}>
-      <PlanThumb plan={plan} />
+      <span className="plan-card-art">
+        <PlanModel plan={plan} />
+        <span className={`plan-card-kind ${kind.toLowerCase()}`}>{kind}</span>
+      </span>
       <span className="plan-card-text">
         <strong>{title}</strong>
         <span>{note}</span>
         <small>
           {floors} floor{floors === 1 ? "" : "s"} · {plan.spaces.length} rooms
+          {plan.site?.location ? " · on a real site" : ""}
         </small>
       </span>
     </button>
-  );
-}
-
-const ROOM_TINT: Partial<Record<string, string>> = {
-  shop: "var(--thumb-shop)",
-  food_court: "var(--thumb-food)",
-  toilet: "var(--thumb-wet)",
-  pantry: "var(--thumb-wet)",
-  meeting_room: "var(--thumb-meet)",
-  private_office: "var(--thumb-meet)",
-};
-
-/** A small drawing of the plan's ground floor: rooms tinted by use, walls on top. */
-function PlanThumb({ plan }: { plan: FloorPlan }) {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 0);
-    return () => clearTimeout(timer);
-  }, [plan]);
-  if (!ready)
-    return (
-      <div className="plan-thumb" aria-hidden="true">
-        <Skeleton label="Preparing preview…" />
-      </div>
-    );
-  const level = plan.levels[0]?.id;
-  const { width: w, height: h } = plan.bounds;
-  const pad = Math.max(w, h) * 0.06;
-  return (
-    <svg className="plan-thumb" viewBox={`${-pad} ${-pad} ${w + pad * 2} ${h + pad * 2}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      {plan.spaces
-        .filter((s) => s.levelId === level)
-        .map((s) => (
-          <polygon key={s.id} points={s.polygon.map((p) => `${p.x},${p.y}`).join(" ")} fill={ROOM_TINT[s.type] ?? "var(--thumb-room)"} />
-        ))}
-      {plan.walls
-        .filter((wl) => wl.levelId === level)
-        .map((wl) => (
-          <line
-            key={wl.id}
-            x1={wl.a.x}
-            y1={wl.a.y}
-            x2={wl.b.x}
-            y2={wl.b.y}
-            stroke="var(--thumb-wall)"
-            strokeWidth={Math.max(w, h) / 90}
-            strokeLinecap="square"
-          />
-        ))}
-    </svg>
   );
 }
 

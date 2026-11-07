@@ -8,3 +8,6 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+// Dissolve the opening screen (in index.html) once the first frame of the app is on screen.
+requestAnimationFrame(() => requestAnimationFrame(() => (window as { __splashReady?: () => void }).__splashReady?.()));

@@ -53,6 +53,10 @@ The app uses explicit user fetches only: a single 200 m Overpass query, four vis
 
 Newest first. One entry per decision: what, why, who decided.
 
+## 2026-11-07: Opening screen and model thumbnails
+- **An opening screen in `index.html`, shown before the app's code arrives:** white, with blooms of the logo's blues plus violet, teal and peach bursting from the centre with a ring and sparks, the three logo faces flying in and locking together, then the wordmark revealed. It dissolves once the app has drawn (at least 1.9 s, so the animation completes; never more than 12 s if the app fails). Reduced motion gets a still version. *(Product owner: "like ElevenLabs, white and minimal with a splash of colour, a controlled explosion")*
+- **Sample cards show each building as a small axonometric model** (floors stacked a little apart, walls raised with door gaps, glass in windows, rooms softly tinted), drawn in SVG from the plan with theme colours, instead of flat coloured room squares. The featured row shows only as many cards as fit on one line. A soft wash of the opening colours sits behind the welcome heading. *(Product owner: "I don't like how the samples look like odd coloured squares")*
+
 ## 2026-11-07: Place on site
 - **Everything fetched from OpenStreetMap is remembered in real-world coordinates**, and the neighbours the simulation sees are worked out for wherever the building stands: buildings it covers are replaced, and come back when it moves away. Before, buildings on the plot were dropped at fetch time and lost. *(Product owner: "move the building and in real time it should remove the other buildings")*
 - **Demolish and keep are read off the plan, not stored separately:** a fetched building left out of `site.neighbours` while not covered is demolished; one included while covered is kept. Undo and redo stay consistent with no contract change; the remembered surroundings live in this browser per plan. *(Claude)*
