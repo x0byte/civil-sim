@@ -31,6 +31,17 @@ describe("shared 3D sun and shadow inputs", () => {
     expect(sunLighting(plan, cloudy, 43200).intensity).toBe(0);
     expect(sunLighting(plan, cloudy, 43200).sun).toEqual(sunLighting(plan, scenario, 43200).sun);
   });
+  it("keeps the afternoon bright under heavy cloud: the sky takes over from the sun", () => {
+    const scenario = previewSunScenario();
+    const clear = sunLighting(plan, scenario, 14 * 3600);
+    const overcast = sunLighting(plan, { ...scenario, comfort: { ...scenario.comfort!, sky: "overcast" as const } }, 14 * 3600);
+    // No direct beam (so no hard shadows), but the sky fill rises well above its clear-day level.
+    expect(overcast.intensity).toBe(0);
+    expect(overcast.sky).toBeGreaterThan(clear.sky + 0.4);
+    // Total light stays a sizeable share of a clear afternoon instead of collapsing to the fill alone.
+    expect(overcast.sky + overcast.intensity).toBeGreaterThan(0.4 * (clear.sky + clear.intensity));
+    expect(sunLighting(plan, scenario, 0).sky).toBeLessThan(clear.sky);
+  });
   it("keeps the run's saved solar inputs, even when current editor settings change", () => {
     const profile = defaultProfile(plan);
     profile.comfort = { ...profile.comfort!, date: "2026-12-21", enabled: false };

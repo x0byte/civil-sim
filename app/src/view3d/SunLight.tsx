@@ -23,14 +23,15 @@ export function SunLight({
     object.position.set(bounds.cx, bounds.top / 3, bounds.cy);
     return object;
   }, [bounds]);
-  const { sun, day, intensity, cloud } = sunLighting(plan, scenario, clock),
+  const { sun, day, intensity, cloud, sky } = sunLighting(plan, scenario, clock),
+    grey = day && cloud > 0.6,
     radius = Math.max(bounds.span, bounds.top * 2) + 8,
     distance = radius * 2;
   const shadowCamera = useMemo(() => new THREE.OrthographicCamera(-radius, radius, radius, -radius, 0.1, radius * 5), [radius]);
   return (
     <>
-      <color attach="background" args={[day ? (dark ? "#263a48" : "#dceaf1") : "#182338"]} />
-      <hemisphereLight args={[day ? "#ebf2ff" : "#8e9fc8", day ? "#9a9588" : "#3e465a", day ? 0.75 : 0.3]} />
+      <color attach="background" args={[day ? (grey ? (dark ? "#2f3a43" : "#d3dade") : dark ? "#263a48" : "#dceaf1") : "#182338"]} />
+      <hemisphereLight args={[day ? "#ebf2ff" : "#8e9fc8", day ? "#9a9588" : "#3e465a", sky]} />
       <primitive object={target} />
       <directionalLight
         target={target}

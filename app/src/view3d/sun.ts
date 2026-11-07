@@ -48,9 +48,19 @@ export function runSunScenario(run: SimRun): Scenario {
   return run.scenario.comfort ? run.scenario : { ...run.scenario, comfort: previewSunScenario(run.profile).comfort };
 }
 export const clockSeconds = (start: string, t = 0) => Number(start.slice(0, 2)) * 3600 + Number(start.slice(3, 5)) * 60 + t;
+/** Even fill light from a clear daytime sky, and at night. */
+export const SKY_BASE = 0.75;
+const NIGHT_SKY = 0.3;
 export function sunLighting(plan: FloorPlan, scenario: Scenario, clock: number) {
   const sun = sunPosition(plan, scenario, clock),
     cloud = cloudFraction(scenario, clock);
-  return { sun, cloud, day: sun.up > 0, intensity: sun.up > 0 ? 2.2 * Math.sqrt(sun.up) * (1 - cloud) : 0 };
+  const day = sun.up > 0,
+    clear = day ? 2.2 * Math.sqrt(sun.up) : 0;
+  // Cloud blocks the sun's direct beam but not the daylight: the sky itself glows. Total daylight
+  // under cloud follows Kasten and Czeplak (1980), 1 - 0.75·c^3.4, so even a fully covered sky keeps
+  // a quarter of clear-sky light. Whatever the beam loses beyond that comes back as even sky light.
+  const intensity = clear * (1 - cloud),
+    daylight = clear * (1 - 0.75 * cloud ** 3.4);
+  return { sun, cloud, day, intensity, sky: day ? SKY_BASE + Math.max(0, daylight - intensity) : NIGHT_SKY };
 }
 export const sunDate = (scenario: { comfort?: Comfort }) => scenario.comfort?.date ?? DEFAULT_COMFORT.date;

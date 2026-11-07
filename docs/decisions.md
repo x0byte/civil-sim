@@ -296,3 +296,9 @@ Newest first. One entry per decision: what, why, who decided.
 these tokens (`--space-*`, `--text-*`, `--control-h`) rather than new pixel values. Selects and text fields sit under
 their label (full width) so choices are never cut off; number fields keep the label beside them. The sidebar keeps
 88 px of room at the bottom so the floating assistant button never covers the last panel.
+
+## 2026-11-07 · Cloud dims the sun, not the daylight (3D views)
+The 3D light used to scale sunlight by (1 − cloud cover), so Colombo's usual afternoon cloud (about 80–100% by 14:00)
+made every 3D view go dark. Now cloud only removes the direct beam (and its hard shadows); total daylight follows
+Kasten and Czeplak, 1 − 0.75·c^3.4, and the difference comes back as even sky light, with a greyer sky colour. This is
+the visual preview only; the engine's comfort light and glare calculations are unchanged.
