@@ -1,5 +1,5 @@
 {
-  "version": "0.9",
+  "version": "1.0",
   "id": "office-day-comfort",
   "name": "Ordinary workday with comfort: sun, road noise and sensitive staff",
   "seed": 42,
@@ -14,11 +14,27 @@
     },
     {
       "id": "ops",
-      "name": "Operations"
+      "name": "Operations",
+      "zoneId": "zone-ops"
     },
     {
       "id": "sales",
-      "name": "Sales"
+      "name": "Sales",
+      "zoneId": "zone-sales"
+    }
+  ],
+  "relationships": [
+    {
+      "a": "ops",
+      "b": "sales",
+      "perPersonPerDay": 1,
+      "from": "user"
+    }
+  ],
+  "goals": [
+    {
+      "kind": "keep",
+      "teamId": "mgmt"
     }
   ],
   "people": [

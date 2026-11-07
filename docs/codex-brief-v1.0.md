@@ -2,7 +2,9 @@
 
 **From:** Claude (reviewer) for the product owner · **Date:** 2026-11-08
 **Branch:** one branch per part below (`engine/v1-evidence`, `app/v1-results`, …), each reviewed by Claude before merging.
-**Contracts:** Part 0 lists the contract changes this needs. **They are a proposal until the product owner approves them** ("Approve v1.0"). Don't edit `contracts/` before that.
+**Contracts:** **approved 2026-11-08** and in `contracts/` (floor plan v0.7, scenario v1.0, results v1.0, with validation). Build against the files, not the sketch in Part 0; where they differ, the files win. The product owner's answers to the questions at the end: money only with a staff hour value; 12 runs by default; evacuation limit always from the user; optimiser moves teams only.
+
+**First commit on `engine/v1-evidence`:** the version bump left the engine's test fixtures on the old literals (`"0.6"`, `"0.9"`); `src/` is fine. Use `FLOORPLAN_VERSION` / `SCENARIO_VERSION` from the contracts instead of literals so the next bump doesn't break them. On the contracts branch, `npm test` in `engine/` gives 238 passed, 47 failed, all from the bump: fixtures rejected for the old version (most), assertions expecting result version "0.9", and the full-result hash tests that rewrite the version before hashing. One test runs `office-day` (whose teams now name `zone-ops` and `zone-sales`) on a plan without zones; give that plan the zones or strip `zoneId` in the test. Engine behaviour is unchanged, so after these updates every result hash should match as before.
 
 ---
 

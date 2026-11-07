@@ -80,7 +80,7 @@ export function parseProjectOrPlan(text: string): Opened {
 function isPlan(x: unknown): x is FloorPlan {
   const p = x as FloorPlan;
   const version = (p as { version?: string } | undefined)?.version;
-  const known = version === "0.1" || ((version === "0.2" || version === "0.3" || version === "0.4" || version === "0.5" || version === "0.6") && Array.isArray(p.levels) && p.levels.length > 0);
+  const known = version === "0.1" || ((version === "0.2" || version === "0.3" || version === "0.4" || version === "0.5" || version === "0.6" || version === "0.7") && Array.isArray(p.levels) && p.levels.length > 0);
   return !!p && known && typeof p.id === "string" && Array.isArray(p.walls) && Array.isArray(p.spaces);
 }
 

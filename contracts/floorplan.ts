@@ -1,8 +1,8 @@
-// Floor plan contract, v0.6: a building of one or more floors, what it looks and sounds like, and what surrounds it.
+// Floor plan contract, v0.7: a building of one or more floors, what it looks and sounds like, and what surrounds it.
 // The editor (app/) writes this; the engine (engine/) reads it.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const FLOORPLAN_VERSION = "0.6";
+export const FLOORPLAN_VERSION = "0.7";
 
 /**
  * A point in metres. Origin is the top-left of the plan,
@@ -34,9 +34,30 @@ export interface FloorPlan {
   site?: Site;
   /** Things that make noise: a road outside, plant, music, a generator. People, escalators and lifts are counted by the engine. Missing: none. */
   noiseSources?: NoiseSource[];
+  /** Areas with no walls of their own: a team's part of an open office, a quiet corner, café seating (v0.7). Missing: none. */
+  zones?: Zone[];
   /** Editor-only data (traced image, scale calibration). The engine ignores it. */
   underlay?: Underlay;
 }
+
+/**
+ * An area of a floor with no walls of its own (v0.7): a team's part of an open office, a quiet or
+ * collaboration area, café seating, a service point. Like spaces, zones are labels: walls and doors
+ * still decide where people can walk.
+ */
+export interface Zone {
+  id: string;
+  levelId: string;
+  name: string;
+  /** Simple polygon (no self-intersections), at least 3 points, any winding. Must lie inside one space on the same floor. */
+  polygon: Vec2[];
+  /** What it's for. "team" zones hold a team's desks (scenario `Team.zoneId`); the others are activity areas. */
+  use: ZoneUse;
+  /** Team zones: how many desks it should hold when desks are generated for it. Missing: drawn desks inside it count. */
+  capacity?: number;
+}
+
+export type ZoneUse = "team" | "quiet" | "collaboration" | "seating" | "service";
 
 export interface Site {
   /** Direction of north, degrees clockwise from "up the page" (−y), 0 to under 360. */

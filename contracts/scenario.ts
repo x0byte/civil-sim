@@ -1,9 +1,11 @@
-// Scenario contract, v0.9: who is in the building and what their day looks like.
+// Scenario contract, v1.0: who is in the building, what their day looks like, and what the user wants from the layout.
 // Kept separate from the floor plan so the same people and the same day can be
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const SCENARIO_VERSION = "0.9";
+import type { SpaceType } from "./floorplan.ts";
+
+export const SCENARIO_VERSION = "1.0";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
@@ -43,6 +45,59 @@ export interface Scenario {
   comfort?: Comfort;
   /** Sound an alarm and evacuate (contract v0.9). Missing: an ordinary day. */
   evacuation?: Evacuation;
+  /** How closely teams work together (v1.0). Drives the team-distance metric and the optimiser. Missing: derived from meetings. */
+  relationships?: Relationship[];
+  /** What the user wants from the layout, in a form the optimiser can use (v1.0). Missing: none. */
+  goals?: Goal[];
+  /** Parameter values overridden for this scenario, each with where it came from (v1.0). Missing: registry values throughout. */
+  parameters?: ParameterOverride[];
+  /** Turns lost time and footfall into money (v1.0). Missing: no money figures are shown. */
+  costs?: Costs;
+  /** How many runs make up one result, with seeds and parameters varied within their ranges (v1.0). Missing: 12. */
+  uncertainty?: { runs: number };
+}
+
+/** How closely two teams work together (v1.0). */
+export interface Relationship {
+  /** Team ids; a and b differ. Each pair appears once, in either order. */
+  a: string;
+  b: string;
+  /** Face-to-face interactions per person per day, typical: "closely" about 4, "sometimes" about 1, "rarely" about 0.2. */
+  perPersonPerDay: number;
+  /** Where it came from: said to Ella or entered ("user"), worked out from the meeting schedule ("meetings"), or a staff survey ("survey"). */
+  from: "user" | "meetings" | "survey";
+}
+
+/** A goal or constraint the user stated (v1.0). Weights are relative importance, greater than 0. */
+export type Goal =
+  | { kind: "near"; teamA: string; teamB: string; weight: number }
+  | { kind: "near_space"; teamId: string; spaceType: SpaceType; weight: number }
+  | { kind: "away_from"; teamId: string; spaceType: SpaceType; weight: number }
+  /** This team doesn't move when the optimiser proposes a layout. */
+  | { kind: "keep"; teamId: string }
+  /** Nobody's typical trip should take longer than this. */
+  | { kind: "max_walk"; seconds: number }
+  /** Time for everyone to get out, from the code the user works to. Nine Arches never assumes a country's code. */
+  | { kind: "evacuation_limit"; seconds: number };
+
+/** One registry parameter overridden for this scenario (v1.0). Keys are listed in the engine's parameter registry. */
+export interface ParameterOverride {
+  /** Registry key, e.g. "walk.speed.adult". */
+  key: string;
+  value: number;
+  /** Where the value came from: a measurement ("Counted at the site, 2026-12-01") or a citation. Never empty. */
+  source: string;
+}
+
+/** Money settings (v1.0). Money is shown only when the matching value is given; there are no default salaries. */
+export interface Costs {
+  currency: "LKR" | "USD";
+  /** Value of one hour of a staff member's time, fully loaded. Turns lost time into money. */
+  staffHourValue?: number;
+  /** Average spend per shopper visit. Turns footfall into a revenue proxy. */
+  spendPerVisit?: number;
+  /** Working days a year, for annual figures. Missing: 250. */
+  workdaysPerYear?: number;
 }
 
 /**
@@ -233,6 +288,10 @@ export interface Visitor {
 export interface Team {
   id: string;
   name: string;
+  /** The plan zone (use "team") this team sits in (v1.0). Desks are then allocated inside it. Missing: wherever its people's desks are. */
+  zoneId?: string;
+  /** Headcount when people aren't listed one by one (v1.0). Missing: the people listed with this team. */
+  headcount?: number;
 }
 
 export type Role = "staff" | "manager";

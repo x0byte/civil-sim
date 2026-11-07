@@ -64,7 +64,12 @@ export type IssueCode =
   | "comfort"
   | "weather"
   | "evacuation"
-  | "reserved_id";
+  | "reserved_id"
+  | "zone"
+  | "relationship"
+  | "goal"
+  | "parameter"
+  | "costs";
 
 export interface ValidationIssue {
   code: IssueCode;
@@ -257,6 +262,34 @@ export function checkFloorPlan(plan: FloorPlan): ValidationIssue[] {
       }
     }
   }
+  // Zones (v0.7): inside one space on their floor, not overlapping each other.
+  const ZONE_USES = new Set(["team", "quiet", "collaboration", "seating", "service"]);
+  const within = (p: Vec2, poly: Vec2[]) => pointInPolygon(p, poly) || distToPolygonEdge(p, poly) <= 0.05;
+  const zones = plan.zones ?? [];
+  for (const z of zones) {
+    claim(z.id, "zone");
+    onLevel(`zone ${z.id}`, z.levelId);
+    if (!z.name) err("zone", `zone ${z.id} needs a name`);
+    if (!ZONE_USES.has(z.use)) err("zone", `zone ${z.id} use must be team, quiet, collaboration, seating or service`);
+    if (z.capacity !== undefined && !(Number.isInteger(z.capacity) && z.capacity > 0)) err("zone", `zone ${z.id} capacity must be a positive whole number`);
+    if (!Array.isArray(z.polygon) || z.polygon.length < 3 || !z.polygon.every((p) => isNum(p?.x) && isNum(p?.y))) {
+      err("zone", `zone ${z.id} needs a polygon with at least 3 points`);
+      continue;
+    }
+    if (!z.polygon.every(inBounds)) err("outside_bounds", `zone ${z.id} has a point outside bounds`);
+    const host = plan.spaces.find((sp) => sp.levelId === z.levelId && Array.isArray(sp.polygon) && z.polygon.every((p) => within(p, sp.polygon)));
+    if (!host) err("zone", `zone ${z.id} must lie inside one space on its floor`);
+  }
+  for (let i = 0; i < zones.length; i++)
+    for (let j = i + 1; j < zones.length; j++) {
+      const a = zones[i],
+        b = zones[j];
+      if (a.levelId !== b.levelId || !Array.isArray(a.polygon) || !Array.isArray(b.polygon) || a.polygon.length < 3 || b.polygon.length < 3) continue;
+      const strictlyIn = (p: Vec2, poly: Vec2[]) => pointInPolygon(p, poly) && distToPolygonEdge(p, poly) > 0.05;
+      if (a.polygon.some((p) => strictlyIn(p, b.polygon)) || b.polygon.some((p) => strictlyIn(p, a.polygon)))
+        err("zone", `zones ${a.id} and ${b.id} overlap`);
+    }
+
   for (const n of plan.noiseSources ?? []) {
     claim(n.id, "noise source");
     onLevel(`noise source ${n.id}`, n.levelId);
@@ -461,6 +494,70 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
       err("shoppers", `plan ${plan.id} has no shops or food court for shoppers to visit`);
     }
   }
+
+  // v1.0: teams in zones, relationships, goals, parameter overrides, costs, uncertainty runs.
+  const SPACE_TYPES = new Set(["open_office", "private_office", "meeting_room", "toilet", "pantry", "reception", "corridor", "storage", "shop", "food_court", "atrium", "service", "other"]);
+  const positive = (n: unknown) => isNum(n) && n > 0;
+  for (const t of scenario.teams) {
+    if (t.headcount !== undefined && !(Number.isInteger(t.headcount) && t.headcount > 0)) err("unknown_team", `team ${t.id} headcount must be a positive whole number`);
+    if (t.zoneId !== undefined && plan) {
+      const z = (plan.zones ?? []).find((zz) => zz.id === t.zoneId);
+      if (!z) err("zone", `team ${t.id} references unknown zone "${t.zoneId}"`);
+      else if (z.use !== "team") err("zone", `team ${t.id} sits in zone ${z.id}, which isn't a team zone`);
+    }
+  }
+  const pairs = new Set<string>();
+  for (const r of scenario.relationships ?? []) {
+    if (!teamIds.has(r.a) || !teamIds.has(r.b)) err("relationship", `relationship ${r.a}–${r.b} references an unknown team`);
+    if (r.a === r.b) err("relationship", `relationship needs two different teams ("${r.a}")`);
+    if (!(isNum(r.perPersonPerDay) && r.perPersonPerDay >= 0 && r.perPersonPerDay <= 50)) err("relationship", `relationship ${r.a}–${r.b} perPersonPerDay must be 0–50`);
+    if (!["user", "meetings", "survey"].includes(r.from)) err("relationship", `relationship ${r.a}–${r.b} from must be user, meetings or survey`);
+    const key = [r.a, r.b].sort().join("|");
+    if (pairs.has(key)) err("relationship", `relationship ${r.a}–${r.b} is listed twice`);
+    pairs.add(key);
+  }
+  for (const g of scenario.goals ?? []) {
+    const team = (id: string) => teamIds.has(id) || err("goal", `goal ${g.kind} references unknown team "${id}"`);
+    switch (g.kind) {
+      case "near":
+        team(g.teamA);
+        team(g.teamB);
+        if (!positive(g.weight)) err("goal", "goal near needs a weight above 0");
+        break;
+      case "near_space":
+      case "away_from":
+        team(g.teamId);
+        if (!SPACE_TYPES.has(g.spaceType)) err("goal", `goal ${g.kind} has unknown space type "${g.spaceType}"`);
+        if (!positive(g.weight)) err("goal", `goal ${g.kind} needs a weight above 0`);
+        break;
+      case "keep":
+        team(g.teamId);
+        break;
+      case "max_walk":
+      case "evacuation_limit":
+        if (!positive(g.seconds)) err("goal", `goal ${g.kind} needs seconds above 0`);
+        break;
+      default:
+        err("goal", `unknown goal kind "${(g as { kind: string }).kind}"`);
+    }
+  }
+  const overridden = new Set<string>();
+  for (const o of scenario.parameters ?? []) {
+    if (!o.key) err("parameter", "parameter override needs a key");
+    else if (overridden.has(o.key)) err("parameter", `parameter ${o.key} is overridden twice`);
+    overridden.add(o.key);
+    if (!isNum(o.value)) err("parameter", `parameter ${o.key} needs a numeric value`);
+    if (!o.source || !o.source.trim()) err("parameter", `parameter ${o.key} needs a source`);
+  }
+  if (scenario.costs) {
+    const c = scenario.costs;
+    if (c.currency !== "LKR" && c.currency !== "USD") err("costs", "costs currency must be LKR or USD");
+    if (c.staffHourValue !== undefined && !positive(c.staffHourValue)) err("costs", "staffHourValue must be above 0");
+    if (c.spendPerVisit !== undefined && !positive(c.spendPerVisit)) err("costs", "spendPerVisit must be above 0");
+    if (c.workdaysPerYear !== undefined && !(Number.isInteger(c.workdaysPerYear) && c.workdaysPerYear >= 1 && c.workdaysPerYear <= 366)) err("costs", "workdaysPerYear must be 1–366");
+  }
+  if (scenario.uncertainty && !(Number.isInteger(scenario.uncertainty.runs) && scenario.uncertainty.runs >= 1 && scenario.uncertainty.runs <= 100))
+    err("parameter", "uncertainty runs must be a whole number from 1 to 100");
 
   return issues;
 }

@@ -328,3 +328,10 @@ and drawn on with `pathLength=1` stroke animation. The demo floor plans use a sm
 (`site/src/plan.ts`: routes, queues at gates with a flow rate, a heat trail), not the real engine; demo numbers are
 labelled Illustrative. Run with `npm run dev` in `site/` (port 5180). Placeholders still to replace: the app URL and
 `TODO_CONTACT`.
+
+## 2026-11-08 · Contracts v1.0 approved
+Floor plan v0.7, scenario v1.0, results v1.0 (see `contracts/README.md`). The product owner accepted the recommended
+answers: money only when the user enters a staff hour value (no default salary); 12 uncertainty runs by default;
+evacuation pass/fail only against a limit the user states (no country's code is built in); the first optimiser moves
+teams between zones only. All new fields are optional, so v0.6 plans and v0.9 scenarios upgrade by taking the new
+version. Office samples now carry two team zones, a relationship and a keep goal.
