@@ -86,3 +86,54 @@ No contract change: `Evidence.parameters` already carries `low`, `high` and `sou
 
 Fix blocker 1, do 2a for at least the first three priority groups, apply the bounds-and-bell-curve decision, rerun
 the full engine and app suites, and update the report with the new sourced/assumed counts.
+
+---
+
+# Re-review: revision `02c634c` (2026-11-08)
+
+**Verdict: approved, with one required change before merge** (the app shouldn't wait for sensitivity). Everything
+the first review asked for is done, and done carefully.
+
+## Checked
+
+- **Tests.** Engine 312 of 312 (one timing test, shopper median under 3 s, failed once at 3.1 s while I ran the app
+  suite at the same time; it passes on its own). App 196 of 196. Contracts 11 of 11.
+- **Blocker 1** fixed: the worker comparison uses `simulate(…, { sensitivity: true })`, including the fallback.
+- **Bounds and bell curve.** 9 sourced behaviours, 96 assumed-range (labelled), 29 fixed settings. The sampler is a
+  median-anchored split normal truncated at the bounds, with inverse-CDF draws (equivalent to redrawing, without the
+  loop) and seeded Latin hypercube by key, so adding a parameter never reshuffles the others. Shares are kept summing
+  to 1. Settings and overrides stay fixed. Tests cover bounds, median, reproducibility and strata. Good.
+- **Sensitivity now tells the truth.** Toilet visit rate drives queue time (about 212–235% swing over its assumed
+  range), then facility time; lift stop time and speed drive lift waits; reaction spread drives evacuation. That's
+  the "what to measure first" list we wanted.
+- **Research log** (`docs/parameter-research.md`) separates published model inputs from observations, says which
+  pages were read and which weren't, and refuses to stretch sources (e.g. real-fire delays aren't folded into a
+  drill curve). The two citations I verified last time are unchanged. I couldn't retrieve Gwynne and Boswell (2009)
+  myself (the link redirects to an archive I can't reach), so the evacuation envelope is **not yet checked by me**.
+
+## Required before merge
+
+**Don't make every run wait for sensitivity.** The app runs `simulate(…, { sensitivity: true })` for every run,
+including comparisons. On the malls that's 12–17 s extra before any result shows (mall-2f-comfort 17 s,
+mall-2f-evac 15.5 s), and double that when comparing two layouts. Results used to appear in about 3 s.
+
+Change: run the day without sensitivity and show the results as before. Then compute sensitivity as a second
+background task, with its own progress chip ("Checking what the result depends on · 37 of 117"). Cancel it if
+another run starts, and fill in `evidence.sensitivity` when it finishes. The Evidence tab (Part C) shows "still
+checking…" until then. Comparisons don't need sensitivity at all.
+
+## For Part B
+
+Part B multiplies the run count by 12. With the current costs, a mall-comfort result would take 30 s or more.
+Plan the budget now:
+- show the central run immediately;
+- stream the range runs in the background with progress, narrowing the ranges as runs complete (show "from 6 of 12
+  runs" until done);
+- reuse the scoped geometry and route caches the sensitivity work already shares across runs;
+- skip comfort grids in range runs unless a comfort metric is a headline;
+- report the timings per sample, like this time.
+
+## Nice to have
+
+- Splitting toilet versus pantry service time by purpose (the log explains why a single duration model is a
+  limitation) is worth a small engine change later: it's now the second-biggest queue driver.
