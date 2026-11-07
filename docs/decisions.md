@@ -302,3 +302,10 @@ The 3D light used to scale sunlight by (1 − cloud cover), so Colombo's usual a
 made every 3D view go dark. Now cloud only removes the direct beam (and its hard shadows); total daylight follows
 Kasten and Czeplak, 1 − 0.75·c^3.4, and the difference comes back as even sky light, with a greyer sky colour. This is
 the visual preview only; the engine's comfort light and glare calculations are unchanged.
+
+## 2026-11-07 · Dropdowns
+App-bar menus and every `<select>` share one look (tokens `--pop-*` in `app/src/ui/system.css`): a floating card,
+a soft accent tint on hover and keyboard focus, and a thin chevron. Menus take arrow keys, Home/End and Escape, and
+while one is open, hovering another title switches to it. Where the browser supports `appearance: base-select`
+(Chrome, Edge), the open select list is styled to match, with a checkmark on the current choice; other browsers keep
+their system list with the styled closed control. Selects stay native elements, so forms and tests need no change.

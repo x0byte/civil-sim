@@ -282,3 +282,224 @@
   font-size: var(--text-small);
   line-height: var(--leading);
 }
+
+/* ---------- Dropdowns ----------
+   Menus (File, Edit, View) and every <select> share one look: a soft floating card, items that
+   highlight with a quiet accent tint, and a thin chevron. Where the browser allows a styled select
+   list (Chrome and Edge), the open list matches the menus too; elsewhere the system list is used. */
+:root {
+  --pop-bg: var(--paper);
+  --pop-border: color-mix(in srgb, var(--ink) 10%, transparent);
+  --pop-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 12px 32px -6px rgb(15 23 42 / 0.18);
+  --pop-hover: color-mix(in srgb, var(--accent) 11%, transparent);
+  --pop-hover-ink: var(--ink);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6.5 8 10l3.5-3.5' fill='none' stroke='%23626c7d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+html:root[data-theme="dark"] {
+  --pop-bg: #1f2125;
+  --pop-border: rgb(255 255 255 / 0.09);
+  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --pop-hover: color-mix(in srgb, var(--accent) 30%, transparent);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 6.5 8 10l3.5-3.5' fill='none' stroke='%23a3abb8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* App-bar menus */
+.menu-list {
+  top: calc(100% + 6px);
+  min-width: 260px;
+  padding: 6px;
+  background: var(--pop-bg);
+  border: 1px solid var(--pop-border);
+  border-radius: 12px;
+  box-shadow: var(--pop-shadow);
+  transform-origin: top left;
+  animation: pop-in 0.14s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.menu-list button {
+  grid-template-columns: 18px 1fr auto;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 10px 0 8px;
+  border-radius: 7px;
+  font-size: var(--text-body);
+  line-height: 1.3;
+  outline: none;
+  transition: background-color 0.08s;
+}
+.menu-list button:hover:not(:disabled),
+.menu-list button:focus-visible:not(:disabled),
+.menu-list button:focus:not(:disabled) {
+  background: var(--pop-hover);
+  color: var(--pop-hover-ink);
+}
+.menu-check {
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+}
+.menu-list kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--pop-border);
+  border-radius: 5px;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  opacity: 1;
+}
+.menu-heading {
+  padding: 10px 10px 4px 34px;
+  font-size: var(--text-caption);
+  letter-spacing: 0.06em;
+}
+.menu-separator {
+  margin: 6px 4px;
+  background: var(--pop-border);
+}
+.menu-button {
+  transition: background-color 0.1s;
+}
+.menu-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Selects: the closed control */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-color: var(--surface);
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  color: var(--ink);
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s,
+    background-color 0.12s;
+}
+select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+select:focus-visible,
+select:open {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sidebar .field select {
+  padding-right: 28px;
+}
+
+/* Selects: the open list, where the browser lets us style it */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  select {
+    display: inline-flex;
+    align-items: center;
+    background-image: none;
+    padding-right: 8px;
+  }
+  .sidebar .field select {
+    padding-right: 8px;
+  }
+  select > button {
+    all: unset;
+  }
+  select::picker-icon {
+    content: "";
+    width: 14px;
+    height: 14px;
+    margin-left: auto;
+    padding-left: 6px;
+    flex: none;
+    background: var(--chevron) no-repeat center / 14px 14px;
+    transition: transform 0.15s;
+  }
+  select:open::picker-icon {
+    transform: rotate(180deg);
+  }
+  select selectedcontent {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  ::picker(select) {
+    /* Below the control first; above only when the window has no room underneath. */
+    position-area: block-end span-inline-end;
+    position-try-fallbacks: flip-block;
+    position-try-order: normal;
+    margin: 6px 0;
+    padding: 6px;
+    min-width: anchor-size(width);
+    max-height: min(360px, 60vh);
+    overflow-y: auto;
+    background: var(--pop-bg);
+    color: var(--ink);
+    border: 1px solid var(--pop-border);
+    border-radius: 12px;
+    box-shadow: var(--pop-shadow);
+    font-size: var(--text-body);
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.14s,
+      transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1),
+      overlay 0.14s allow-discrete,
+      display 0.14s allow-discrete;
+  }
+  ::picker(select):popover-open {
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+  }
+  select option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: 0 12px 0 8px;
+    border-radius: 7px;
+    line-height: 1.3;
+    cursor: pointer;
+    outline: none;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background: var(--pop-hover);
+  }
+  select option:checked {
+    font-weight: 600;
+  }
+  select option::checkmark {
+    order: -1;
+    width: 14px;
+    content: "✓";
+    color: var(--accent-text);
+    font-weight: 700;
+  }
+  select option:not(:checked)::checkmark {
+    visibility: hidden;
+  }
+}
