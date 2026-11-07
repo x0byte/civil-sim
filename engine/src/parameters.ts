@@ -10,6 +10,7 @@ export interface Parameter {
 
 /** Bounds describe uncertainty about behaviour, not numerical solver settings. */
 export const PARAMETERS: readonly Parameter[] = Object.freeze(coherentBounds([
+  Object.freeze({ key: "setting.uncertainty.runs", kind: "setting", value: 12, low: 12, high: 12, unit: "runs", source: "Setting: Product owner's default uncertainty budget (2026-11-08).", note: "Number of uncertainty runs when scenario.uncertainty.runs is omitted; the central run is additional." }),
   Object.freeze({ key: "setting.sensitivity.retail_sample_size", kind: "setting", value: 12, low: 12, high: 12, unit: "people", source: "Setting: Fixed retail screening population budget.", note: "Maximum sampled staff, visitors and expected shopper arrivals per category in retail screening; all endpoints use the same population scale." }),
   Object.freeze({ key: "setting.sensitivity.sample_size", kind: "setting", value: 24, low: 24, high: 24, unit: "people", source: "Setting: Reduced population budget for deterministic sensitivity screening.", note: "Maximum sampled staff, visitors, and expected shopper arrivals per category; geometry and day are preserved." }),
   Object.freeze({

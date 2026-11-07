@@ -159,6 +159,7 @@ provenance in each result.
 
 | Key | Kind / evidence | Value | Low–high | Unit | Meaning |
 |---|---|---:|---:|---|---|
+| `setting.uncertainty.runs` | setting / Setting | 12 | 12–12 | runs | Product owner’s default range-run budget; central run is additional. |
 | `setting.sensitivity.retail_sample_size` | setting / Setting | 12 | 12–12 | people | Maximum sampled staff, visitors and expected shopper arrivals per category in retail screening; all endpoints use the same population scale. |
 | `setting.sensitivity.sample_size` | setting / Setting | 24 | 24–24 | people | Maximum sampled staff, visitors, and expected shopper arrivals per category; geometry and day are preserved. |
 | `walk.speed.adult` | behaviour / Source | 1.3 | 1.2–1.34 | m/s | Legacy adult speed; within published fitted free speeds. Explicit profile distributions take precedence for staff. |

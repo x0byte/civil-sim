@@ -363,3 +363,10 @@ App day runs publish without sensitivity, then use a separate cancellable worker
 only evidence. A new run, comparison, or plan/people edit cancels that work; generation and result identity guards
 reject late messages. Evidence updates preserve track identity so playback does not restart. Comparisons omit
 sensitivity. Secondary failures retain the central result and offer retry.
+
+## 2026-11-08 · Part B starts with a pull-based range runner
+The uncertainty runner yields the unchanged central result before sampling, then updates p10/median/p90 with each
+completed LHS run. Retained cache owners activate only for each synchronous call, restoring scope before yielding.
+Range measurements retain occupancy/retail but omit supporting grids unless comfort is a requested headline; the
+median-nearest sample is replayed once with full grids to avoid holding twelve track sets. Metric readers are
+explicit: this first increment does not label existing walking metrics as time lost or populate decision metrics.

@@ -1371,5 +1371,25 @@
       "0 in row.drivers.sort((a, b) => b.swingPct - a.swingPct || a.key.localeCompare(b.key)).slice(0, 5)": 1,
       "5 in row.drivers.sort((a, b) => b.swingPct - a.swingPct || a.key.localeCompare(b.key)).slice(0, 5)": 1
     }
+  },
+  "engine/src/uncertainty.ts": {
+    "reason": "Order-statistic interpolation (contract p10/median/p90), empty/count indexing, and unsigned seed collision resolution; default run budget lives in the registry.",
+    "expressions": {
+      "0 in quantile < 0": 1,
+      "1 in quantile > 1": 1,
+      "1 in sorted.length - 1": 1,
+      "0 in samples[0]": 1,
+      ".5 in percentile(values, .5)": 1,
+      ".1 in percentile(values, .1)": 1,
+      ".9 in percentile(values, .9)": 1,
+      "1 in total < 1": 1,
+      "0 in completed: 0": 1,
+      "0 in scenario.seed >>> 0": 1,
+      "1 in seed + 1": 1,
+      "0 in (seed + 1) >>> 0": 1,
+      "1 in index + 1": 2,
+      "0 in selected = 0": 1,
+      "1 in index = 1": 1
+    }
   }
 }

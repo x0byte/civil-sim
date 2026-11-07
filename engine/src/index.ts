@@ -188,7 +188,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
   const accessibility = accessibilityChecks(plan,access);
   for(const check of accessibility) if(!check.ok) warn({code:"accessibility",message:check.message,refIds:check.refIds});
   options.onProgress?.({ stage: "measuring" });
-  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS, options.onProgress ? () => options.onProgress!({ stage: "comfort" }) : undefined, options.measurement === "movement");
+  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS, options.onProgress ? () => options.onProgress!({ stage: "comfort" }) : undefined, options.measurement === "movement", options.measurement === "headlines");
   aggregated.metrics.evacuation = evacuation?.metrics ?? null; aggregated.metrics.accessibility = accessibility;
   if(evacuation) aggregated.metrics.headcount = aggregated.metrics.headcount.filter(p=>p.t<=evacuation.durationS);
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
@@ -288,3 +288,6 @@ function assumptions(scenario: Scenario): string[] {
   if (scenario.profiles || scenario.crowding) entries.push("Density is sampled every five seconds in exact one-metre circles around half-metre cell centres, with occupied-point checks for rooms too narrow to contain a cell centre. The same grid is used for space peaks and density heatmaps; short or smaller crowd peaks can fall between samples.");
   return entries;
 }
+
+export { percentile, streamUncertainty } from './uncertainty.ts';
+export type { MeasuredValue, RangeMeasurement, UncertaintyOptions, UncertaintySnapshot } from './uncertainty.ts';

@@ -10,8 +10,11 @@ export interface SimulationProgress {
   people?: number;
 }
 export interface SimulationOptions {
-  /** Internal screening only: omit heatmap/comfort post-processing; movement is unchanged. */
-  measurement?: "movement";
+  /** Internal batch measurements only. "movement" omits all grids and occupancy;
+   * "headlines" retains room occupancy/retail but omits grids, density and comfort.
+   * Neither mode changes movement. Representative playback uses full measurement.
+   */
+  measurement?: "movement" | "headlines";
   /** Enable in the background worker; scalar callers retain the inexpensive single run. */
   sensitivity?: boolean | Omit<SensitivityOptions, "onProgress">;
   onProgress?: (progress: SimulationProgress) => void;
