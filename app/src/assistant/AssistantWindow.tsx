@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GLOSSARY, suggestions, useExperience } from "../experience/state.ts";
 import { useEditor } from "../state/store.ts";
-import { VoltMark } from "../ui/Brand.tsx";
+import { ASSISTANT_NAME, Mark } from "../ui/Brand.tsx";
 import { AssistantPanel } from "./AssistantPanel.tsx";
 import { useAssistant } from "./assistant.ts";
 
@@ -25,7 +25,7 @@ const clamp = (p: { x: number; y: number }) => ({
 });
 
 /**
- * The Volt Assistant: a window that floats over the workspace (drag it by its title bar), docks
+ * The Assistant: a window that floats over the workspace (drag it by its title bar), docks
  * beside it, or shrinks to a button. It shows what the assistant is doing while it works.
  */
 export function AssistantWindow() {
@@ -46,9 +46,9 @@ export function AssistantWindow() {
 
   if (!open) {
     return (
-      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open the Volt Assistant">
-        <VoltMark size={20} className={busy ? "is-thinking" : ""} />
-        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask Volt"}</span>
+      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open the Assistant">
+        <Mark size={20} className={busy ? "is-thinking" : ""} />
+        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask the assistant"}</span>
       </button>
     );
   }
@@ -75,11 +75,11 @@ export function AssistantWindow() {
     <section
       className={`assistant-window ${docked ? "docked" : "floating"}`}
       style={docked ? undefined : { left: pos.x, top: pos.y, width: WIDTH }}
-      aria-label="Volt Assistant"
+      aria-label={ASSISTANT_NAME}
     >
       <header className="assistant-titlebar" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
-        <VoltMark size={16} className={busy ? "is-thinking" : ""} />
-        <strong>Volt Assistant</strong>
+        <Mark size={16} className={busy ? "is-thinking" : ""} />
+        <strong>{ASSISTANT_NAME}</strong>
         <span className={`assistant-state ${busy ? "busy" : ""}`}>{busy ? "Working" : "Ready"}</span>
         <span className="spacer" />
         {lines > 0 && (
@@ -144,7 +144,7 @@ export function Thinking() {
   return (
     <div className="thinking" role="status" aria-live="polite">
       <div className="thinking-orb">
-        <VoltMark size={22} className="is-thinking" />
+        <Mark size={22} className="is-thinking" />
       </div>
       <div className="thinking-steps">
         {done.map((a, i) => (

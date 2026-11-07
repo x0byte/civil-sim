@@ -1,10 +1,10 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useExperience } from "../experience/state.ts";
-import { VoltMark } from "../ui/Brand.tsx";
+import { Mark } from "../ui/Brand.tsx";
 import { useAssistant } from "./assistant.ts";
 import { Thinking } from "./AssistantWindow.tsx";
 
-/** Talk to the Volt Assistant. Its edits come back as a proposal to apply or discard. */
+/** Talk to the Assistant. Its edits come back as a proposal to apply or discard. */
 export function AssistantPanel({ suggestions }: { suggestions?: ReactNode }) {
   const key = useAssistant((s) => s.key);
   return key ? <Chat suggestions={suggestions} /> : <KeyForm suggestions={suggestions} />;
@@ -18,8 +18,8 @@ function KeyForm({ suggestions }: { suggestions?: ReactNode }) {
   return (
     <div className="assistant-welcome">
       <div className="assistant-hello">
-        <VoltMark size={28} />
-        <h2>Describe a change, Volt does the rest</h2>
+        <Mark size={28} />
+        <h2>Describe a change to the assistant</h2>
         <p className="muted">
           Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.
         </p>
@@ -84,7 +84,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         {!lines.length && (
           <div className="chat-empty">
             <div className="assistant-hello">
-              <VoltMark size={28} />
+              <Mark size={28} />
               <h2>What would you like to change?</h2>
               <p className="muted">Ask about the building or the people. Changes show on the plan first, for you to apply or discard.</p>
             </div>
@@ -94,7 +94,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         {lines.map((l, i) =>
           l.role === "assistant" ? (
             <div key={i} className="chat-line assistant">
-              <VoltMark size={14} className="chat-avatar" />
+              <Mark size={14} className="chat-avatar" />
               <div className="bubble">{l.text}</div>
             </div>
           ) : (
@@ -134,7 +134,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         <textarea
           ref={inputRef}
           rows={2}
-          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask Volt to change something…"}
+          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask the assistant to change something…"}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

@@ -1,25 +1,16 @@
-import logoUrl from "../assets/volt-logo.png";
-import markUrl from "../assets/volt-mark.png";
+/** Placeholder viaduct: replace this file when the final identity arrives. */
+export const ASSISTANT_NAME = "Assistant";
 
-/** The Volt mark, drawn in the current text colour so it works on light and dark. */
-export function VoltMark({ size = 18, className = "" }: { size?: number; className?: string }) {
+const arches = Array.from({ length: 9 }, (_, i) => `M${3 + i * 10} 27V19a5 5 0 0 1 10 0v8`).join(" ");
+
+export function Mark({ size = 18, className = "" }: { size?: number; className?: string }) {
   return (
-    <span
-      className={`volt-mark ${className}`}
-      aria-hidden="true"
-      style={{ width: size, height: size, WebkitMaskImage: `url(${markUrl})`, maskImage: `url(${markUrl})` }}
-    />
+    <svg className={`brand-mark ${className}`} width={size} height={size} viewBox="0 0 96 36" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d={`M2 9h92M3 27V9h90v18 ${arches}`} />
+    </svg>
   );
 }
 
-/** The full Volt logo (mark and wordmark), in the current text colour. */
-export function VoltLogo({ height = 24 }: { height?: number }) {
-  return (
-    <span
-      className="volt-mark"
-      role="img"
-      aria-label="Volt"
-      style={{ width: (height * 1085) / 426, height, WebkitMaskImage: `url(${logoUrl})`, maskImage: `url(${logoUrl})` }}
-    />
-  );
+export function Logo({ height = 24 }: { height?: number }) {
+  return <span className="brand-logo"><Mark size={height * 2} /><span>Nine Arches</span></span>;
 }

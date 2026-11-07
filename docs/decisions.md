@@ -1,3 +1,7 @@
+## 2026-11-07 — Nine Arches identity
+
+The product and exported files use Nine Arches; existing project formats, storage keys and JSON imports stay compatible. The placeholder nine-arch mark lives in Brand.tsx, with a generated SVG favicon. The assistant name is centralized there for a future name.
+
 # Decision log
 
 ## 2026-11-05 — 3D before simulation and a shared solar clock

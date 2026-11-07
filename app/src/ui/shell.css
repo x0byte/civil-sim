@@ -1,4 +1,4 @@
-/* Volt Design application shell: app bar, menus, home, and the assistant window.
+/* Nine Arches application shell: app bar, menus, home, and the assistant window.
    Dark first, like a desktop design tool; the light theme uses the same structure. */
 
 html:root[data-theme="dark"] {
@@ -42,16 +42,16 @@ body {
   background: var(--bg);
 }
 
-.volt-mark {
+.brand-mark {
   display: inline-block;
   flex: none;
-  background: currentColor;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  mask-position: center;
+  vertical-align: middle;
+}
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
 }
 
 /* ---------- app bar ---------- */
@@ -581,7 +581,7 @@ button[aria-current] .step-dot:not(.done) {
 .assistant-titlebar strong {
   font-size: 13px;
 }
-.assistant-titlebar .volt-mark {
+.assistant-titlebar .brand-mark {
   color: var(--accent);
 }
 .assistant-state {
@@ -625,7 +625,7 @@ button[aria-current] .step-dot:not(.done) {
 .assistant-fab:hover {
   transform: translateY(-1px);
 }
-.assistant-fab .volt-mark {
+.assistant-fab .brand-mark {
   color: var(--accent);
 }
 .assistant-fab.busy {
@@ -653,7 +653,7 @@ button[aria-current] .step-dot:not(.done) {
   align-items: flex-start;
   gap: 6px;
 }
-.assistant-hello .volt-mark {
+.assistant-hello .brand-mark {
   color: var(--accent);
   margin-bottom: 4px;
 }
@@ -858,15 +858,15 @@ button.primary.wide {
   border-right-color: color-mix(in srgb, var(--accent) 40%, transparent);
   animation: orbit 1.1s linear infinite;
 }
-.volt-mark.is-thinking {
-  animation: volt-pulse 1.6s ease-in-out infinite;
+.brand-mark.is-thinking {
+  animation: brand-pulse 1.6s ease-in-out infinite;
 }
 @keyframes orbit {
   to {
     transform: rotate(360deg);
   }
 }
-@keyframes volt-pulse {
+@keyframes brand-pulse {
   50% {
     opacity: 0.45;
     transform: scale(0.9);
@@ -951,7 +951,7 @@ button.primary.wide {
 }
 @media (prefers-reduced-motion: reduce) {
   .thinking-orb::after,
-  .volt-mark.is-thinking,
+  .brand-mark.is-thinking,
   .shimmer-text,
   .dots i,
   .assistant-window.floating {

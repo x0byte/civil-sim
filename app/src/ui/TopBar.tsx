@@ -1,13 +1,13 @@
 import { type Step, completedSteps, useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
-import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
+import { buildProject, readProjectFile, projectFileName } from "../model/projectFile.ts";
 import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
 import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
-import { VoltMark } from "./Brand.tsx";
+import { ASSISTANT_NAME, Mark } from "./Brand.tsx";
 import { Menu, type MenuItem } from "./Menu.tsx";
 
 export function TopBar() {
@@ -77,7 +77,7 @@ export function TopBar() {
         setDxf({ drawing, name: file.name });
         return;
       }
-      const opened = parseProjectOrPlan(await file.text());
+      const opened = await readProjectFile(file);
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
         const n = opened.project.options.length;
@@ -164,7 +164,7 @@ export function TopBar() {
     { label: "Detailed panels", checked: ux.detailed, onSelect: () => ux.setDetailed(true) },
     "separator",
     { label: "Dark theme", checked: dark, onSelect: () => setDark(!dark) },
-    { label: "Volt Assistant", checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
+    { label: ASSISTANT_NAME, checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
     { label: "Dock the assistant", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
   ];
 
@@ -172,8 +172,8 @@ export function TopBar() {
     <header className="appbar">
       <div className="appbar-left">
         <button className="appbar-brand" onClick={() => ux.setHome(true)} title="Home">
-          <VoltMark size={18} />
-          <span>Volt Design</span>
+          <Mark size={18} />
+          <span>Nine Arches</span>
         </button>
         <Menu label="File" items={fileItems} />
         <Menu label="Edit" items={editItems} />
@@ -206,8 +206,8 @@ export function TopBar() {
             </span>
           </>
         )}
-        <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title="Volt Assistant">
-          <VoltMark size={14} />
+        <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title={ASSISTANT_NAME}>
+          <Mark size={14} />
           Assistant
         </button>
       </div>

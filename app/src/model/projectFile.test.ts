@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultProfile } from "../population/officeProfile.ts";
-import { buildProject, parseProjectOrPlan, projectFileName } from "./projectFile.ts";
+import { buildProject, parseProjectOrPlan, projectFileName, readProjectFile } from "./projectFile.ts";
 import { SAMPLE_PLANS } from "./samples.ts";
 
 const a = SAMPLE_PLANS[0].plan;
@@ -45,7 +45,7 @@ describe("project files", () => {
 
   it("explains files it can't open", () => {
     expect(() => parseProjectOrPlan("not json")).toThrow("it isn't a valid JSON file");
-    expect(() => parseProjectOrPlan('{"hello":1}')).toThrow("it isn't a Volt Design project or floor plan");
+    expect(() => parseProjectOrPlan('{"hello":1}')).toThrow("it isn't a Nine Arches project or floor plan");
     expect(() => parseProjectOrPlan(JSON.stringify({ format: "civil-sim-project", version: 9 }))).toThrow(/newer version/);
   });
 
@@ -58,7 +58,13 @@ describe("project files", () => {
     expect(opened.warnings).toEqual(["1 saved option(s) were damaged and left out.", "Some People settings were damaged and left out."]);
   });
 
+  it.each(["plan.volt.json", "plan.civilsim.json", "plan.json", "plan.ninearches.json"])("opens %s without renaming saved data", async (name) => {
+    const file = { name, text: async () => JSON.stringify(buildProject(a, [], { [a.id]: people })) };
+    const opened = await readProjectFile(file);
+    expect(opened.kind === "project" && opened.project.people[a.id]).toEqual(people);
+  });
+
   it("names the file after the plan", () => {
-    expect(projectFileName({ ...a, name: "Office A: toilet beside manager" })).toBe("office-a-toilet-beside-manager.volt.json");
+    expect(projectFileName({ ...a, name: "Office A: toilet beside manager" })).toBe("office-a-toilet-beside-manager.ninearches.json");
   });
 });

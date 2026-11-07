@@ -3,7 +3,7 @@ import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { useEditor } from "../state/store.ts";
-import { VoltLogo, VoltMark } from "../ui/Brand.tsx";
+import { Logo, Mark } from "../ui/Brand.tsx";
 import { useExperience } from "./state.ts";
 
 type Section = "home" | "samples" | "learn";
@@ -61,7 +61,8 @@ export function Home() {
           </button>
         ))}
         <div className="home-nav-foot">
-          <VoltLogo height={18} />
+          <Logo height={18} />
+          <p><a href="https://ninearches.ai">ninearches.ai</a></p>
           <p>People's behaviour, sound and light are estimates until checked against a real building.</p>
         </div>
       </nav>
@@ -70,7 +71,7 @@ export function Home() {
         {section === "home" && (
           <>
             <header className="home-header">
-              <h1>Welcome to Volt Design</h1>
+              <h1>Welcome to Nine Arches</h1>
               <p>Test a layout with the people who will use it, before it's built.</p>
               <button onClick={() => setTour(1)}>Take the quick tour</button>
             </header>
@@ -81,8 +82,8 @@ export function Home() {
               <Tile icon={<FileIcon />} title="Import a drawing" note="AutoCAD DXF" onClick={() => bring("dxf")} />
               <Tile icon={<PenIcon />} title="Draw from scratch" note="Walls, doors and rooms" onClick={() => bring("draw")} />
               <Tile
-                icon={<VoltMark size={22} />}
-                title="Describe it to Volt"
+                icon={<Mark size={22} />}
+                title="Describe it to the assistant"
                 note="The assistant sets it up"
                 onClick={() => bring("describe")}
                 accent
@@ -126,20 +127,20 @@ export function Home() {
         {section === "learn" && (
           <>
             <header className="home-header">
-              <h1>How Volt Design works</h1>
+              <h1>How Nine Arches works</h1>
               <p>Three steps, in any order you like. Nothing has to be perfect to try it.</p>
             </header>
             <ol className="home-steps">
               <li>
                 <strong>Building</strong>
                 <span>
-                  Trace a plan image, import a drawing, draw one, or describe it to Volt. Rooms, doors, stairs and lifts are all it needs.
+                  Trace a plan image, import a drawing, draw one, or describe it to the assistant. Rooms, doors, stairs and lifts are all it needs.
                 </span>
               </li>
               <li>
                 <strong>People</strong>
                 <span>
-                  Pick an office or a mall and a kind of day. Volt fills in who comes, including people who need step-free routes or find
+                  Pick an office or a mall and a kind of day. The assistant fills in who comes, including people who need step-free routes or find
                   crowds hard.
                 </span>
               </li>
@@ -148,6 +149,16 @@ export function Home() {
                 <span>Run the day, or an evacuation. See what to fix first, then walk through the building beside the people.</span>
               </li>
             </ol>
+            <section className="home-name">
+              <h2>Why Nine Arches</h2>
+              <p>The Nine Arches Bridge near Ella carries the hill-country railway in a tight curve high above a
+              tea-covered valley. Completed in 1919, it was built by local workers under British engineers from
+              concrete, stone and brick: about 91 metres long and 24 metres high, and still carrying trains more
+              than a century later. Local legend says it was built without steel, and credits a village builder,
+              P. K. Appuhami. Whatever the full story, the bridge shows what careful design and skilled hands
+              can do together: a structure that works beautifully for the people who use it. That's what Nine
+              Arches is for: testing a building with the people who will use it, before it's built.</p>
+            </section>
             <h2>Handy keys</h2>
             <dl className="home-keys">
               <dt>⌘Z / ⇧⌘Z</dt>
@@ -179,7 +190,7 @@ export function Home() {
               {
                 [
                   "",
-                  "Start from a sample, trace a plan, draw one, or describe your building to Volt.",
+                  "Start from a sample, trace a plan, draw one, or describe your building to the assistant.",
                   "A typical day is already filled in. Choose the crowd and kinds of people; Fine-tune holds the details.",
                   "Run the day, see what to fix first, and walk beside the people. Try a fix prepares a proposal for you to review.",
                 ][tour]
