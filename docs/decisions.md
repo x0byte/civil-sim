@@ -350,3 +350,10 @@ curve peaking at the registry value, truncated at the bounds (about two standard
 off-centre). Sourced parameters use published envelopes; unsourced ones default to ±30%, labelled "range assumed, not
 measured". Model settings (speed floor, caches, time steps) are tagged and stay fixed. Sensitivity ranks the assumed
 ranges too, which becomes the list of what to measure first.
+
+## 2026-11-08 · Part A review implementation
+The owner's bounds decision supersedes pinned unsourced defaults: behaviours use sourced envelopes or explicitly
+assumed ±30% bounds; settings stay fixed. The split-normal sampler gives each half equal probability to preserve
+the requested median at the value; population shares close on a bounded simplex. Sensitivity uses fixed office/retail
+sample budgets, scaled arrival endpoints and batch-scoped geometry caches keyed by routing parameters; mutable
+queues/counters and personal route choices stay per run. See `docs/parameters.md` and the research/review report.

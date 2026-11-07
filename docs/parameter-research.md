@@ -1,0 +1,29 @@
+# Part A open-source research log · 2026-11-08
+
+Read alongside `parameters.md`. A source can support a prior without measuring this
+building. Published model assumptions are distinguished from observations. No
+paywalled table was used. No source was invented to turn a remaining gap into a
+measured value.
+
+| Priority | Open source and exact location read | Finding and engine treatment |
+|---|---|---|
+| Toilet frequency | McMordie Stoughton et al. (2005), **PNNL-15320, Appendix C, printed p. C.2, Table C.3 and preceding paragraph**, [PNNL report](https://www.pnnl.gov/main/publications/external/technical_reports/PNNL-15320.pdf) | Published office design basis: three restroom visits/person/day, including WC and urinal use. This is a modelling assumption, not a new office survey. A saved rate of 3/day can cite it; arbitrary saved rates retain assumed ranges. |
+| Toilet frequency and duration | Moon, Chung, Kim and Jang (2012), *A Case Study on the Usage Pattern & the Optimum Number of Sanitary Fixture at Toilet in Office Building*, **open English Abstract**, [KCI publisher/index record](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001649053) | Abstract reports 3–5 visits/day, urination 1–3 min and defecation 3–5 min. The **full Korean paper, pp. 3–10, was not inspected**; no table/page inside it is claimed. The abstract's frequency envelope supports the matching 3/day prior. Different purposes undermine a single universal service duration. |
+| Time in washroom | Wong (2006), *Provision scales of sanitary accommodation in public toilets*, **section 3, printed p. 5, and section 3.1, p. 6**, [conference paper](https://www.irbnet.de/daten/iconda/CIB4615.pdf) | CCTV measures time inside a Hong Kong mall washroom, excluding walking, then estimates WC service as 80% of total. WC mean is 145 s; observed minima 15–20 s, maximum 1000 s. These are **not** the engine's uniform room-duration floor/span. They are recorded as a reason to calibrate that remaining assumption, not falsely attached as its measurement. |
+| Pantry rate and dwell | Shelat (2017), *Developing an Integrated Pedestrian Behaviour Model for Office Buildings*, **Table 7, printed p. 50; limitations, p. 64**, [TU Delft thesis](https://repository.tudelft.nl/file/File_d965542d-3958-4ad1-a34f-c5a4a008a140) | Imaginary-office model inputs include coffee away time 120 min and duration 2 min. The thesis says the recurrent-activity distribution could not be verified from the available study. This is useful comparative model evidence, **not an observed pantry rate**. Pantry rate and the shared facility-duration model remain explicitly assumed. |
+| Arrival and departure spread | Shelat (2017), **Table 8, printed p. 50**, same thesis | Arrival/departure offsets are ±5, ±15 or ±30 min; whole-window widths are therefore 600–3600 s. These are published **case-study model inputs**, not a measured envelope. `arrival.staff.window` uses that model prior, retaining 1800 s. |
+| Observed arrival variability, cross-check | de Bakker et al. (2016), *Occupants’ behaviour: an observation study for energy saving potential on lighting*, **Tables 1–2, p. 5**, [author-uploaded text](https://www.researchgate.net/publication/308791272_OCCUPANTS%27_BEHAVIOUR_AN_OBSERVATION_STUDY_FOR_ENERGY_SAVING_POTENTIAL_ON_LIGHTING) | Table text reports wide differences between people and days, so a universal 30-min uniform window is not established. The author-uploaded indexed text was readable; a direct PDF retrieval failed. **No new registry number was taken from this cross-check.** |
+| Controlled-drill pre-movement | Gwynne and Boswell (2009), *Pre-evacuation Data Collected from a Mid-rise Evacuation Exercise*, **Table 5, printed p. 16; Tables 6–7, p. 18**, [open author paper](https://citeseerx.ist.psu.edu/document?doi=fd5b3b94fd640a3ca195e12202c5b4fe2050d68f&repid=rep1&type=pdf), DOI 10.1177/1042391508095093 | Floor/stair video means span 59.1–81.3 s; observed stream minima span 5–46 s and maxima 88–173 s across video/manual observations. These envelopes support the existing mean/min/max defaults of 60/30/120 s. The pooled video mean is 74 s, **not 60 s**. SD remains assumed. Delays include approaching stairs, so this is a conservative adaptation to the engine's pre-travel delay. |
+| Real-fire pre-movement | Kuligowski and Hoskins (2010), **NIST TN1664, Figure 1 and discussion, printed p. 9; limitations p. 6**, [NIST report](https://www.nist.gov/system/files/documents/el/fire_research/TN1664.pdf) | Reported real-fire delays extend to 45 min, with different alarm instructions by floor. Convenience sampling and recalled times limit generalisation. This is a warning against treating a trained-drill prior as a universal real-fire bound; these longer delays were not silently folded into a different population's normal curve. |
+| Solar-position maths | NOAA, *General Solar Position Calculations*, **p. 1** (fractional year, equation of time, declination), [two-page note](https://gml.noaa.gov/grad/solcalc/solareqns.PDF) | Confirms the existing NOAA/Spencer-series coefficients; source comment added without changing the formula. |
+
+The earlier verified Hänseler walking/density and Gwynne doorway/stair citations
+remain unchanged. Open clinical walking, wheelchair, manufacturer lift/escalator,
+and shopper-dwell sources are still priorities after the requested a–c pass;
+no unverified number from those categories is promoted to a sourced observation.
+The 2025 sanitary-facility ML article returned HTTP 429 and was not used.
+
+The shared toilet/pantry service-duration floor and span are a model limitation.
+Splitting service processes by purpose would be an engine behaviour change; this
+review revision keeps the deterministic central run unchanged and makes those
+assumptions visible in sensitivity and the measurement-priority list.

@@ -1,3 +1,4 @@
+import { ParameterValues, balanceShares } from "./parameters.ts";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Evidence, SimulationResult } from "../../contracts/results.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
@@ -59,16 +60,18 @@ export function calibrate(plan: FloorPlan, scenario: Scenario, observations: rea
     if (observation.kind === 'queue_length' && !plan.spaces.some(s => s.id === observation.spaceId && ['toilet', 'pantry'].includes(s.type) && s.capacity !== undefined)) throw new Error('Queue observation needs an existing serviced room with capacity');
   }
   const baseline = simulate(plan, scenario), parameters = baseline.evidence!.parameters;
+  const definitions = new ParameterValues(scenario.parameters,scenario).entries();
   const outputs = observations.map(observation => {
     const predicted = prediction(plan, baseline, observation);
     return { observation, predicted, low: predicted, high: predicted, inconsistent: false, parameters: [] as Evidence['parameters'] };
   });
   for (const parameter of parameters.filter(p => p.low < p.high && !p.overridden)) {
     for (const value of [parameter.low, parameter.high]) {
-      const result = simulate(plan, { ...scenario, parameters: [
+      const overrides = [
         ...(scenario.parameters ?? []).filter(p => p.key !== parameter.key),
         { key: parameter.key, value, source: 'Calibration screening endpoint: ' + parameter.source },
-      ] });
+      ];
+      const result = simulate(plan, { ...scenario, parameters: balanceShares(definitions,overrides,new Set(overrides.map(p=>p.key))) });
       for (const output of outputs) {
         const count = prediction(plan, result, output.observation);
         output.low = Math.min(output.low, count); output.high = Math.max(output.high, count);
@@ -79,13 +82,13 @@ export function calibrate(plan: FloorPlan, scenario: Scenario, observations: rea
   for (const output of outputs) {
     const { value, tolerance = 0 } = output.observation;
     output.inconsistent = value + tolerance < output.low || value - tolerance > output.high;
-    // Include pinned, unsourced targets relevant to the observed mechanism.
-    // A lack of endpoint movement does not absolve a pinned assumption.
+    // Include unsourced targets relevant to the observed mechanism.
+    // A lack of endpoint movement does not establish calibration.
     const relevant = output.observation.kind === 'door_count'
       ? /^(walk\.|arrival\.|capacity\.door\.|scenario\.shoppers\.arrivals\.)/
       : /^(service\.|arrival\.|scenario\.rates\.|scenario\.queueing\.)/;
     for (const parameter of parameters) if (relevant.test(parameter.key) && !output.parameters.some(p => p.key === parameter.key)) output.parameters.push(parameter);
     output.parameters.sort((a, b) => a.key.localeCompare(b.key));
   }
-  return { observations: outputs, note: 'Inconsistency is with the tested model and one-at-a-time parameter envelope. Listed values are calibration candidates, not identified causes. Pinned assumptions have no verified uncertainty range; geometry, demand and measurement errors can also explain a mismatch.' };
+  return { observations: outputs, note: 'Inconsistency is with the tested model and one-at-a-time parameter envelope. Listed values are calibration candidates, not identified causes. Assumed ranges are not measured uncertainty; geometry, demand and measurement errors can also explain a mismatch.' };
 }

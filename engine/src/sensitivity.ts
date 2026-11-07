@@ -1,6 +1,8 @@
+import { withNavigationCache } from "./modules/navigation.ts";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Evidence, SimulationResult } from "../../contracts/results.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
+import { ParameterValues, parameterDefault, balanceShares } from "./parameters.ts";
 import { personSeed } from "./modules/random.ts";
 
 export type MetricReader = (result: SimulationResult) => Record<string, number>;
@@ -11,7 +13,7 @@ export interface SensitivityOptions {
   metrics?: MetricReader;
   onProgress?: (completed: number, total: number) => void;
 }
-export type SimulationRunner = (plan: FloorPlan, scenario: Scenario) => SimulationResult;
+export type SimulationRunner = (plan: FloorPlan, scenario: Scenario, movementOnly?: boolean) => SimulationResult;
 
 /** Existing measured outputs until Part B adds decision metrics. No proxy is
  * labelled as time lost, capacity utilisation or regulatory compliance.
@@ -42,7 +44,7 @@ export const evidenceMetrics: MetricReader = result => {
 /** Stable reduced population. The same people and draws are used at both endpoints.
  * This is a screening run, not uncertainty quantification or a full-crowd forecast.
  */
-export function sensitivitySample(scenario: Scenario, sampleSize = 24): Scenario {
+export function sensitivitySample(scenario: Scenario, sampleSize = parameterDefault(scenario.shoppers ? "setting.sensitivity.retail_sample_size" : "setting.sensitivity.sample_size")): Scenario {
   if (!Number.isInteger(sampleSize) || sampleSize < 1) throw new Error('Sensitivity sampleSize must be a positive integer');
   const sample = structuredClone(scenario);
   const choose = <T extends { id: string }>(items: T[]) => [...items]
@@ -54,9 +56,12 @@ export function sensitivitySample(scenario: Scenario, sampleSize = 24): Scenario
   sample.meetings = sample.meetings.map(m => ({ ...m, attendeeIds: m.attendeeIds.filter(id => selected.has(id)) }));
   if (sample.shoppers) {
     const seconds = (clock: string) => Number(clock.slice(0, 2)) * 3600 + Number(clock.slice(3)) * 60;
+    const effective = new Map((sample.parameters ?? []).map(p=>[p.key,p.value]));
+    sample.shoppers.arrivals.forEach((step,i)=> { step.perHour = effective.get(`scenario.shoppers.arrivals.${i}.perHour`) ?? step.perHour; });
     const expected = sample.shoppers.arrivals.reduce((sum, step) => sum + step.perHour * (seconds(step.to) - seconds(step.from)) / 3600, 0);
     const factor = Math.min(1, sampleSize / Math.max(1, expected));
     sample.shoppers.arrivals.forEach(step => { step.perHour *= factor; });
+    if (sample.parameters) sample.parameters = sample.parameters.map(p=>/^scenario\.shoppers\.arrivals\.\d+\.perHour$/.test(p.key) ? { ...p, value:p.value*factor } : p);
   }
   return sample;
 }
@@ -68,17 +73,35 @@ export function sensitivitySample(scenario: Scenario, sampleSize = 24): Scenario
  */
 export function analyseSensitivity(plan: FloorPlan, scenario: Scenario, evidence: Evidence,
   run: SimulationRunner, options: SensitivityOptions = {}): Evidence['sensitivity'] {
+  return withNavigationCache(() => sensitivityCore(plan, scenario, evidence, run, options));
+}
+function sensitivityCore(plan: FloorPlan, scenario: Scenario, evidence: Evidence, run: SimulationRunner, options: SensitivityOptions): Evidence['sensitivity'] {
   const sample = sensitivitySample(scenario, options.sampleSize);
   const read = options.metrics ?? evidenceMetrics;
-  const baseline = read(run(plan, sample));
+  const movementOnly = !options.metrics;
+  const baselineResult = run(plan, sample, movementOnly);
+  const baseline = read(baselineResult);
+  const sampleUsed = new Set(baselineResult.evidence?.parameters.map(p=>p.key));
   const rows = Object.keys(baseline).sort().map(metric => ({ metric, drivers: [] as { key: string; swingPct: number }[] }));
-  const parameters = evidence.parameters.filter(p => p.low < p.high && !p.overridden);
+  const definitions = new Map(new ParameterValues(scenario.parameters, scenario).entries().map(p=>[p.key,p]));
+  const parameters = evidence.parameters.filter(p => definitions.get(p.key)?.kind === "behaviour" && p.low < p.high && !p.overridden
+    // An attribute of an absent sampled profile cannot change this OAT run.
+    && (!baselineResult.evidence || sampleUsed.has(p.key))
+    // These inputs feed only supporting comfort measurements, never movement.
+    && (!movementOnly || (!p.key.startsWith("comfort.") && !/\.(noiseComfort|focusNoiseComfort|taskLux|glareComfort|crowdComfort)\./.test(p.key))));
   options.onProgress?.(0, parameters.length);
   parameters.forEach((parameter, index) => {
-    const at = (value: number) => read(run(plan, { ...sample, parameters: [
-      ...(sample.parameters ?? []).filter(p => p.key !== parameter.key),
-      { key: parameter.key, value, source: 'Sensitivity endpoint: ' + parameter.source },
-    ] }));
+    const arrivalIndex = parameter.key.match(/^scenario\.shoppers\.arrivals\.(\d+)\.perHour$/)?.[1];
+    const originalRate = arrivalIndex === undefined ? 0 : scenario.shoppers!.arrivals[Number(arrivalIndex)].perHour;
+    const scale = originalRate ? sample.shoppers!.arrivals[Number(arrivalIndex)].perHour / originalRate : 1;
+    const at = (value: number) => {
+      const overrides = [
+        ...(sample.parameters ?? []).filter(p => p.key !== parameter.key),
+        { key: parameter.key, value: value * scale, source: 'Sensitivity endpoint: ' + parameter.source },
+      ];
+      const parameters=balanceShares([...definitions.values()],overrides,new Set(overrides.map(p=>p.key)));
+      return read(run(plan, { ...sample, parameters },movementOnly));
+    };
     const low = at(parameter.low), high = at(parameter.high);
     for (const row of rows) {
       const values = [baseline[row.metric], low[row.metric], high[row.metric]];

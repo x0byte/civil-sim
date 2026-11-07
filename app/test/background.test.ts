@@ -39,7 +39,7 @@ describe("the shared background worker", () => {
       const plan = JSON.parse(readFileSync(new URL(`../../samples/${planName}.floorplan.json`, import.meta.url), "utf8")) as FloorPlan;
       const scenario = JSON.parse(readFileSync(new URL(`../../samples/${scenarioName}.scenario.json`, import.meta.url), "utf8")) as Scenario;
       const before = JSON.stringify([plan, scenario]);
-      const main = JSON.stringify(simulate(plan, scenario));
+      const main = JSON.stringify(simulate(plan, scenario, { sensitivity: true }));
       const messages: string[] = [];
       const result = await simulateInBackground(plan, scenario, new AbortController().signal, (p) => messages.push(p.message));
       expect(JSON.stringify(result)).toBe(main);
@@ -48,12 +48,13 @@ describe("the shared background worker", () => {
       expect(messages.some((m) => m.startsWith("Simulating the day"))).toBe(true);
       expect(messages.at(-1)).toBe("Preparing results…");
     },
-    20000,
+    // Two full evidence runs plus worker startup; per-run budget is benchmarked separately.
+    45000,
   );
   it("falls back with identical output when workers are unavailable", async () => {
     vi.stubGlobal("Worker", undefined);
     const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
     const scenario = JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8"));
-    expect(JSON.stringify(await simulateInBackground(plan, scenario, new AbortController().signal))).toBe(JSON.stringify(simulate(plan, scenario)));
+    expect(JSON.stringify(await simulateInBackground(plan, scenario, new AbortController().signal))).toBe(JSON.stringify(simulate(plan, scenario, { sensitivity: true })));
   });
 });

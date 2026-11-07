@@ -6,6 +6,7 @@ import type { PathRoutes } from "./building-paths.ts";
 import { rasterise } from "./grid.ts";
 import { levelOf } from "./levels.ts";
 import type { LevelPoint } from "./levels.ts";
+import { memoGeometry, routingSignature } from "./navigation.ts";
 import type { Navigation } from "./navigation.ts";
 import { pathLength, travelTime } from "./pathfinding.ts";
 import type { Traveller } from "./profiles.ts";
@@ -17,21 +18,32 @@ type Access = "any" | "no_escalator" | "step_free";
 /** Geometry is shared by access policy; per-person draws choose among cached alternatives. */
 export class AccessRoutes {
   private readonly policies = new Map<Access, Navigation>();
-  private readonly alternatives = new Map<string, BuildingPaths[]>();
-  private readonly escapes = new Map<Access, PathRoutes>();
-  private readonly optionsCache = new Map<string, Vec2[][]>();
+  private readonly alternatives: Map<string, BuildingPaths[]>;
+  private readonly escapes: Map<Access, PathRoutes>;
+  private readonly optionsCache: Map<string, Vec2[][]>;
   readonly plan: FloorPlan;
   readonly base: Navigation;
-  constructor(plan: FloorPlan, base: Navigation) { this.plan = plan; this.base = base; this.policies.set("any", base); }
+  constructor(plan: FloorPlan, base: Navigation) {
+    this.plan = plan; this.base = base; this.policies.set("any", base);
+    // Candidate geometry only. Personal route-choice closures and all simulation
+    // counters remain private to this run and its drawn travellers.
+    const shared=memoGeometry('access-candidates',()=>[plan,routingSignature()],()=>({
+      alternatives:new Map<string,BuildingPaths[]>(),escapes:new Map<Access,PathRoutes>(),options:new Map<string,Vec2[][]>(),
+    }));
+    this.alternatives=shared.alternatives;this.escapes=shared.escapes;this.optionsCache=shared.options;
+  }
   policy(access: Access): Navigation {
     const cached = this.policies.get(access); if (cached) return cached;
     const plan: FloorPlan = { ...this.plan,
       openings: this.plan.openings.map((o) => access === "step_free" && o.kind === "door" && o.width < parameter("access.door.min_width") ? { ...o, kind: "window" } : o),
       connectors: this.plan.connectors.filter((c) => usableConnector(this.plan, c, access)) };
+    const geometry=memoGeometry("access-policy",()=>[plan,access,routingSignature()],()=>{
     const grids = access === "step_free" ? new Map(plan.levels.map((l) => [l.id, rasterise(plan, l.id)])) : this.base.grids;
     const paths = new BuildingPaths(plan, grids, access === "step_free" ? undefined : this.base.paths.floors);
     const entrances = this.base.entrances.filter((e) => grids.get(levelOf(e, this.base.first))!.canWalk(e, e));
-    const result: Navigation = { ...this.base, grids, grid: grids.get(this.base.first)!, paths, entrances };
+    return {grids,paths,entrances};
+    });
+    const result: Navigation = { ...this.base, ...geometry, grid: geometry.grids.get(this.base.first)! };
     this.policies.set(access, result); return result;
   }
   options(a: LevelPoint, b: LevelPoint, access: Access): Vec2[][] {

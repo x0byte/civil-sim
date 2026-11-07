@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { Warning } from "../../../contracts/results.ts";
 import { distance, openingCentre, pointInPolygon, polygonCentroid } from "./geometry.ts";
@@ -15,7 +16,55 @@ export interface Navigation {
   queueBase?: Navigation;
 }
 
+interface CachedNavigation { navigation: Navigation; warnings: Warning[]; paths: Map<string,PathRoutes> }
+let batchCache: Map<string,unknown> | undefined;
+let geometryCache: Map<string, CachedNavigation> | undefined;
+/** Geometry/pathfinder caches live only for one synchronous sensitivity batch.
+ * Horizontal routes depend solely on geometry. BuildingPaths are keyed by every expected-time parameter; mutable
+ * capacities/metrics are rebuilt for every run, so speed/lift overrides remain
+ * effective. Content keys handle evacuation door closures and access policies;
+ * no cache survives a changed plan or leaks into a subsequent simulation.
+ */
+export function withNavigationCache<T>(run: () => T): T {
+  const previous = geometryCache, previousBatch = batchCache; geometryCache = new Map(); batchCache = new Map();
+  try { return run(); } finally { geometryCache = previous; batchCache = previousBatch; }
+}
+export function memoGeometry<T>(namespace: string, key: () => unknown, create: () => T): T {
+  if (!batchCache) return create();
+  const encoded=namespace+JSON.stringify(key());
+  if (batchCache.has(encoded)) return batchCache.get(encoded) as T;
+  const result=create();batchCache.set(encoded,result);return result;
+}
+export function routingSignature(): string {
+  return JSON.stringify([
+    parameter('walk.speed.adult'), parameter('walk.stair.vertical_speed'),
+    parameter('walk.escalator.rise_time'), parameter('walk.ramp.speed_factor'),
+    parameter('capacity.lift.stop'), parameter('capacity.lift.speed'),
+    parameter('access.door.min_width'),parameter('access.ramp.gradient_denominator'),
+  ]);
+}
 export function createNavigation(plan: FloorPlan, warn: (warning: Warning) => void): Navigation {
+  if (!geometryCache) return buildNavigation(plan, warn);
+  const key = JSON.stringify(plan);
+  const signature = routingSignature();
+  let cached = geometryCache.get(key);
+  if (!cached) {
+    const warnings: Warning[] = [];
+    cached = { navigation: buildNavigation(plan, warning=>warnings.push(warning)), warnings, paths: new Map() };
+    cached.paths.set(signature,cached.navigation.paths);
+    geometryCache.set(key,cached);
+  }
+  for (const warning of cached.warnings) warn(warning);
+  const { navigation } = cached;
+  let paths = cached.paths.get(signature);
+  if (!paths) { paths = new BuildingPaths(plan,navigation.grids,navigation.paths.floors);cached.paths.set(signature,paths); }
+  return { ...navigation,
+    paths,
+    connectorMetrics: plan.connectors.map(c=>({ connectorId:c.id,trips:0,peakWaiting:0,longestWaitS:0 })),
+  };
+}
+function buildNavigation(plan: FloorPlan, warn: (warning: Warning) => void): Navigation {
+
   const first = plan.levels[0].id;
   const grids = new Map(plan.levels.map((level) => [level.id, rasterise(plan, level.id)]));
   const grid = grids.get(first)!;

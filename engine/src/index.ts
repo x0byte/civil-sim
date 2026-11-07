@@ -1,3 +1,5 @@
+export { parameterQuantile, sampleParameters } from "./sampling.ts";
+export type { Parameter } from "./parameters.ts";
 import { analyseSensitivity } from "./sensitivity.ts";
 export { analyseSensitivity, evidenceMetrics, sensitivitySample } from "./sensitivity.ts";
 export type { MetricReader, SensitivityOptions } from "./sensitivity.ts";
@@ -21,7 +23,7 @@ import type { Admission, PersonSchedule, RoomRequest } from "./modules/queues.ts
 import { RoomMovementDenied } from "./modules/movement.ts";
 import { scheduleShopper, shopperRequests } from "./modules/shoppers.ts";
 import { ShopperWorld } from "./modules/shopper-world.ts";
-import { RoomSpots } from "./modules/spots.ts";
+import { createRoomSpots } from "./modules/spots.ts";
 import { People, stepFreeWarnings } from "./modules/profiles.ts";
 import { AccessRoutes } from "./modules/access-routes.ts";
 import { onLevel } from "./modules/levels.ts";
@@ -81,7 +83,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario, options: Simulatio
   }
   if (options.sensitivity) {
     result.evidence.sensitivity = analyseSensitivity(plan, scenario, result.evidence,
-      (p, s) => simulate(p, s), {
+      (p, s, movementOnly) => simulate(p, s, { measurement: movementOnly ? "movement" : undefined }), {
         ...(typeof options.sensitivity === 'object' ? options.sensitivity : {}),
         onProgress: (completed, total) => options.onProgress?.({ stage: 'measuring', detail: 'sensitivity', completed, total }),
       });
@@ -154,7 +156,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
       || (s.type === "reception" && scenario.visitors?.some((v) => v.waitMin > 0))).map((s) => s.id),
     ...(scenario.visitors ?? []).map((v) => v.spaceId),
   ]);
-  const spots = new RoomSpots(plan, navigation, [
+  const spots = createRoomSpots(plan, navigation, [
     ...scenario.people.map((person) => {
       const desk = plan.fixtures.find((f) => f.id === person.deskId)!;
       return { id: person.id, deskPosition: onLevel(desk.position, desk.levelId) };
@@ -186,7 +188,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
   const accessibility = accessibilityChecks(plan,access);
   for(const check of accessibility) if(!check.ok) warn({code:"accessibility",message:check.message,refIds:check.refIds});
   options.onProgress?.({ stage: "measuring" });
-  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS, options.onProgress ? () => options.onProgress!({ stage: "comfort" }) : undefined);
+  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS, options.onProgress ? () => options.onProgress!({ stage: "comfort" }) : undefined, options.measurement === "movement");
   aggregated.metrics.evacuation = evacuation?.metrics ?? null; aggregated.metrics.accessibility = accessibility;
   if(evacuation) aggregated.metrics.headcount = aggregated.metrics.headcount.filter(p=>p.t<=evacuation.durationS);
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));

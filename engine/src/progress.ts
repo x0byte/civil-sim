@@ -10,6 +10,8 @@ export interface SimulationProgress {
   people?: number;
 }
 export interface SimulationOptions {
+  /** Internal screening only: omit heatmap/comfort post-processing; movement is unchanged. */
+  measurement?: "movement";
   /** Enable in the background worker; scalar callers retain the inexpensive single run. */
   sensitivity?: boolean | Omit<SensitivityOptions, "onProgress">;
   onProgress?: (progress: SimulationProgress) => void;

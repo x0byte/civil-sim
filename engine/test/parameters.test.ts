@@ -20,8 +20,10 @@ describe('parameter evidence', () => {
       expect([p.low, p.value, p.high].every(Number.isFinite)).toBe(true);
       expect(p.low).toBeLessThanOrEqual(p.value); expect(p.value).toBeLessThanOrEqual(p.high);
       expect(p.source.trim()).not.toBe(''); expect(p.note.trim()).not.toBe(''); expect(p.unit).not.toBe('');
-      if (p.source.startsWith('Assumption:')) expect(p.low).toBe(p.high);
-      else expect(p.source).toMatch(/Table|Eq\./);
+      expect(['behaviour','setting']).toContain(p.kind);
+      if (p.kind === 'setting') expect(p.low).toBe(p.high);
+      else if (p.source.startsWith('Assumption:')) expect(p.source).toContain('(range assumed, not measured)');
+      else expect(p.source).toMatch(/Table|Eq\.|section/);
     }
   });
   it('slower free walking increases walking time, preserves inputs and records the supplied source', () => {

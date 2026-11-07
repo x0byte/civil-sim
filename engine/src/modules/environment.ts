@@ -18,7 +18,13 @@ export const roomAcoustics = (s: Space): number => {
 export const contrast = (s: Space): "low" | "ok" | "not_checked" => s.floorLRV === undefined || s.wallLRV === undefined ? "not_checked" : Math.abs(s.floorLRV - s.wallLRV) < parameter("comfort.contrast.minimum_difference") ? "low" : "ok";
 const RAD = Math.PI / 180;
 export interface Sun { x: number; y: number; up: number; clock?: number }
-/** Solar declination and equation of time, following NOAA's published approximation. */
+/** NOAA Global Monitoring Division, General Solar Position Calculations,
+ * p. 1 (fractional year, equation of time and solar declination; Spencer series).
+ * https://gml.noaa.gov/grad/solcalc/solareqns.PDF
+ * Coefficients below are the published astronomical approximation, not fitted
+ * behaviour. Longitude/time-zone correction also follows p. 1; legacy fallback is
+ * separately named in the registry. Verified against the open two-page note.
+ */
 export function sunPosition(plan: FloorPlan, scenario: Scenario, clockSeconds: number): Sun {
   const date = scenario.comfort?.date ?? "2026-03-21";
   const [year, month, day] = date.split("-").map(Number);

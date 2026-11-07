@@ -2,6 +2,7 @@ import { parameter } from "../parameters.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { pointInPolygon, polygonCentroid } from "./geometry.ts";
+import { memoGeometry } from "./navigation.ts";
 import type { Navigation } from "./navigation.ts";
 
 export interface RoomPerson {
@@ -16,6 +17,12 @@ interface Assignment { personId: string; point: Vec2 }
 const squaredDistance = (a: Vec2, b: Vec2): number => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
 
+/** Assignments are immutable after construction and can be shared for a batch
+ * only with identical geometry, people/desks, required rooms and spacing. */
+export function createRoomSpots(plan: FloorPlan, navigation: Navigation, people: RoomPerson[], requiredSpaces?: Set<string>): RoomSpots {
+  return memoGeometry('room-spots',()=>[plan,people,requiredSpaces ? [...requiredSpaces].sort() : null,parameter('service.standing.spacing')],
+    ()=>new RoomSpots(plan,navigation,people,requiredSpaces));
+}
 /** Stable person-specific standing spots, independent of request order or active visits. */
 export class RoomSpots {
   private readonly assigned = new Map<string, Map<number, Map<string, Vec2>>>();

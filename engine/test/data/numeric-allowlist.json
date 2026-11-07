@@ -71,7 +71,7 @@
     }
   },
   "engine/src/modules/aggregate.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Existing geometry/index/report maths, plus empty arrays and zero-valued counters for movement-only post-processing; no simulation behaviour change.",
     "expressions": {
       "0.5 in HEAT_CELL_M = 0.5": 1,
       "0 in passBys = 0": 1,
@@ -731,8 +731,11 @@
     }
   },
   "engine/src/modules/navigation.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Existing geometry/index arithmetic and fresh zero-valued per-run connector counters. Route parameter signatures contain no numeric defaults.",
     "expressions": {
+      "0 in trips:0": 1,
+      "0 in peakWaiting:0": 1,
+      "0 in longestWaitS:0": 1,
       "0 in plan.levels[0]": 1,
       "0 in count = 0": 1,
       "1 in -1": 4,
@@ -1297,12 +1300,52 @@
       "0 in trip.inside[0]": 1
     }
   },
+  "engine/src/sampling.ts": {
+    "reason": "Normal CDF approximation (Abramowitz & Stegun 7.1.26), bisection, quantiles, shuffle/index and simplex arithmetic. No behaviour defaults.",
+    "expressions": {
+      "0 in x < 0": 1,
+      "1 in -1": 1,
+      "1 in x < 0 ? -1 : 1": 1,
+      "1 in 1 / (1 + .3275911 * a)": 1,
+      "1 in 1 + .3275911 * a": 1,
+      ".3275911 in .3275911 * a": 1,
+      "1 in 1 - (((((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - .284496736)*t + .254829592)*t*Math.exp(-a*a)": 1,
+      "1.061405429 in 1.061405429*t": 1,
+      "1.453152027 in 1.061405429*t - 1.453152027": 1,
+      "1.421413741 in ((1.061405429*t - 1.453152027)*t) + 1.421413741": 1,
+      ".284496736 in (((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - .284496736": 1,
+      ".254829592 in ((((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - .284496736)*t + .254829592": 1,
+      "1 in 1 + sign * erf": 1,
+      "2 in (1 + sign * erf) / 2": 1,
+      "0 in low = 0": 1,
+      "2 in high = 2": 1,
+      "0 in i = 0": 1,
+      "48 in i < 48": 1,
+      "2 in (low + high) / 2": 2,
+      "0 in q < 0": 1,
+      "1 in q > 1": 1,
+      ".5 in q === .5": 1,
+      "0 in q === 0": 1,
+      "1 in q === 1": 1,
+      ".5 in .5 + Math.abs(2*q-1) * (normalCdf(2)-.5)": 1,
+      "2 in 2*q": 1,
+      "1 in 2*q-1": 1,
+      "2 in normalCdf(2)": 1,
+      ".5 in normalCdf(2)-.5": 1,
+      ".5 in q < .5": 1,
+      "2 in (value-low)/2": 1,
+      "2 in (high-value)/2": 1,
+      "1 in runs < 1": 1,
+      "1 in runs-1": 1,
+      "0 in i > 0": 1,
+      "1 in i+1": 1
+    }
+  },
   "engine/src/sensitivity.ts": {
-    "reason": "Deterministic numerical screening budget, percentages and unit conversion.",
+    "reason": "Existing unit conversion/index/percentage maths, plus sample demand scaling and validated empty-override/count identities.",
     "expressions": {
       "0 in result.metrics.queues.reduce((sum, row) => sum + row.totalWaitS, 0)": 1,
       "0 in Math.max(0, ...result.metrics.connectors.map(row => row.longestWaitS))": 1,
-      "24 in sampleSize = 24": 1,
       "1 in sampleSize < 1": 1,
       "0 in [...items] .sort((a, b) => personSeed(sample.seed, a.id) - personSeed(sample.seed, b.id) || a.id.localeCompare(b.id)) .slice(0, sampleSize)": 1,
       "0 in clock.slice(0, 2)": 1,
@@ -1315,6 +1358,9 @@
       "1 in Math.min(1, sampleSize / Math.max(1, expected))": 1,
       "1 in Math.max(1, expected)": 1,
       "0 in options.onProgress?.(0, parameters.length)": 1,
+      "1 in parameter.key.match(/^scenario\\.shoppers\\.arrivals\\.(\\d+)\\.perHour$/)?.[1]": 1,
+      "0 in arrivalIndex === undefined ? 0 : scenario.shoppers!.arrivals[Number(arrivalIndex)].perHour": 1,
+      "1 in originalRate ? sample.shoppers!.arrivals[Number(arrivalIndex)].perHour / originalRate : 1": 1,
       "0 in baseline[row.metric] === 0": 1,
       "0 in swing === 0": 1,
       "0 in swing === 0 ? 0 : 100": 1,
