@@ -1,3 +1,5 @@
+diff --git a/engine/test/data/v04-sha256.json b/engine/test/data/v04-sha256.json
+index b75471e..1ba5bb4 100644
 --- a/engine/test/data/v04-sha256.json
 +++ b/engine/test/data/v04-sha256.json
 @@ -4,6 +4,6 @@
@@ -8,20 +10,8 @@
 +    "mall-2f": "254e639ad478ce285b39da64263c55b7f5bab7bad7260aca367ca8c6c4337b2b"
    }
  }
---- a/engine/test/data/v061-sha256.json
-+++ b/engine/test/data/v061-sha256.json
-@@ -6,8 +6,8 @@
-     "office-a/office-day": "de1b4669e502edaea70a28df48f0a706aa97567fae317ff406c891b47b38135d",
-     "office-b/office-day": "bffe6d78444f7e4f7b93a1bac018b1f19ee6217a68454eeb7d4dd4493d40e65c",
-     "sealed-room/sealed-day": "fe661bceb30f0b6f00c77f37233aad793631870c1edef2446a93aa96e3b43f28",
--    "mall-2f/mall-day": "54696e53733cec26178fc214d4c5f28b888a9d17117b371f722c531e3c42a1d7",
--    "mall-2f/mall-weekend": "cb823e37b6e94d76d1780448936de2e0c143aaf5c69d2ea7a120c63500793b35",
--    "mall-2f/mall-weekend-people-no-new-fields": "4b71a665114bf68ebc5d12ed049884c74e82eef69c830d670162072ed9156916"
-+    "mall-2f/mall-day": "82f208ce2f61ecacd9b647563ff6646757656aea9aec6bfe9642408d55165fa6",
-+    "mall-2f/mall-weekend": "c0101cdca0688106afd7a4821afc0d7424c1517334a8e978c2447278a4ee4140",
-+    "mall-2f/mall-weekend-people-no-new-fields": "aa1ddb8f4561db60b5ed20002ba94d00ff5b79906562009aafb1a9391654755d"
-   }
- }
+diff --git a/engine/test/data/v061-full-sha256.json b/engine/test/data/v061-full-sha256.json
+index 680ba66..f7ae5e2 100644
 --- a/engine/test/data/v061-full-sha256.json
 +++ b/engine/test/data/v061-full-sha256.json
 @@ -4,8 +4,8 @@
@@ -36,6 +26,24 @@
 +    "mall-2f/mall-weekend-people": "8ce504e7c06da9e74894c4070948f8126192688f13f77c41f39e50f6a6d5f157"
    }
  }
+diff --git a/engine/test/data/v061-sha256.json b/engine/test/data/v061-sha256.json
+index 9dead02..a45b9ec 100644
+--- a/engine/test/data/v061-sha256.json
++++ b/engine/test/data/v061-sha256.json
+@@ -6,8 +6,8 @@
+     "office-a/office-day": "de1b4669e502edaea70a28df48f0a706aa97567fae317ff406c891b47b38135d",
+     "office-b/office-day": "bffe6d78444f7e4f7b93a1bac018b1f19ee6217a68454eeb7d4dd4493d40e65c",
+     "sealed-room/sealed-day": "fe661bceb30f0b6f00c77f37233aad793631870c1edef2446a93aa96e3b43f28",
+-    "mall-2f/mall-day": "54696e53733cec26178fc214d4c5f28b888a9d17117b371f722c531e3c42a1d7",
+-    "mall-2f/mall-weekend": "cb823e37b6e94d76d1780448936de2e0c143aaf5c69d2ea7a120c63500793b35",
+-    "mall-2f/mall-weekend-people-no-new-fields": "4b71a665114bf68ebc5d12ed049884c74e82eef69c830d670162072ed9156916"
++    "mall-2f/mall-day": "82f208ce2f61ecacd9b647563ff6646757656aea9aec6bfe9642408d55165fa6",
++    "mall-2f/mall-weekend": "c0101cdca0688106afd7a4821afc0d7424c1517334a8e978c2447278a4ee4140",
++    "mall-2f/mall-weekend-people-no-new-fields": "aa1ddb8f4561db60b5ed20002ba94d00ff5b79906562009aafb1a9391654755d"
+   }
+ }
+diff --git a/engine/test/data/v072-full-sha256.json b/engine/test/data/v072-full-sha256.json
+index f9440f5..51fe532 100644
 --- a/engine/test/data/v072-full-sha256.json
 +++ b/engine/test/data/v072-full-sha256.json
 @@ -4,10 +4,10 @@
@@ -53,6 +61,8 @@
 +    "mall-2f-comfort/mall-weekend-comfort": "e79c01a19dec5f8e52b63e83ba2b5614d4dbee1ad68fe79faca2fc088e04b1eb"
    }
  }
+diff --git a/engine/test/data/v08-full-sha256.json b/engine/test/data/v08-full-sha256.json
+index 44caa3e..6935b77 100644
 --- a/engine/test/data/v08-full-sha256.json
 +++ b/engine/test/data/v08-full-sha256.json
 @@ -4,11 +4,11 @@
@@ -71,3 +81,4 @@
      "office-a-site/office-day-site": "fb4760483f9adeefe704f9f8129b7678f0adbaaf2f791701b631e820ae12476c"
    }
  }
+\ No newline at end of file

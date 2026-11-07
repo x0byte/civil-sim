@@ -1,3 +1,7 @@
+## 2026-11-07 — Approved sample hash refresh
+
+The product owner approved an exception to the next brief's no-engine-changes rule: refresh 15 mall entries in five engine/test/data hash JSON files to account for the requested food-court wall/door. Only test data changes; engine source and test assertions/limits stay unchanged. The exact review patch is docs/polish-baseline-refresh.patch.
+
 ## 2026-11-07 — Simple People controls and sample doorway
 
 Simple mode keeps the comfort switch alongside building type, day, crowd and people mix; all detailed people controls remain under Fine-tune. Accent fills and accent text have separate tokens for readable themes. Removed shell predecessors only after searching TS/TSX references. The upper mall food court now has a 3 m doorway in a new 14 m wall along its existing concourse boundary; the generated mall variants inherit it. OSM transport failures receive plain retry wording.

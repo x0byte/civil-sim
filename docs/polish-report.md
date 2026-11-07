@@ -39,7 +39,7 @@ Pressed Fetch surroundings once in the browser using office-a-site's saved locat
 
 ## Validation and screenshots
 
-All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine files changed. The optional broader engine check found 15 historical mall-hash mismatches from the requested doorway; a proposed test-data-only refresh is in [polish-baseline-refresh.patch](polish-baseline-refresh.patch), pending a scope exception. Timing rechecks are recorded below.
+All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine source changes. The broader engine check found 15 historical mall-hash mismatches from the requested doorway. The product owner explicitly approved refreshing those entries in five engine/test/data JSON files; [polish-baseline-refresh.patch](polish-baseline-refresh.patch) records the exact changes. Timing rechecks are recorded below.
 
 A resize check also found that a floating assistant could leave its minimise button outside the viewport; its horizontal clamp now keeps the whole title bar on screen.
 
