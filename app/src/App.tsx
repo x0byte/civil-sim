@@ -142,7 +142,7 @@ export function App() {
                     {jobStatus === "working" ? (
                       <Skeleton label="Results will appear here when the run is ready…" />
                     ) : (
-                      <div className="panel-body">Your results will appear here. You can change the people or the building at any time.</div>
+                      <div className="panel-body"><p className="muted">Your results will appear here. You can change the people or the building at any time.</p></div>
                     )}
                   </section>
                 )}

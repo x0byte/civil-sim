@@ -100,7 +100,10 @@ export function storyScores(run: SimRun): Score[] {
 }
 export function duration(s: number): string {
   const n = Math.ceil(s);
-  return `${Math.floor(n / 60)} min ${n % 60} s`;
+  const m = Math.floor(n / 60),
+    r = n % 60;
+  if (!m) return `${r} s`;
+  return r ? `${m} min ${r} s` : `${m} min`;
 }
 export function topFixes(run: SimRun): Fix[] {
   const p = run.plan,

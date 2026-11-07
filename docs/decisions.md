@@ -289,3 +289,10 @@ Newest first. One entry per decision: what, why, who decided.
 - **Parallel build: Claude on the editor (`app/`), Codex on the simulation core (`engine/`), meeting only at `contracts/`.** *(Product owner)*
 - **Floor plan input starts as upload-and-trace plus drawing.** Automatic wall detection and DXF import come later. *(Agreed)*
 - **TypeScript, runs in the browser.** Pitching should be as simple as sending a link. *(Claude)*
+
+## 2026-11-07 · One spacing and type scale (app)
+`app/src/ui/system.css` loads last and holds the scale: spacing 4/8/12/16/24/32 px; type 11 caption, 12 secondary,
+13 body, 15 section title, 20 screen title, 26 page title; one 32 px height for panel controls. New styles should use
+these tokens (`--space-*`, `--text-*`, `--control-h`) rather than new pixel values. Selects and text fields sit under
+their label (full width) so choices are never cut off; number fields keep the label beside them. The sidebar keeps
+88 px of room at the bottom so the floating assistant button never covers the last panel.

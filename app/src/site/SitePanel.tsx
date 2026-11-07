@@ -94,8 +94,8 @@ export function SitePanel() {
           Read coordinates
         </button>
         <NumField
-          label="Clock ahead of UTC"
-          unit="hours"
+          label="Time zone"
+          unit="hours ahead of UTC"
           min={-12}
           max={14}
           step={0.5}
@@ -103,10 +103,7 @@ export function SitePanel() {
           onCommit={(utcOffsetHours) => set({ utcOffsetHours })}
         />
         {location && <SurroundingsMap location={location} onPick={(location) => set({ location })} />}
-        <p className="muted">
-          North aligns the plan with the street. Changing location or north repositions saved surroundings; fetch again for fresh coverage. The map
-          pin is the plan origin, not its centre.
-        </p>
+        <p className="muted">The pin marks the plan's top-left corner. Set north in the plan so the building lines up with the street.</p>
         <button disabled={!location || busy} onClick={fetchNow}>
           {busy ? "Fetching surroundings…" : message.includes("Retry") || message.includes("timed out") ? "Retry surroundings" : "Fetch surroundings"}
         </button>
@@ -116,15 +113,14 @@ export function SitePanel() {
           onRetry={() => void fetchNow()}
           note="This can take up to a minute, and sometimes longer when the map service is busy."
         />
-        <p className="muted">Fetching surroundings can take up to a minute.</p>
         {message && (
           <p className="muted" role="status">
             {message}
           </p>
         )}
         <p className="muted">
-          Buildings and roads within 200 m, kept in this browser. Buildings your building stands on are replaced; move or turn it and they
-          come back. Heights from floors or assumptions need checking.
+          Fetches buildings and roads within 200 m. Any building under yours is replaced, and comes back if you move it. Estimated heights are
+          marked for checking.
         </p>
         {!!site?.neighbours?.length && (
           <details>

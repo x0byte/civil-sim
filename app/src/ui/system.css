@@ -1,0 +1,284 @@
+/* One spacing and type scale for the whole app. Loaded last (from main.tsx), so these rules settle
+   the older, ad hoc values in styles.css, experience.css and shell.css.
+
+   Spacing: 4 · 8 · 12 · 16 · 24 · 32 px.
+   Type:    11 caption · 12 secondary · 13 body · 15 section title · 20 screen title · 26 page title.
+   Controls: one height, 32 px, for buttons, inputs and selects in panels. */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --text-caption: 11px;
+  --text-small: 12px;
+  --text-body: 13px;
+  --text-title: 15px;
+  --text-screen: 20px;
+  --text-page: 26px;
+  --control-h: 32px;
+  --control-radius: 6px;
+  --leading: 1.45;
+}
+
+/* ---------- panels ---------- */
+.sidebar .panel header {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.sidebar .panel header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sidebar .panel h2 {
+  font-size: var(--text-title);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+.sidebar .panel header .muted {
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}
+.sidebar .panel-body {
+  padding: var(--space-1) var(--space-4) var(--space-4);
+  gap: var(--space-3);
+}
+.sidebar .panel-body > button {
+  margin: 0;
+}
+/* Room under the last panel so the floating "Ask the assistant" button never covers it. */
+.sidebar {
+  padding-bottom: 88px;
+}
+
+/* ---------- text ---------- */
+.sidebar p,
+.sidebar .muted {
+  line-height: var(--leading);
+}
+.sidebar .panel-body p {
+  margin: 0;
+}
+.sidebar .panel-body > p:not(.muted):not(.warn) {
+  font-size: var(--text-body);
+}
+.muted,
+.sidebar .warn {
+  font-size: var(--text-small);
+}
+.estimate {
+  font-size: var(--text-caption);
+}
+
+/* ---------- fields ---------- */
+.sidebar .field {
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  line-height: 1.3;
+}
+/* A choice reads its full wording only with the whole width: selects and text sit under their label. */
+.sidebar .field:has(> select),
+.sidebar .field:has(> input[type="text"]),
+.sidebar .field.stacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.sidebar .field > span:first-child {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+.sidebar .field input[type="text"],
+.sidebar .field input[type="number"],
+.sidebar .field input[type="date"],
+.sidebar .field input[type="time"],
+.sidebar .field select,
+.sidebar .input-unit input {
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+  border-radius: var(--control-radius);
+  font-size: var(--text-body);
+}
+.sidebar .input-unit {
+  gap: var(--space-2);
+  font-size: var(--text-small);
+}
+
+/* ---------- buttons ---------- */
+.sidebar .panel-body > button,
+.sidebar .panel-body > .group > button,
+.sidebar .panel-body > .row2 > button {
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--control-radius);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.sidebar .panel-body > .group,
+.sidebar .row2 {
+  gap: var(--space-2);
+}
+.sidebar .panel header button {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-small);
+}
+
+/* ---------- tables ---------- */
+.sidebar .table {
+  font-size: var(--text-body);
+}
+.sidebar .table th {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+}
+.sidebar .table td {
+  padding: 6px 0;
+  vertical-align: middle;
+}
+/* Kinds of people: the name opens the kind, so it reads as a row title, not an underlined link. */
+.table.kinds td:first-child button.link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.table.kinds td:first-child button.link:hover {
+  color: var(--accent-text);
+}
+.table.kinds td:nth-child(2) {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: 1.3;
+}
+.kind-detail td {
+  padding: var(--space-3) var(--space-3) var(--space-4);
+}
+.kind-fields {
+  gap: var(--space-2);
+}
+
+/* ---------- segmented controls ---------- */
+.sidebar .segmented button {
+  min-height: 28px;
+  font-size: var(--text-small);
+}
+
+/* ---------- Simulate ---------- */
+.sidebar .run-controls {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.sidebar .run-controls h2 {
+  font-size: var(--text-screen);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.sidebar .run-controls p {
+  font-size: var(--text-body);
+  margin: 0 0 var(--space-2);
+}
+.sidebar .run-controls > button {
+  margin: 0;
+  min-height: var(--control-h);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.sidebar .run-controls > button.big-run {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-title);
+  font-weight: 600;
+}
+.sidebar .results-story {
+  padding: var(--space-4);
+}
+.sidebar .results-story h1 {
+  font-size: var(--text-title);
+  line-height: 1.3;
+  margin: 0 0 var(--space-1);
+}
+.story-scorecard {
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-5);
+}
+.story-score {
+  padding: var(--space-3);
+  gap: var(--space-1) var(--space-2);
+}
+.story-score h2 {
+  font-size: var(--text-body);
+  line-height: 1.35;
+}
+.story-score p {
+  font-size: var(--text-small);
+  line-height: var(--leading);
+  margin: 0;
+}
+.fixes article {
+  padding: var(--space-3) 0;
+}
+.fixes p {
+  font-size: var(--text-body);
+  line-height: var(--leading);
+  margin: 0 0 var(--space-2);
+}
+.fixes button {
+  margin: 0 var(--space-2) var(--space-2) 0;
+}
+
+/* The "Let's see how your building feels" card sits in the middle of the stage, not over one corner. */
+.run-empty {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - 2 * var(--space-5)));
+  padding: var(--space-5);
+  text-align: center;
+}
+.run-empty h1 {
+  font-size: var(--text-screen);
+  line-height: 1.3;
+  margin: 0 0 var(--space-2);
+}
+.run-empty p {
+  font-size: var(--text-body);
+  margin: 0;
+}
+
+/* ---------- Home ---------- */
+.home-main {
+  padding: var(--space-6) var(--space-6) 96px;
+}
+.home-header > button {
+  margin-top: var(--space-4);
+}
+.home-main h2 {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: var(--text-body);
+}
+.home-row-heading h2 {
+  margin: 0;
+}
+.home-row-heading {
+  margin: var(--space-6) 0 var(--space-3);
+}
+.home-nav-foot p {
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}
