@@ -18,9 +18,9 @@ function savedPos(): { x: number; y: number } {
   return { x: window.innerWidth - WIDTH - 24, y: 72 };
 }
 
-/** Keeps the window's header on screen, however the browser window was resized. */
+/** Keeps the window's whole title bar on screen, however the browser window was resized. */
 const clamp = (p: { x: number; y: number }) => ({
-  x: Math.min(Math.max(8, p.x), window.innerWidth - 120),
+  x: Math.min(Math.max(8, p.x), Math.max(8, window.innerWidth - WIDTH - 8)),
   y: Math.min(Math.max(48, p.y), window.innerHeight - 60),
 });
 

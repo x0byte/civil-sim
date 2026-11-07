@@ -39,7 +39,9 @@ Pressed Fetch surroundings once in the browser using office-a-site's saved locat
 
 ## Validation and screenshots
 
-All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine changes.
+All 155 app tests passed, including the legacy-filename and timeout regressions. App typecheck, production build (2.22 s Vite bundle), all 11 contract pairs and diff whitespace checks passed. Existing bundle-size advisory remains. No contract or engine files changed. The optional broader engine check found 15 historical mall-hash mismatches from the requested doorway; a proposed test-data-only refresh is in [polish-baseline-refresh.patch](polish-baseline-refresh.patch), pending a scope exception. Timing rechecks are recorded below.
+
+A resize check also found that a floating assistant could leave its minimise button outside the viewport; its horizontal clamp now keeps the whole title bar on screen.
 
 Office and mall People were inspected at 1024 and 1440 px in light and dark on the isolated QA origin; the user's project at port 5174 was preserved. Full-page captures avoid browser screenshot clipping with viewport overrides.
 
