@@ -208,7 +208,7 @@ export function TopBar() {
         )}
         <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title={ASSISTANT_NAME}>
           <Mark size={14} />
-          Assistant
+          {ASSISTANT_NAME}
         </button>
       </div>
 
