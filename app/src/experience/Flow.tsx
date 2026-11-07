@@ -1,3 +1,4 @@
+import { ImprovementsButton } from "../improvements/Improvements.tsx";
 import { useState } from "react";
 import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
@@ -64,7 +65,9 @@ export function SimplePeople() {
                 ux.ask("Help me add shops and a food court so I can try a shopping mall crowd.");
                 return;
               }
-              save({ ...profile, shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" },
+              save({
+                ...profile,
+                shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" },
                 ...(e.target.value === "mall" && profile.workday.start === "08:30" ? { workday: MALL_HOURS } : {}),
               });
             }}
@@ -111,7 +114,9 @@ export function SimplePeople() {
                 <option value={1}>Everyone comes in</option>
                 <option value={0.8}>A typical workday · most come in</option>
                 <option value={0.5}>A quieter day · half come in</option>
-                {![1, 0.8, 0.5].includes(profile.attendance) && <option value={profile.attendance}>Your day · {Math.round(profile.attendance * 100)}% come in</option>}
+                {![1, 0.8, 0.5].includes(profile.attendance) && (
+                  <option value={profile.attendance}>Your day · {Math.round(profile.attendance * 100)}% come in</option>
+                )}
               </select>
             </label>
             <label className="field">
@@ -120,7 +125,9 @@ export function SimplePeople() {
                 <option value={1}>Full team</option>
                 <option value={0.8}>Most of the team</option>
                 <option value={0.5}>Half the team</option>
-                {![1, 0.8, 0.5].includes(profile.attendance) && <option value={profile.attendance}>Your setting · {Math.round(profile.attendance * 100)}%</option>}
+                {![1, 0.8, 0.5].includes(profile.attendance) && (
+                  <option value={profile.attendance}>Your setting · {Math.round(profile.attendance * 100)}%</option>
+                )}
               </select>
             </label>
             <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask the assistant to change teams or add visitors.</p>
@@ -142,8 +149,11 @@ export function SimplePeople() {
           </select>
         </label>
         <label className="check">
-          <input type="checkbox" checked={profile.comfort?.enabled ?? false}
-            onChange={(e) => save({ ...profile, comfort: { ...(profile.comfort ?? DEFAULT_COMFORT), enabled: e.target.checked } })} />
+          <input
+            type="checkbox"
+            checked={profile.comfort?.enabled ?? false}
+            onChange={(e) => save({ ...profile, comfort: { ...(profile.comfort ?? DEFAULT_COMFORT), enabled: e.target.checked } })}
+          />
           Check comfort · sound and light
         </label>
         <button onClick={() => ux.ask("Help me choose who uses this building. Explain the assumptions first.")}>Help me choose</button>
@@ -206,6 +216,7 @@ export function RunControls() {
           Compare with before
         </button>
       )}
+      {state.run && <ImprovementsButton />}
       {state.run && (
         <div className="presentation-switch" role="group" aria-label="View results">
           <button

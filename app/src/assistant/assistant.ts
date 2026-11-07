@@ -12,12 +12,12 @@ import { defaultProfile } from "../population/officeProfile.ts";
 import { useEditor } from "../state/store.ts";
 import { type Change, type Draft, TOOLS, describe, runTool } from "./tools.ts";
 
-const MODEL = "claude-opus-5-5";
+export const MODEL = "claude-opus-5-5";
 const KEY_STORAGE = "civil-sim:anthropic-key";
 /** Model turns per message before giving up, so a confused loop can't run up a bill. */
 const MAX_STEPS = 24;
 
-const SYSTEM = `You are the design assistant inside Nine Arches, a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
+export const SYSTEM = `You are the design assistant inside Nine Arches, a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
 
 You change the plan and the people settings by calling tools. Your changes go into a proposal that the user sees highlighted on the plan and then applies or discards, so make the change asked for rather than asking permission. Ask a short question first only when the request is genuinely ambiguous (for example, which of two rooms they mean).
 
@@ -125,7 +125,13 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     pendingNote = "";
     const history: Anthropic.Beta.BetaMessageParam[] = [
       ...get().history,
-      { role: "user", content: [{ type: "text", text: intro }, { type: "text", text }] },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: intro },
+          { type: "text", text },
+        ],
+      },
     ];
     set({ busy: true, activity: ["Reading your plan"], error: null, history, lines: [...get().lines, { role: "user", text }] });
 
@@ -215,7 +221,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   },
 }));
 
-function errorText(e: unknown): string {
+export function errorText(e: unknown): string {
   if (e instanceof Anthropic.AuthenticationError) return "That API key wasn't accepted. Check it and enter it again.";
   if (e instanceof Anthropic.PermissionDeniedError) return "This API key isn't allowed to use the model.";
   if (e instanceof Anthropic.RateLimitError) return "Too many requests right now. Wait a moment and try again.";

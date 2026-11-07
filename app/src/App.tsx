@@ -1,3 +1,5 @@
+import { Improvements, ImprovementPreview } from "./improvements/Improvements.tsx";
+import { useImprovements } from "./improvements/store.ts";
 import { plainText } from "./experience/wording.ts";
 import { useEffect } from "react";
 import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
@@ -37,7 +39,7 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.closest?.("input, select, textarea")) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, select, textarea, [role=dialog]")) return;
       const s = useEditor.getState();
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === "z") {
@@ -63,6 +65,7 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const improvementPreview = useImprovements((s) => s.previewId);
   return (
     <div className={`app friendly-app ${ux.assistantOpen && ux.assistantDocked ? "assistant-is-docked" : ""}`}>
       <TopBar />
@@ -74,6 +77,8 @@ export function App() {
           <div className="stage">
             {proposal ? (
               <ProposalView />
+            ) : improvementPreview && ux.step === 3 ? (
+              <ImprovementPreview />
             ) : ux.step === 3 && cmp ? (
               <CompareView comparison={cmp} />
             ) : ux.step === 3 && run ? (
@@ -135,6 +140,7 @@ export function App() {
         </main>
       )}
       <AssistantWindow />
+      <Improvements />
       {toast && (
         <div className="toast" role="status">
           {plainText(useEditor.getState().plan, toast)}

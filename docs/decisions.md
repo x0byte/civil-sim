@@ -1,3 +1,7 @@
+## 2026-11-07 — Find improvements compares frozen experiments
+
+The assistant proposes exactly three independent layout drafts, in separate conversations using the existing editing tools. People/profile tools are excluded and profile changes refused. Each valid option runs serially in a terminable browser worker against the base scenario's people, seed, hours and weather. Recasting may reseat people, but cannot drop staff, visitors, meetings or required daily activities. Evacuation goals require an existing evacuation run and reuse its alarm/blocked exits while also comparing the ordinary day. Rankings use lower-is-better measures, deterministic option-id tie ordering and shared Best labels; access and safety prioritize blocked/stranded/refuge counts ahead of time. Mean walking includes shoppers and visitors, unlike the legacy staff-only summary. Apply is guarded against plan and people edits and records one undo entry. Free-text restrictions guide proposals; the user reviews the highlighted draft and rough scope before applying. No plan is changed by generation, preview or simulation.
+
 ## 2026-11-07 — Approved sample hash refresh
 
 The product owner approved an exception to the next brief's no-engine-changes rule: refresh 15 mall entries in five engine/test/data hash JSON files to account for the requested food-court wall/door. Only test data changes; engine source and test assertions/limits stay unchanged. The exact review patch is docs/polish-baseline-refresh.patch.

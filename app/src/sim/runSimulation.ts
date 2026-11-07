@@ -24,7 +24,7 @@ export interface SimRun {
 type Outcome = { run: SimRun } | { errors: string[] };
 
 /** Runs one workday of `scenario` in `plan` with the simulation engine (engine/). */
-function runWith(
+export function runFixedScenario(
   plan: FloorPlan,
   scenario: Scenario,
   extra: Partial<Pick<SimRun, "notes" | "meetingDemand" | "collaborations">> = {},
@@ -58,7 +58,7 @@ export function runSimulation(plan: FloorPlan, profile?: OfficeProfile, evacuati
   const x = expandProfile(p, plan);
   if (evacuation) x.scenario.evacuation = evacuation;
   else delete x.scenario.evacuation;
-  const out = runWith(plan, x.scenario, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
+  const out = runFixedScenario(plan, x.scenario, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
   if ("run" in out) out.run.profile = p;
   return out;
 }
@@ -82,7 +82,7 @@ export function runComparison(
   const base = x.scenario;
   if (evacuation) base.evacuation = evacuation;
   else delete base.evacuation;
-  const ra = runWith(a, base, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
+  const ra = runFixedScenario(a, base, { notes: x.notes, meetingDemand: x.meetingDemand, collaborations: p.collaborations });
   if ("errors" in ra) return { errors: ra.errors.map((e) => `${labels[0]}: ${e}`) };
   const recast = recastScenario(base, b);
   if (recast.scenario.evacuation)
@@ -90,7 +90,7 @@ export function runComparison(
       ...recast.scenario.evacuation,
       blockedExitIds: recast.scenario.evacuation.blockedExitIds?.filter((id) => b.openings.some((o) => o.id === id && o.exterior)),
     };
-  const rb = runWith(b, recast.scenario, { notes: recast.notes, collaborations: p.collaborations });
+  const rb = runFixedScenario(b, recast.scenario, { notes: recast.notes, collaborations: p.collaborations });
   if ("errors" in rb) return { errors: rb.errors.map((e) => `${labels[1]}: ${e}`) };
   return { comparison: { a: ra.run, b: rb.run, labels } };
 }
