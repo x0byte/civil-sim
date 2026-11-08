@@ -10,6 +10,8 @@ export interface SimulationProgress {
   people?: number;
 }
 export interface SimulationOptions {
+  /** Single-run decision measurements; uncertainty is streamed separately. */
+  decision?: boolean;
   /** Internal batch measurements only. "movement" omits all grids and occupancy;
    * "headlines" retains room occupancy/retail but omits grids, density and comfort.
    * Neither mode changes movement. Representative playback uses full measurement.

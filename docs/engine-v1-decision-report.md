@@ -1,126 +1,259 @@
-# v1.0 Part B · streaming foundation
+# v1.0 Part B · decision metrics with streamed ranges
 
-Branch `engine/v1-decision-metrics`, worktree `.worktrees/v1-decision-metrics`,
-based on Part A follow-up `47a6003`. Part A remains separately reviewable on
-`engine/v1-evidence`; neither branch has been merged into the product branch.
-Contracts are unchanged.
+Branch `engine/v1-decision-metrics`, worktree `.worktrees/v1-decision-metrics`.
+`master` (including Part A merge `e4e5250`) was merged before this continuation.
+Contracts are unchanged. Part B remains on its own branch for Claude's review.
 
-## Scope of this first Part B increment
+## Delivered
 
-B1's execution/sampling machinery is implemented. B2 decision definitions and
-B3 comparison verdicts are **not implemented yet**. This increment does not
-populate `SimulationResult.decision`, rename walking as time lost, or expose
-business figures in the app. The benchmark uses existing movement measurements
-only. The next increment supplies the proper time-lost reader and uses
-`timeLost.hoursPerDay` as the representative metric.
+- `simulate(plan, scenario, {decision:true})` adds single-run contract decision
+  measurements. Plain `simulate` remains the inexpensive raw compatibility API;
+  historical captures are not regenerated. App day/fixed/comparison dispatchers
+  request decision measurements. An app central result is labelled **Central
+  estimate · ranges pending**, never presented as a measured uncertainty interval.
+- `streamDecisionResults` is the canonical ranged result API. It yields the
+  central result first, then contract `DecisionMetrics` after each sampled run,
+  with “Ranges from n of m runs”. `sampleParameters` supplies coherent seeded
+  Latin hypercube draws from Part A's bounded bell curves. Every draw also has a
+  different seed; settings and explicit scalar overrides stay fixed. Default 12
+  draws, excluding the central run.
+- Each result carries median and interpolated p10–p90 for every numeric decision
+  field that the contract marks `Ranged`. Partial intervals can widen or narrow;
+  the completed count remains visible until all draws finish.
+- Playback remains central during partial updates. At completion the sampled run
+  nearest median **time lost** supplies tracks, heatmaps, events and detailed
+  metrics. Earliest sample breaks a tie. One full replay supplies representative
+  grids, avoiding twelve retained track sets. Decision numbers remain ensemble
+  medians; the playback is an observed representative, not a synthetic median.
+- Evidence retains the central parameter values/envelopes and the union of keys
+  used across draws. Internal sampled values are not mislabelled user overrides
+  or site measurements. The scenario seed and sampler reproduce those draws.
+- The static registry now has **137 entries: 9 source-backed behaviours, 96
+  assumed-range behaviours, 32 settings**. The new settings are the fixed default
+  run budget, contract annualisation default and owner's capacity warning policy.
 
-`streamUncertainty(plan, scenario, options)` is a synchronous pull generator for
-a background worker. The consumer posts each yielded snapshot immediately. Its
-first pull runs only the ordinary central simulation, with no sensitivity, range
-sampling or representative run; callers may also supply that exact already-published
-central result. Range computation starts on subsequent pulls. Inputs are copied
-before the first yield, preventing later editor changes from altering the batch.
-The app's new Part A second task remains sensitivity only; range-worker integration
-belongs with the decision-reader increment, then the Part C results workspace.
+## Measurement definitions
 
-- Default **12** sampled runs, from `setting.uncertainty.runs`; an explicit
-  `scenario.uncertainty.runs` wins. The central run is additional, outside the
-  quantiles. All behaviour definitions use Part A's coherent seeded LHS bell
-  curves; settings and sourced scalar overrides stay fixed.
-- Every sampled run has a different reproducible seed. Matching scenarios across
-  options share draws/seeds, so comparison is not confounded by unrelated draws.
-- Snapshots contain interpolated p10/median/p90 and “Ranges from n of m runs”.
-  Counts remain visible until complete. Partial intervals can widen as well as
-  narrow: more samples improve the estimate, not guarantee monotonic narrowing.
-- A required measurement callback supplies values/contract units; inconsistent
-  metric keys, units or nonfinite values fail visibly. There is no fake time-lost
-  proxy. The callback also receives effective scenario values, including draws.
-- A required representative metric chooses the sampled run nearest its median
-  (earliest sample wins a tie). The selected sample is run once more with full
-  measurement to supply complete representative tracks/heatmaps. This extra pass
-  avoids retaining all twelve large track sets. Until then playback stays central.
-- Retained navigation/geometry caches activate only inside each synchronous run;
-  scope restores before every yield, nested batch or exception. Mutable queues,
-  lift state and counters remain per run. Cache key parameter reads can add
-  evidence rows to sampled playback; physical playback/metrics equal fresh runs.
-- Internal `measurement: "headlines"` retains occupancy, queues, connectors and
-  retail measurements, but skips density/comfort grids, footfall grids and private
-  exposure detail. It does not alter movement. `comfortHeadline: true` restores
-  full measurement if a comfort value is required by the reader. Representative
-  playback always receives full measurement.
-- `AbortSignal` is checked before/between runs and before representative playback.
-  A browser worker can be terminated during a synchronous run. Generator return
-  abandons the batch; no global cache remains active between pulls.
+### Staff time lost and money
 
-The registry now has 135 static definitions: 9 source-backed behaviours,
-96 assumed-range behaviours and 30 settings. The added entry is the owner's
-fixed twelve-run budget; behavioural evidence coverage is unchanged.
+Staff only. Visitor/shopper time is excluded, although those crowds can delay
+staff. Consecutive travel activities form trips; activity boundaries and alarms
+close a trip. Baselines use the shortest reasonable route allowed by that
+person's access policy, at their drawn free speed, without personal connector
+preferences or wayfinding detours. Closed exits and evacuation connector policy
+apply after the alarm.
 
-## Remaining Part B work
+- `queue`: queued activity, including queue shuffling. Explicit evacuation
+  reaction intervals are excluded: reaction time is not a service queue.
+- `lift_wait`: same-floor lift waiting. Riding is not counted again as waiting.
+- `detour`: positive free-speed time along actual movement beyond the shortest
+  reasonable route. Expected lift pickup is removed from the baseline because
+  actual pickup is counted separately; physical drop-off time remains.
+- `walk`: positive actual movement time beyond its free-speed time, including
+  crowd slowing and hesitation. These causes are disjoint and sum to total lost
+  hours. No ordinary shortest-route commute time is charged as lost time.
 
-- Instrument per-trip shortest free-speed baselines and staff delay causes, so
-  time lost counts queue, lift waiting and excess walking without double counting.
-- Rolling minute arrival demand against registry capacities (not served throughput),
-  utilisation flags, space occupied shares, relationships/meeting fallback, retail
-  money gating, evacuation goals and rule-named checks.
-- Assemble contract `DecisionMetrics` from the stream, preserve central evidence
-  bounds, use the time-lost median for playback selection, and extend sensitivity
-  to decision headlines.
-- Add range background-worker integration/cancellation, then compareResults with
-  range-aware verdicts, the 140-person one/two-stair acceptance test, and money
-  gating tests. These are not claimed as passing by this B1-only report.
+A trip without a connected baseline has its detour unestimated and gets an
+explicit failed `trip_shortest_route` check, rather than an invented distance.
+Money exists **only** with `costs.staffHourValue`, including a supplied zero:
+`hoursPerDay × staffHourValue × workdaysPerYear`. The contract's default is 250
+working days; an explicit value wins. Currency comes from the supplied Costs.
 
-## Validation and timings
+### Capacity and space use
 
-See the benchmark table and suite results below. Run all tests and benchmarks
-sequentially: performance tests compete for CPU when suites run concurrently.
+Flow gates record **arrival demand before service**, including people who wait
+or give up. Lift calls and all serviced-room admissions are recorded too. Future
+normal-day observations beyond an alarm are discarded. With crowding off, normal
+unthrottled door/connector crossings are arrivals. The peak is the greatest count
+in any half-open rolling `[t,t+60)` window; `worstAt` is its start.
 
-### Every-sample execution budget (12 draws)
+Capacities, per minute:
+- Door: clear width × `capacity.door.specific_flow` × 60.
+- Stair/ramp: modeled footprint width × `capacity.stair.specific_flow` × 60.
+- Escalator: `capacity.escalator.flow` × 60, matching the current movement model.
+- Lift: car capacity × 60 / (full shaft round trip / speed + two stop cycles).
+  This is a transparent nominal cycle, not manufacturer dispatch certification.
+- Modeled serviced rooms (toilets and pantries): simultaneous places × 60 /
+  (`service.facility.minimum` + half `service.facility.spread`). This remains the
+  existing generic room-use model; purpose-specific service calibration is needed.
+  The engine has no separate checkout/check-in server model, so it does not invent
+  capacity numbers for one.
 
-`npm run benchmark:ranges --prefix engine`; one sequential batch per sample.
-Seconds below include the separate full representative replay. Browser startup,
-structured cloning and painting are not included; total includes stream/sampler
-and measurement-reader overhead. Existing walking/queue/evacuation readers are
-used to benchmark execution, not to claim completed B2 decision metrics.
+Utilisation = peak arrivals / modeled capacity. The owner's 0.85 threshold is a
+screening policy, not a country's code. Ensemble checks use p90 utilisation.
+`capacityPerMin` and `worstAt` describe the representative run, as non-ranged
+contract fields; utilisation itself is computed separately for each draw before
+quantiles, not by dividing separately aggregated medians.
 
-| Plan / scenario | Central (s) | 12 range runs (s) | Full representative (s) | Total (s) |
+Every space has peak occupancy and the union of intervals when at least one person
+occupies its interior, divided by scheduled open hours. Boundary-only contact is
+excluded. This is an occupied-time share, not occupied person-hours / capacity.
+
+### Evacuation, teams, retail and checks
+
+Evacuation seconds are measured from the alarm. There is no pass/fail limit unless
+`goals` includes the user's `evacuation_limit`. A pass requires the upper estimate
+to meet that limit and no observed incomplete evacuation. People at refuges still
+need rescue; unresolved/refuge runs use the registry horizon as a censored value,
+with a failed completion check. They are never described as everyone safely out.
+The critical exit is the representative run's last used exit.
+
+Team travel uses zone centroids, or desk centroids on a team's most populated
+floor. One one-way centroid trip is counted per stated interaction; contributions
+are weighted by the two teams' staff counts and divided by all staff. Pair rows
+retain `perPersonPerDay` and `from`. With no relationships, cross-team scheduled
+meeting attendance supplies weak per-person interaction rates, labelled
+`from:"meetings"` and stated in the scorecard. Unconnected pairs are excluded with
+an explicit failed route check; zero is not asserted as a successful route.
+
+Retail uses existing measured pass-bys, entries and visit dwell. Revenue is a
+**proxy**, visit count × supplied spend per visit × working days, and is absent
+without `costs.spendPerVisit`. It is not a sales forecast. Interrupted evacuation
+runs are not extrapolated into a complete normal day.
+
+Access checks quote the actual effective registry key, threshold and source.
+Other checks name common guidance or the user's goal; no local regulation or
+unverified standard is claimed. The brief's illustrative 0.85 m door rule is not
+hard-coded: the effective registry door width remains authoritative.
+
+## Comparisons
+
+`compareResults(a,b)` returns B−A for shared metric identities, with conservative
+interval subtraction `[B.low−A.high, B.high−A.low]`. A directional verdict requires
+disjoint p10–p90 intervals; overlap is **within noise**. Lower time/cost/evacuation/
+team travel/utilisation is better; higher retail passers/entries/revenue is better.
+Space occupancy, demand volume and dwell need design context and receive no
+invented preference. These are interval judgments, not statistical significance
+tests or estimates of paired covariance. Comparison scorecards lead with these
+metrics and withhold verdicts while either side is still collecting runs.
+
+## Background execution and budget
+
+The central day/comparison worker publishes first. A separate range worker sends
+only the small decision payload on each partial update, preserving playback track
+identity. Final delivery replaces playback once with the full representative run.
+Day sensitivity follows range completion; CPU-heavy tasks are sequential.
+Comparisons process each side's ranges sequentially and never run sensitivity.
+
+A new run/comparison or plan/people edit terminates background work. Generation,
+active-controller and current-result identity guards reject stale partials,
+progress and completions. Cancellation/failure keeps completed results; errors
+have Retry. The no-worker fallback yields to the event loop between range runs
+and checks AbortSignal. Range chips show the real completed count.
+
+Geometry, route, standing-assignment and access-candidate caches are retained
+across range runs, scoped only while a synchronous simulation executes. Scope is
+restored before yielding or throwing; mutable queues, lift state and counters are
+fresh per run. Supporting density/comfort/footfall grids are skipped in range
+runs; occupancy/retail/decision measurements remain. A requested comfort headline
+can opt back into full measurement. Representative playback always has full grids.
+
+## Acceptance evidence
+
+The controlled 140-person fixture pins stair specific flow to 1 person/m/s and
+uses zero reaction delay, isolating the stair design while sampling other ranges.
+
+| Metric | One stair median (p10–p90) | Two stairs median (p10–p90) |
+|---|---:|---:|
+| Staff time lost, hours/day | 4.078 (3.179–5.078) | 1.906 (1.450–2.415) |
+| Evacuation, seconds | 238.89 (192.45–290.25) | 140.79 (114.31–169.50) |
+| One-stair peak utilisation | 1.361 (1.161–1.872) | — |
+
+Both time-lost and evacuation comparisons are **clearly better** with two stairs.
+Additional tests cover range containment/determinism, tighter pinned evacuation
+ranges, staff-only delay reconciliation, annualisation and money gating, retail
+revenue gating, user-only evacuation limits, blocked-exit failure, meeting
+fallback, occupancy shares, source envelopes, representative replay, real worker
+partial counts, fallback cancellation, edits, retries, late messages and sequential
+comparison work. Full-suite and every-sample timings follow below.
+
+## Every-sample timings (final decision path)
+
+`npm run benchmark:ranges --prefix engine`, sequential, default 12 draws. These
+measure the actual decision reader and median-time-lost representative selection,
+not the earlier walking-only B1 harness. Seconds include CPU/stream work; browser
+worker startup, serialization and rendering are excluded. Central and range
+phases are separate in the app. Representative replay includes full grids.
+
+| Plan / scenario | Central (s) | 12 range runs (s) | Representative (s) | Total (s) |
 |---|---:|---:|---:|---:|
-| office-a / office-day | 0.073 | 0.199 | 0.029 | 0.311 |
-| office-b / office-day | 0.026 | 0.199 | 0.012 | 0.241 |
-| sealed-room / sealed-day | 0.002 | 0.008 | 0.000 | 0.012 |
-| mall-2f / mall-day | 1.026 | 4.033 | 0.043 | 5.106 |
-| mall-2f / mall-weekend | 0.867 | 6.266 | 0.380 | 7.517 |
-| mall-2f / mall-weekend-people | 1.636 | 13.443 | 0.604 | 15.689 |
-| office-a-comfort / office-day-comfort | 0.269 | 0.351 | 0.220 | 0.845 |
-| mall-2f-comfort / mall-weekend-comfort | 3.625 | 14.523 | 2.508 | 20.665 |
-| office-a-site / office-day-site | 0.324 | 0.317 | 0.308 | 0.955 |
-| mall-2f-evac / mall-weekend-evac | 2.263 | 21.721 | 0.946 | 24.936 |
-| office-a-evac / office-day-evac | 0.037 | 0.213 | 0.010 | 0.263 |
+| office-a / office-day | 0.086 | 0.258 | 0.019 | 0.377 |
+| office-b / office-day | 0.032 | 0.247 | 0.019 | 0.303 |
+| sealed-room / sealed-day | 0.002 | 0.010 | 0.001 | 0.016 |
+| mall-2f / mall-day | 1.064 | 4.137 | 0.035 | 5.242 |
+| mall-2f / mall-weekend | 1.041 | 7.953 | 0.492 | 9.496 |
+| mall-2f / mall-weekend-people | 1.816 | 15.603 | 0.940 | 18.370 |
+| office-a-comfort / office-day-comfort | 0.271 | 0.393 | 0.229 | 0.901 |
+| mall-2f-comfort / mall-weekend-comfort | 3.835 | 15.992 | 3.043 | 22.887 |
+| office-a-site / office-day-site | 0.331 | 0.337 | 0.332 | 1.008 |
+| mall-2f-evac / mall-weekend-evac | 2.653 | 24.091 | 1.016 | 27.771 |
+| office-a-evac / office-day-evac | 0.046 | 0.245 | 0.009 | 0.305 |
 
-Every batch emitted its central snapshot before sampling, all 12 intermediate
-counts and a completed representative snapshot. Comfort grids were skipped only
-for range runs. These are local timings, not an arbitrary-plan performance guarantee.
-The eventual decision reader adds work and must be rebenchmarked when implemented.
+All 11 batches published a central snapshot before sampling, every intermediate
+count from 1 through 12, and full representative playback. Large evacuation
+batches may exceed 20 seconds in total; their central result remains immediately
+usable while the count advances. No incomplete batch or wall-clock cutoff is
+used to conceal that cost. Ranges can change as more draws finish.
 
-Per-run timing diagnostics (milliseconds, in sample order):
+Individual range-run CPU times, milliseconds (sample order):
 
-- office-a / office-day: 30.5, 17.6, 23.4, 14.1, 15.2, 20.2, 13.3, 13.5, 12.1, 13.6, 13.1, 12.2
-- office-b / office-day: 23.7, 16.4, 18.3, 14.1, 13.1, 21.3, 12.3, 14.1, 20.2, 16.1, 15.3, 13.6
-- sealed-room / sealed-day: 1.2, 0.7, 0.7, 0.7, 0.7, 0.6, 0.6, 0.6, 0.6, 0.5, 0.5, 0.6
-- mall-2f / mall-day: 994.7, 109.0, 102.7, 750.3, 105.0, 759.2, 107.9, 688.5, 106.7, 102.6, 102.5, 104.3
-- mall-2f / mall-weekend: 701.7, 503.4, 503.3, 513.4, 480.4, 496.1, 502.9, 468.9, 516.4, 524.6, 512.2, 543.1
-- mall-2f / mall-weekend-people: 1320.1, 1069.1, 1071.7, 1116.5, 1069.3, 992.1, 1133.3, 1022.5, 1196.0, 1095.9, 1174.6, 1181.8
-- office-a-comfort / office-day-comfort: 39.1, 27.6, 57.0, 27.7, 25.2, 30.4, 23.3, 24.6, 24.4, 24.1, 23.8, 23.9
-- mall-2f-comfort / mall-weekend-comfort: 1402.1, 1098.4, 1218.8, 1249.1, 1225.5, 1159.7, 1211.5, 1097.3, 1195.8, 1198.3, 1218.8, 1247.4
-- office-a-site / office-day-site: 36.9, 27.2, 28.5, 22.3, 22.8, 29.1, 23.0, 23.2, 23.4, 31.4, 26.0, 23.6
-- mall-2f-evac / mall-weekend-evac: 2008.8, 1438.1, 2170.4, 1745.0, 1630.0, 1569.3, 1727.1, 1730.1, 2274.5, 1752.0, 1828.9, 1846.8
-- office-a-evac / office-day-evac: 27.5, 18.8, 21.3, 16.0, 15.5, 21.7, 15.0, 15.9, 15.4, 15.6, 15.8, 14.8
+- office-a / office-day: 39.7, 23.0, 26.2, 16.9, 19.9, 28.0, 17.7, 17.5, 18.4, 17.0, 17.3, 16.1
+- office-b / office-day: 26.9, 19.3, 24.9, 20.1, 16.6, 29.8, 21.8, 19.1, 17.7, 16.9, 17.1, 16.6
+- sealed-room / sealed-day: 1.5, 1.0, 1.0, 1.1, 0.8, 0.8, 0.7, 0.7, 0.7, 0.6, 0.6, 0.6
+- mall-2f / mall-day: 1019.5, 112.6, 108.9, 763.6, 110.5, 773.4, 116.7, 683.8, 114.2, 108.3, 108.1, 117.1
+- mall-2f / mall-weekend: 843.0, 641.2, 648.0, 650.3, 605.5, 615.2, 644.0, 597.3, 670.6, 641.6, 689.5, 706.8
+- mall-2f / mall-weekend-people: 1560.1, 1208.6, 1276.8, 1289.0, 1216.4, 1182.0, 1281.3, 1206.0, 1403.7, 1256.5, 1346.0, 1377.2
+- office-a-comfort / office-day-comfort: 43.2, 66.9, 36.6, 30.5, 26.0, 33.2, 25.8, 27.6, 25.3, 25.0, 27.0, 25.6
+- mall-2f-comfort / mall-weekend-comfort: 1574.2, 1248.5, 1293.5, 1285.6, 1298.4, 1161.2, 1366.7, 1237.5, 1431.7, 1285.7, 1387.1, 1421.9
+- office-a-site / office-day-site: 40.4, 29.4, 32.3, 25.4, 24.9, 32.7, 24.7, 26.9, 24.5, 24.6, 25.9, 25.7
+- mall-2f-evac / mall-weekend-evac: 2221.0, 1627.6, 2370.0, 1921.4, 1792.0, 1689.6, 1978.8, 1965.3, 2547.2, 1885.1, 2047.0, 2045.8
+- office-a-evac / office-day-evac: 31.8, 21.2, 24.2, 18.4, 18.1, 23.3, 18.4, 17.8, 17.6, 17.5, 18.2, 18.2
 
-### Suite results
+The mall evacuation sample includes people at refuges in at least one draw. Its
+completion check fails and its total is explicitly censored; the benchmark does
+not treat the last unaided exit as everyone having left. Source/route-baseline
+checks were inspected for all samples: none reported an unconnected staff trip
+baseline or an omitted team route in these sample pairs.
 
-- Whole engine suite: **319/319** tests, 26 files, **154.09 s**.
-- Focused streaming and numeric-audit checks: **8/8**, **2.68 s**.
+## Decision-headline sensitivity budget
+
+`npm run benchmark:evidence --prefix engine -- --decision` exercises the same
+headline reader and grid-skipping callback as the app sensitivity worker, after
+the ranged result. No comparison runs sensitivity. Every sample completed its
+full endpoint progress and remained below 20 seconds including its central run.
+
+| Plan / scenario | Secondary sensitivity (s) | Completed parameters |
+|---|---:|---:|
+| office-a / office-day | 0.309 | 20/20 |
+| office-b / office-day | 0.273 | 20/20 |
+| sealed-room / sealed-day | 0.004 | 5/5 |
+| mall-2f / mall-day | 3.468 | 20/20 |
+| mall-2f / mall-weekend | 4.298 | 52/52 |
+| mall-2f / mall-weekend-people | 11.950 | 115/115 |
+| office-a-comfort / office-day-comfort | 1.227 | 48/48 |
+| mall-2f-comfort / mall-weekend-comfort | 14.254 | 117/117 |
+| office-a-site / office-day-site | 1.193 | 48/48 |
+| mall-2f-evac / mall-weekend-evac | 13.781 | 124/124 |
+| office-a-evac / office-day-evac | 0.429 | 29/29 |
+
+Sensitivity is reduced-population one-at-a-time screening, not a full-crowd
+variance decomposition. A censored evacuation total may have no ranked drivers;
+that never overrides the failed evacuation-completion check or proves safety.
+
+## Final validation
+
+Suites ran **one after the other**, with no benchmark running alongside them:
+
+- Whole engine: **328/328**, 27 files, **158.12 s**.
+- Whole app (`npx vitest run` in `app/`): **211/211**, 30 files, **38.48 s**.
 - `npm run check:contracts`: **11/11** sample pairs.
-- Contract, engine and app TypeScript checks passed; source code remains browser compatible.
-- Historical central result hashes passed unchanged; no captures regenerated.
-- Whole app suite (`npx vitest run` in `app/`): **201/201**, 29 files, **34.30 s**.
+- Contract, engine and app TypeScript checks passed.
+- Production app build passed (Vite reports its existing large-chunk advisory).
+- Numeric-literal audit passed, with explicit unit/index/interval exceptions only;
+  physical defaults and the new policy settings are in the parameter registry.
+- All historical raw central-result hashes passed unchanged. No captures rewritten.
+- Full real-thread tests cover central equality, the separate sensitivity task,
+  streamed range decisions, and no-worker cancellation between range runs.
+- `onLayout` indentation in `app/src/sim/tasks.ts` is fixed.
+
+Part B is ready for Claude's review. It is not merged into master.

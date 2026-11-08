@@ -70,7 +70,7 @@ describe("background run lifecycle", () => {
 
 describe('non-blocking evidence lifecycle',()=>{
   const finishDay = async()=>{
-    const out=runSimulation(useEditor.getState().plan);
+    const out=runSimulation(useEditor.getState().plan, undefined, undefined, {decision:true});
     if('errors' in out)throw new Error(out.errors.join());
     const pending=runDay();await vi.advanceTimersByTimeAsync(0);
     const foreground=worker;
@@ -81,8 +81,11 @@ describe('non-blocking evidence lifecycle',()=>{
     expect(published.result.evidence!.sensitivity).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     expect(worker).not.toBe(foreground);
+    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({kind:'ranges'}));
+    worker.onmessage?.({data:{type:'result',value:{...out.run.result,decision:{...out.run.result.decision!,runs:12}}}});
+    await vi.advanceTimersByTimeAsync(1);
     expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({kind:'sensitivity'}));
-    return {published,evidence:worker};
+    return {published:useEditor.getState().run!,evidence:worker};
   };
   it('publishes first, reports secondary progress and adds evidence without replacing playback tracks',async()=>{
     const {published,evidence}=await finishDay();

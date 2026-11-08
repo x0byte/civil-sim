@@ -11,7 +11,7 @@ self.onmessage = (event: MessageEvent<BackgroundTask>) => {
       lastStage = stage;
       lastAt = now;
       self.postMessage({ type: "progress", progress });
-    });
+    }, (decision, completed, total) => self.postMessage({ type: "partial", decision, completed, total }));
     self.postMessage({ type: "result", value });
   } catch (error) {
     self.postMessage({ type: "error", message: error instanceof Error ? error.message : "Couldn't finish. Please try again." });

@@ -370,3 +370,11 @@ completed LHS run. Retained cache owners activate only for each synchronous call
 Range measurements retain occupancy/retail but omit supporting grids unless comfort is a requested headline; the
 median-nearest sample is replayed once with full grids to avoid holding twelve track sets. Metric readers are
 explicit: this first increment does not label existing walking metrics as time lost or populate decision metrics.
+
+## 2026-11-09 · Part B decision ranges and background sequence
+App runs publish central decision estimates, then stream sampled ranges in a cancellable worker; only final
+median-nearest time-lost playback replaces tracks. Day sensitivity follows ranges; comparisons run ranges for each
+side sequentially without sensitivity. Time lost separates staff queue/lift waits, free-route detour and slowing;
+reaction waits are excluded. Capacity uses pre-service minute arrivals. Checks use actual registry sources and user
+limits; incomplete/refuge evacuation is censored and never passed. Comparisons require disjoint intervals for a
+preference. Raw simulate remains the single-run compatibility API; streamDecisionResults is the ranged API.

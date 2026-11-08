@@ -9,6 +9,8 @@ export type MetricReader = (result: SimulationResult) => Record<string, number>;
 export interface SensitivityOptions {
   /** Maximum staff/visitor sample size. Geometry, day and seed remain unchanged. */
   sampleSize?: number;
+  /** Decision headlines use movement and room occupancy, not supporting comfort. */
+  movementOnly?: boolean;
   /** Part B supplies its metric reader here, using the same simulation path. */
   metrics?: MetricReader;
   onProgress?: (completed: number, total: number) => void;
@@ -78,7 +80,7 @@ export function analyseSensitivity(plan: FloorPlan, scenario: Scenario, evidence
 function sensitivityCore(plan: FloorPlan, scenario: Scenario, evidence: Evidence, run: SimulationRunner, options: SensitivityOptions): Evidence['sensitivity'] {
   const sample = sensitivitySample(scenario, options.sampleSize);
   const read = options.metrics ?? evidenceMetrics;
-  const movementOnly = !options.metrics;
+  const movementOnly = options.movementOnly ?? !options.metrics;
   const baselineResult = run(plan, sample, movementOnly);
   const baseline = read(baselineResult);
   const sampleUsed = new Set(baselineResult.evidence?.parameters.map(p=>p.key));

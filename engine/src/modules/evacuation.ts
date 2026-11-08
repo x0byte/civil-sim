@@ -1,3 +1,4 @@
+import { beginEvacuationDemand, recordReaction } from "./decision-capture.ts";
 import { parameter } from "../parameters.ts";
 import type { FloorPlan, Opening, Vec2 } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics, EvacuationMetrics, SimEvent, Track, TrackPoint, Warning } from "../../../contracts/results.ts";
@@ -33,6 +34,7 @@ export function atTime(track:Track,t:number):{point:TrackPoint;next?:TrackPoint}
 interface Evacuee { original:Track; track:TrackBuilder; person:Traveller; floor:string; entrance?:string; ready:number; done:boolean; exit?:Opening; refuge?:string; out?:number; safe?:number; stranded:boolean; used:Set<string>; }
 export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEvent[],people:People,warn:(w:Warning)=>void):{durationS:number;metrics:EvacuationMetrics}{
  const alarm=clockSeconds(s.evacuation!.alarmAt)-clockSeconds(s.workday.start),deadline=alarm+parameter("evacuation.horizon");
+ beginEvacuationDemand(alarm);
  // Closed exits are also removed from the walking mesh, so they cannot be crossed en route.
  const evacPlan:FloorPlan={...plan,openings:plan.openings.map(o=>s.evacuation!.blockedExitIds?.includes(o.id)?{...o,kind:"window"}:o),connectors:plan.connectors.filter(c=>c.kind!=="lift"||c.evacuationLift).map(c=>c.kind==="escalator"?{...c,kind:"stairs",direction:undefined}:c)};
  const nav=createNavigation(evacPlan,()=>{}),access=new AccessRoutes(evacPlan,nav);
@@ -65,6 +67,7 @@ export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEven
   const first=original.points.find(p=>p.activity!=="absent");
   const entrance=first?plan.openings.filter(o=>o.kind==="door"&&o.exterior&&!o.fireExit&&plan.walls.find(w=>w.id===o.wallId)!.levelId===first.levelId).sort((a,b)=>distance(openingCentre(plan,a),first)-distance(openingCentre(plan,b),first))[0]?.id:undefined;
   const ready=Math.max(available,alarm+drawSpread(person.profile?.reactionS??{mean:parameter("evacuation.reaction.mean"),sd:parameter("evacuation.reaction.sd"),min:parameter("evacuation.reaction.min"),max:parameter("evacuation.reaction.max")},personSeed(person.seed,"evacuation:reaction")));
+  recordReaction(original.personId, alarm, ready);
   const e:Evacuee={original,track,person,floor:point.levelId,entrance,ready,done:false,stranded:false,used:new Set()};all.push(e);
   if(available===alarm)crowd.field.set({...track.position,id:person.id,size:person.size});else schedule(available,()=>crowd.field.set({...track.position,id:person.id,size:person.size}));
  }

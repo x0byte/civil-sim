@@ -1,3 +1,5 @@
+import { withDecisionCapture } from "./modules/decision-capture.ts";
+import { decisionMetrics } from "./decision.ts";
 export { parameterQuantile, sampleParameters } from "./sampling.ts";
 export type { Parameter } from "./parameters.ts";
 import { analyseSensitivity } from "./sensitivity.ts";
@@ -71,7 +73,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario, options: Simulatio
   let values: ParameterValues;
   try { values = new ParameterValues(scenario.parameters, scenario); }
   catch (error) { throw new SimulationInputError([error instanceof Error ? error.message : String(error)]); }
-  const result = withParameters(values, () => simulateCore(plan, values.scenario!, options, values));
+  const result = withParameters(values, () => withDecisionCapture(!!options.decision, () => simulateCore(plan, values.scenario!, options, values)));
   result.evidence = { parameters: values.evidence(), sensitivity: [] };
   if (scenario.parameters?.length) {
     // Old descriptive assumptions contain fixed numbers. With overrides, replace
@@ -83,7 +85,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario, options: Simulatio
   }
   if (options.sensitivity) {
     result.evidence.sensitivity = analyseSensitivity(plan, scenario, result.evidence,
-      (p, s, movementOnly) => simulate(p, s, { measurement: movementOnly ? "movement" : undefined }), {
+      (p, s, movementOnly) => simulate(p, s, { decision: options.decision, measurement: options.decision ? "headlines" : movementOnly ? "movement" : undefined }), {
         ...(typeof options.sensitivity === 'object' ? options.sensitivity : {}),
         onProgress: (completed, total) => options.onProgress?.({ stage: 'measuring', detail: 'sensitivity', completed, total }),
       });
@@ -198,6 +200,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
     assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS, ...(siteWeather(plan, scenario) ? SITE_ASSUMPTIONS : []), ...(plan.site?.credits ?? []), ...(scenario.comfort.weather ? [scenario.comfort.weather.source] : [])] : [...assumptions(scenario), ...(plan.site?.credits ?? [])], warnings,
   };
   result.assumptions.push(ACCESSIBILITY_NOTE,...(scenario.evacuation ? EVACUATION_ASSUMPTIONS : []),...(plan.connectors.some(c=>c.kind==="ramp") ? ["Ramps use the longer side of their minimum-area footprint rectangle. Step-free routes allow 1 in 12 or gentler. Ramp travel uses 85% of each person’s flat walking speed (base 1.3 m/s)."] : []));
+  if (options.decision) result.decision = decisionMetrics(plan, scenario, result, people, navigation, access);
   return result;
 }
 
@@ -291,3 +294,5 @@ function assumptions(scenario: Scenario): string[] {
 
 export { percentile, streamUncertainty } from './uncertainty.ts';
 export type { MeasuredValue, RangeMeasurement, UncertaintyOptions, UncertaintySnapshot } from './uncertainty.ts';
+export { streamDecisionResults, compareResults, decisionValues, measureDecision } from './decision-ranges.ts';
+export type { DecisionDifference, DecisionStreamOptions } from './decision-ranges.ts';

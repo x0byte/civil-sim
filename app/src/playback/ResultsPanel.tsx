@@ -1,3 +1,4 @@
+import { DecisionSummary } from "./DecisionSummary.tsx";
 import { plainText } from "../experience/wording.ts";
 import { DetailSections } from "../experience/common.tsx";
 import { AccessibilityResults, EvacuationResults } from "./EvacuationResults.tsx";
@@ -89,11 +90,13 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
   if (result.metrics.evacuation)
     return (
       <DetailSections>
+        <DecisionSummary data-title="Decision metrics" run={run} />
         <EvacuationResults data-title="Evacuation" run={run} />
       </DetailSections>
     );
   return (
     <DetailSections>
+        <DecisionSummary data-title="Decision metrics" run={run} />
       <AccessibilityResults data-title="Access guidance" run={run} />
       {stale && (
         <div className="stale-banner">

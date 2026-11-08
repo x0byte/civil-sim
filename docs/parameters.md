@@ -159,6 +159,8 @@ provenance in each result.
 
 | Key | Kind / evidence | Value | Low–high | Unit | Meaning |
 |---|---|---:|---:|---|---|
+| `setting.decision.workdays` | setting / Setting | 250 | 250–250 | days/year | Costs contract annualisation default; money requires a supplied unit value. |
+| `setting.decision.utilisation_warning` | setting / Setting | 0.85 | 0.85–0.85 | ratio | Product-owner capacity screening policy; not a code limit. |
 | `setting.uncertainty.runs` | setting / Setting | 12 | 12–12 | runs | Product owner’s default range-run budget; central run is additional. |
 | `setting.sensitivity.retail_sample_size` | setting / Setting | 12 | 12–12 | people | Maximum sampled staff, visitors and expected shopper arrivals per category in retail screening; all endpoints use the same population scale. |
 | `setting.sensitivity.sample_size` | setting / Setting | 24 | 24–24 | people | Maximum sampled staff, visitors, and expected shopper arrivals per category; geometry and day are preserved. |

@@ -36,6 +36,7 @@ export function runFixedScenario(
   const t0 = performance.now();
   try {
     const result = simulate(plan, scenario, options);
+    if (result.decision) result.decision.runs = 0;
     return {
       run: {
         plan,

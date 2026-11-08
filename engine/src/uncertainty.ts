@@ -1,6 +1,7 @@
 import type { FloorPlan } from '../../contracts/floorplan.ts';
 import type { Ranged, SimulationResult } from '../../contracts/results.ts';
 import type { ParameterOverride, Scenario } from '../../contracts/scenario.ts';
+import type { SimulationOptions } from './progress.ts';
 import { simulate } from './index.ts';
 import { ParameterValues, parameterDefault } from './parameters.ts';
 import { sampleParameters } from './sampling.ts';
@@ -16,6 +17,7 @@ export interface UncertaintyOptions {
   representativeMetric: string;
   /** If a comfort metric is a headline, retain its grids in range runs. */
   comfortHeadline?: boolean;
+  simulation?: Pick<SimulationOptions, 'decision'>;
   signal?: AbortSignal;
   /** Optional already-published central result from EXACTLY these inputs. */
   central?: SimulationResult;
@@ -79,7 +81,7 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
   options.signal?.throwIfAborted();
   const cache = createNavigationCache();
   const start = performance.now();
-  const central = options.central ?? simulate(plan, scenario);
+  const central = options.central ?? simulate(plan, scenario, options.simulation);
   if (central.floorPlanId !== plan.id || central.scenarioId !== scenario.id || central.seed !== scenario.seed) {
     throw new Error('Central result does not match uncertainty inputs');
   }
@@ -104,7 +106,7 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
     sampledScenarios.push(sampled);
     const rangeStart = performance.now();
     const measurement = cache.run(() => {
-      const result = simulate(plan, sampled, { measurement: options.comfortHeadline ? undefined : 'headlines' });
+      const result = simulate(plan, sampled, { ...options.simulation, measurement: options.comfortHeadline ? undefined : 'headlines' });
       return options.measure(result, new ParameterValues(parameters, sampled).scenario!);
     });
     validateMeasurement(measurement, baseline, options.representativeMetric);
@@ -123,7 +125,7 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
       Math.abs(measurements[selected][options.representativeMetric].value - median)) selected = index;
   }
   const representativeStart = performance.now();
-  const result = cache.run(() => simulate(plan, sampledScenarios[selected]));
+  const result = cache.run(() => simulate(plan, sampledScenarios[selected], options.simulation));
   timings.representativeMs = performance.now() - representativeStart;
   yield { stage: 'complete', completed: total, total, message: `Ranges from ${total} of ${total} runs`, result, ranges,
     representative: { index: selected, seed: sampledScenarios[selected].seed, parameters: draws[selected] },

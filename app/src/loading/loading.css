@@ -130,3 +130,5 @@
   font-size: var(--text-small);
 }
 .evidence-progress progress { width: 64px; }
+
+.range-progress { bottom: 58px; }
