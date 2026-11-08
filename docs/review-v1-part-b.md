@@ -62,3 +62,27 @@ are needed before merge: one to the comparison verdict and two to what the app s
   Confirmed that compared options share the scenario seed (`runComparison` builds both from one profile), so the
   runs really are paired.
 - Not checked in a live browser.
+
+---
+
+# Re-review: revision `11cc215` (2026-11-09)
+
+**Verdict: Part B approved for merge.** All three required changes are done.
+
+1. **Paired comparison.** Each range run now keeps its seed, its exact parameter draw and its headline numbers
+   (outside the contract). `compareResults` pairs run *i* of A with run *i* of B only when the seeds and draws match
+   exactly. It reports the median and 10th–90th percentile of the per-run differences, and gives a verdict when that
+   interval excludes zero. Otherwise it falls back to interval subtraction and labels it. Each row shows its method,
+   and a censored evacuation gives "cannot verify". I ran a real app comparison (office-a against office-b through
+   `runComparison`): same seed, identical draws, and every headline row compared by matched runs.
+2. **Playback keeps going.** The play clock now belongs to the run (`playbackKey`), not its tracks, so the
+   representative replay keeps the time, playing or paused state and speed. The selected or followed person is cleared
+   only if they're missing from the new run. The chip reads "Now showing a typical run · run n of 12".
+3. **Censored evacuation.** The summary and evacuation panel read "More than {horizon} s · {n} people not out (at
+   refuges or unresolved)" with "Cannot verify". This holds even if the typical run happened to clear, because it uses
+   the largest count seen in any run.
+
+Smaller notes fixed (door-name fallback, indentation).
+
+**Checked:** engine 330 of 330 (one file at a time), app 219 of 219, contracts 11 of 11, app and engine type checks clean.
+Not checked in a live browser.
