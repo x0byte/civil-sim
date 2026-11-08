@@ -385,3 +385,12 @@ seeds in ephemeral job metadata; report quantiles of B−A, with labelled interv
 Representative tracks share the foreground run's playback identity and viewing horizon, preserving controls and
 valid selections. Censored evacuation carries the largest observed not-out count and reads Cannot verify; no
 contract fields are added. Evidence says waiting for ranges until its sequential sensitivity task starts.
+
+
+## 2026-11-09 · Part C results workspace and evidence editing
+Results tabs reuse DecisionSummary/DecisionComparison and keep the map mounted across tabs so playback controls
+survive navigation. The hash stores the tab and optional evidence key. Sourced parameter edits are undoable profile
+changes, persist in project files, and require a rerun; displayed evidence continues to describe the saved result.
+Exports load PDF code on demand, reuse the scorecards/detail readers, and always include parameter sources.
+Supporting observations without stored ensemble intervals are labelled as representative detail rather than given
+invented bounds; comfort remains outside the range-run budget.

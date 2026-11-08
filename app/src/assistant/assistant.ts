@@ -1,3 +1,5 @@
+import { resultsContext } from "../results/model.ts";
+import { useResults } from "../results/state.ts";
 import { runInBackground } from "../sim/background.ts";
 // The design assistant: a conversation with Claude that turns plain requests ("add a window
 // to the right wall of the first floor") into edits on a draft. The user sees the draft on
@@ -124,6 +126,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     const intro = [
       `CURRENT PLAN${proposal ? " (with your waiting proposal included)" : ""}:\n${describe(start.draft)}`,
       proposal ? `WAITING PROPOSAL, not applied yet: ${proposal.changes.map((c) => c.text).join("; ")}` : "",
+      resultsContext(useEditor.getState().run, useEditor.getState().view === "compare" ? useEditor.getState().comparison : null, useResults.getState().tab),
       pendingNote,
     ]
       .filter(Boolean)

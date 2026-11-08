@@ -86,7 +86,7 @@ function isPlan(x: unknown): x is FloorPlan {
 
 function isProfile(x: unknown): x is OfficeProfile {
   const p = x as OfficeProfile;
-  return !!p && p.version === 1 && Array.isArray(p.departments) && typeof p.attendance === "number";
+  return !!p && p.version === 1 && (p.parameters === undefined || Array.isArray(p.parameters) && p.parameters.every(value => value && typeof value.key === 'string' && Number.isFinite(value.value) && typeof value.source === 'string' && value.source.trim())) && Array.isArray(p.departments) && typeof p.attendance === "number";
 }
 
 /** A plan that opens but has problems is still opened; the problems are listed in the editor. */

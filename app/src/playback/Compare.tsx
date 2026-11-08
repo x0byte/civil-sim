@@ -3,7 +3,7 @@ import { DecisionComparison } from "./DecisionSummary.tsx";
 import { EvacuationResults } from "./EvacuationResults.tsx";
 import { defaultAlarm } from "../sim/EvacuationDialog.tsx";
 import { defaultProfile } from "../population/officeProfile.ts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import type { Comparison } from "../sim/runSimulation.ts";
@@ -16,11 +16,12 @@ import { HeatToggle, Legend, PlanPlayer, Timeline, heatPeak, usePlayClock } from
 const INSETS = { top: 56, right: 24, bottom: 84, left: 24 };
 
 /** Two layouts, same people, one clock and one shared heatmap scale. */
-export function CompareView({ comparison }: { comparison: Comparison }) {
+export function CompareView({ comparison, overlay, focus }: { comparison: Comparison; overlay?: (run: Comparison["a"], level: string, scale: number) => ReactNode; focus?: {t?:number;sequence:number} }) {
   const { a, b, labels } = comparison;
   const alarm = a.result.events.find((e) => e.type === "alarm")?.t;
   const identity = useMemo(() => ({}), [playbackIdentity(a), playbackIdentity(b)]);
   const clock = usePlayClock(Math.max(playbackDuration(a), playbackDuration(b)), identity, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  useEffect(() => { if (focus?.t !== undefined) { clock.setT(Math.min(clock.durationS,Math.max(0,focus.t))); if(clock.playing)clock.toggle(); } }, [focus?.sequence]);
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort) ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
@@ -29,8 +30,8 @@ export function CompareView({ comparison }: { comparison: Comparison }) {
   return (
     <div className="canvas-wrap">
       <div className="compare-panes">
-        <PlanPlayer run={a} t={clock.t} heat={heat} heatMax={heatMax} insets={INSETS} title={`A · ${labels[0]}`} />
-        <PlanPlayer run={b} t={clock.t} heat={heat} heatMax={heatMax} insets={INSETS} title={`B · ${labels[1]}`} />
+        <PlanPlayer overlay={overlay ? (level,scale)=>overlay(a,level,scale) : undefined} run={a} t={clock.t} heat={heat} heatMax={heatMax} insets={INSETS} title={`A · ${labels[0]}`} />
+        <PlanPlayer overlay={overlay ? (level,scale)=>overlay(b,level,scale) : undefined} run={b} t={clock.t} heat={heat} heatMax={heatMax} insets={INSETS} title={`B · ${labels[1]}`} />
       </div>
       <div className="view-controls">
         <HeatToggle value={heat} onChange={setHeat} comfort={!!a.result.metrics.comfort && !!b.result.metrics.comfort} />

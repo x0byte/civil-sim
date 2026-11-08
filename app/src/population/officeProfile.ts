@@ -31,6 +31,8 @@ export interface Collaboration {
 }
 
 export interface OfficeProfile {
+  /** Sourced scenario overrides entered in the Results Evidence tab. */
+  parameters?: import("../../../contracts/scenario.ts").ParameterOverride[];
   version: 1;
   evacuation?: import("../../../contracts/scenario.ts").Evacuation;
   workday: { start: string; end: string };
@@ -256,6 +258,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
   return {
     scenario: {
       version: SCENARIO_VERSION,
+      ...(profile.parameters?.length ? { parameters: structuredClone(profile.parameters) } : {}),
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,

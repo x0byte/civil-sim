@@ -1,30 +1,24 @@
+import { useExperience } from "./experience/state.ts";
+import { ResultsWorkspace } from "./results/ResultsWorkspace.tsx";
 import { RangeStatus } from "./sim/rangeJob.tsx";
 import { EvidenceStatus } from "./sim/evidenceJob.tsx";
-import { DeferredDetails } from "./loading/DeferredDetails.tsx";
 import { BackgroundStatus, useSimulationJob } from "./sim/jobs.tsx";
 import { Skeleton } from "./loading/LoadingState.tsx";
 import { Improvements, ImprovementPreview } from "./improvements/Improvements.tsx";
 import { useImprovements } from "./improvements/store.ts";
 import { plainText } from "./experience/wording.ts";
-import { lazy, Suspense, useEffect } from "react";
-import { LoadBoundary } from "./loading/LoadBoundary.tsx";
+import { useEffect } from "react";
 import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
 import { Home } from "./experience/Home.tsx";
 import { AssistantWindow } from "./assistant/AssistantWindow.tsx";
-import { isCurrentRun, useExperience } from "./experience/state.ts";
 import { FineTune } from "./experience/common.tsx";
-import { Story } from "./experience/Story.tsx";
-const Experience3D = lazy(() => import("./experience/Experience3D.tsx").then((m) => ({ default: m.Experience3D })));
+
 import "./experience/experience.css";
 import "./ui/shell.css";
 import { ProposalView } from "./assistant/ProposalView.tsx";
 import { useAssistant } from "./assistant/assistant.ts";
 import { Canvas2D } from "./editor/Canvas2D.tsx";
-import { CompareResults, CompareView } from "./playback/Compare.tsx";
-import { Playback } from "./playback/Playback.tsx";
 import { PeoplePanel } from "./population/PeoplePanel.tsx";
-import { ResultsPanel } from "./playback/ResultsPanel.tsx";
-import { runDay } from "./sim/runDay.ts";
 import { useEditor } from "./state/store.ts";
 import { Inspector } from "./ui/Inspector.tsx";
 import { Problems } from "./ui/Problems.tsx";
@@ -37,8 +31,6 @@ export function App() {
   const view = useEditor((s) => s.view);
   const toast = useEditor((s) => s.toast);
   const run = useEditor((s) => s.run);
-  const plan = useEditor((s) => s.plan),
-    profile = useEditor((s) => s.profiles[s.plan.id]);
   const comparison = useEditor((s) => s.comparison);
   const cmp = view === "compare" && comparison;
   const ux = useExperience();
@@ -86,18 +78,8 @@ export function App() {
               <ProposalView />
             ) : improvementPreview && ux.step === 3 ? (
               <ImprovementPreview />
-            ) : ux.step === 3 && cmp ? (
-              <CompareView comparison={cmp} />
-            ) : ux.step === 3 && run ? (
-              ux.presentation === "3d" ? (
-                <LoadBoundary>
-                  <Suspense fallback={<Skeleton label="Loading the 3D walk-through…" />}>
-                    <Experience3D run={run} />
-                  </Suspense>
-                </LoadBoundary>
-              ) : (
-                <Playback run={run} />
-              )
+            ) : ux.step === 3 && (cmp || run) ? (
+              <ResultsWorkspace run={cmp ? cmp.a : run!} comparison={cmp || undefined} />
             ) : ux.step === 1 ? (
               <BuildingWorkspace />
             ) : (
@@ -110,7 +92,7 @@ export function App() {
               </div>
             )}
           </div>
-          <aside className={cmp && ux.step === 3 ? "sidebar wide" : "sidebar"}>
+          {!(ux.step === 3 && (run || cmp)) && <aside className="sidebar">
             {ux.step === 1 ? (
               <>
                 <SimpleBuilding />
@@ -127,30 +109,10 @@ export function App() {
             ) : (
               <>
                 <RunControls />
-                {cmp ? (
-                  <CompareResults comparison={cmp} />
-                ) : run ? (
-                  <>
-                    {!isCurrentRun(plan, run, profile) && (
-                      <p className="stale-banner">The building or people have changed. Run the day again to update these results.</p>
-                    )}
-                    <Story run={run} />
-                    <DeferredDetails className="more-detail" summary="More detail">
-                      <ResultsPanel run={run} onRerun={runDay} />
-                    </DeferredDetails>
-                  </>
-                ) : (
-                  <section className="panel">
-                    {jobStatus === "working" ? (
-                      <Skeleton label="Results will appear here when the run is ready…" />
-                    ) : (
-                      <div className="panel-body"><p className="muted">Your results will appear here. You can change the people or the building at any time.</p></div>
-                    )}
-                  </section>
-                )}
+                <section className="panel"><div className="panel-body">{jobStatus === 'working' ? <Skeleton label="Results will appear here when the run is ready…"/> : <p>Your results will appear here after a run.</p>}</div></section>
               </>
             )}
-          </aside>
+          </aside>}
         </main>
       )}
       <BackgroundStatus />
