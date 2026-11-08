@@ -137,3 +137,20 @@ Plan the budget now:
 
 - Splitting toilet versus pantry service time by purpose (the log explains why a single duration model is a
   limitation) is worth a small engine change later: it's now the second-biggest queue driver.
+
+---
+
+# Final check: revision `47a6003` (2026-11-09)
+
+**Verdict: Part A approved for merge.** The required change is done.
+
+- Day runs publish the central result first; sensitivity runs afterwards as its own cancellable worker task with a
+  "Checking what the result depends on · n of m" chip, Cancel and Retry. A new run, comparison, or plan or people edit
+  cancels it; late results are ignored. Comparisons do no sensitivity work.
+- The worker calls `analyseSensitivity` with the same callback the engine uses inside `simulate(…, { sensitivity: true })`,
+  so results are identical (tested in a second real worker).
+- Playback keeps its position, speed and selected person when the evidence arrives (effects now key on `tracks`).
+- Central result on the heaviest sample: 3.5 s (mall-2f-comfort), back to the old speed; its sensitivity follows in 13 s.
+- Checked: app 201 of 201, contracts 11 of 11, app type check clean. No engine source changed since `02c634c`
+  (312 of 312 then). Not checked in a live browser.
+- Cosmetic: the `onLayout` line in `app/src/sim/tasks.ts` lost its indentation. Fix whenever that file is next touched.
