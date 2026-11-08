@@ -1,29 +1,42 @@
+import { useImprovements } from "../improvements/store.ts";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useExperience } from "../experience/state.ts";
-import { VoltMark } from "../ui/Brand.tsx";
+import { Mark } from "../ui/Brand.tsx";
 import { useAssistant } from "./assistant.ts";
 import { Thinking } from "./AssistantWindow.tsx";
 
-/** Talk to the Volt Assistant. Its edits come back as a proposal to apply or discard. */
+/** Talk to the Assistant. Its edits come back as a proposal to apply or discard. */
 export function AssistantPanel({ suggestions }: { suggestions?: ReactNode }) {
   const key = useAssistant((s) => s.key);
-  return key ? <Chat suggestions={suggestions} /> : <KeyForm />;
+  return key ? <Chat suggestions={suggestions} /> : <KeyForm suggestions={suggestions} />;
 }
 
-function KeyForm() {
+function KeyForm({ suggestions }: { suggestions?: ReactNode }) {
+  const prompt = useExperience((s) => s.prompt);
   const [value, setValue] = useState("");
   const [remember, setRemember] = useState(false);
   const ok = value.trim().startsWith("sk-ant-");
   return (
     <div className="assistant-welcome">
       <div className="assistant-hello">
-        <VoltMark size={28} />
-        <h2>Describe a change, Volt does the rest</h2>
-        <p className="muted">Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.</p>
+        <Mark size={28} />
+        <h2>Describe a change to Ella</h2>
+        <p className="muted">
+          Ask in plain words: "add a window on the west wall", "set it up for a busy Poya day". You see every change before it's made.
+        </p>
       </div>
+      {suggestions}
+      {prompt && <p className="prepared-prompt">Your next question: {prompt}</p>}
       <label className="field stacked">
         <span>Anthropic API key</span>
-        <input type="password" autoComplete="off" spellCheck={false} placeholder="sk-ant-…" value={value} onChange={(e) => setValue(e.target.value)} />
+        <input
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="sk-ant-…"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
       </label>
       <label className="check">
         <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -72,7 +85,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         {!lines.length && (
           <div className="chat-empty">
             <div className="assistant-hello">
-              <VoltMark size={28} />
+              <Mark size={28} />
               <h2>What would you like to change?</h2>
               <p className="muted">Ask about the building or the people. Changes show on the plan first, for you to apply or discard.</p>
             </div>
@@ -82,7 +95,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         {lines.map((l, i) =>
           l.role === "assistant" ? (
             <div key={i} className="chat-line assistant">
-              <VoltMark size={14} className="chat-avatar" />
+              <Mark size={14} className="chat-avatar" />
               <div className="bubble">{l.text}</div>
             </div>
           ) : (
@@ -91,7 +104,19 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
             </div>
           ),
         )}
-        {busy && <Thinking />}
+        {busy && (
+          <>
+            <Thinking />
+            <button
+              onClick={() => {
+                useAssistant.getState().cancel();
+                useImprovements.getState().cancel();
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        )}
 
         {proposal && !busy && (
           <div className="proposal-card">
@@ -114,7 +139,20 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
             </div>
           </div>
         )}
-        {error && <p className="warn">{error}</p>}
+        {error && (
+          <div role="status">
+            <p className="warn">{error}</p>
+            <button
+              disabled={busy}
+              onClick={() => {
+                const last = [...lines].reverse().find((line) => line.role === "user");
+                if (last) void send(last.text);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
@@ -122,7 +160,7 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
         <textarea
           ref={inputRef}
           rows={2}
-          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask Volt to change something…"}
+          placeholder={proposal ? "Ask for a tweak, or apply it…" : "Ask Ella to change something…"}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -133,7 +171,16 @@ function Chat({ suggestions }: { suggestions?: ReactNode }) {
           }}
         />
         <button className="send" onClick={submit} disabled={busy || !text.trim()} title="Send (Enter)">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
           </svg>
         </button>

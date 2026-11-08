@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+import { renderExpandedDetails } from "../../test/renderDetails.tsx";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
@@ -9,17 +11,7 @@ import mallScenario from "../../../samples/mall-weekend-comfort.scenario.json";
 import { defaultProfile, expandProfile } from "../population/officeProfile.ts";
 import { KINDS, KINDS_PRESETS, groupShares, kindsFromPreset } from "../population/kinds.ts";
 import { DEFAULT_COMFORT, COMFORT_TOLERANCES, ROOM_COMFORT } from "./comfortDefaults.ts";
-import {
-  addNoiseSource,
-  normalize,
-  onLevel,
-  removeItem,
-  removeLevel,
-  setRoomFinish,
-  setSite,
-  setWindowGlass,
-  updateNoiseSource,
-} from "./planOps.ts";
+import { addNoiseSource, normalize, onLevel, removeItem, removeLevel, setRoomFinish, setSite, setWindowGlass, updateNoiseSource } from "./planOps.ts";
 import { useEditor } from "../state/store.ts";
 import { buildProject, parseProjectOrPlan } from "./projectFile.ts";
 import { ComfortResults, PersonDay } from "../playback/ComfortResults.tsx";
@@ -114,7 +106,7 @@ describe("app comfort", () => {
     const two = { ...plan, levels: [...plan.levels, { id: "upper", name: "Upper", elevation: 4 }] };
     expect(removeLevel(two, plan.levels[0].id).noiseSources).toEqual([]);
     const legacy = parseProjectOrPlan(JSON.stringify({ ...office, version: "0.3" }));
-    expect(legacy.kind === "plan" && legacy.plan.version).toBe("0.6");
+    expect(legacy.kind === "plan" && legacy.plan.version).toBe("0.7");
   });
 
   it("runs an app-built comfort day end to end and renders the results and editors", () => {
@@ -125,7 +117,7 @@ describe("app comfort", () => {
     const west = office.fixtures.filter((f) => f.type === "desk" && f.rotation === 90).map((f) => f.id);
     expect(west.length).toBeGreaterThan(0);
     expect(result.metrics.comfort?.desks.some((d) => west.includes(d.deskId) && d.glareMinutes > 0)).toBe(true);
-    const markup = renderToStaticMarkup(<ResultsPanel run={run} onRerun={() => {}} />);
+    const markup = renderExpandedDetails(<ResultsPanel run={run} onRerun={() => {}} />);
     for (const text of ["How it felt", "Comfort by room", "Desks with glare or noise", "Too loud", "Hard to see edges", "two or more"])
       expect(markup.toLowerCase()).toContain(text.toLowerCase());
     expect(
@@ -135,13 +127,7 @@ describe("app comfort", () => {
     ).toBe("");
     expect(
       renderToStaticMarkup(
-        <PersonDay
-          track={result.tracks[0]}
-          durationS={result.durationS}
-          start={scenario.workday.start}
-          name="Staff member"
-          onClose={() => {}}
-        />,
+        <PersonDay track={result.tracks[0]} durationS={result.durationS} start={scenario.workday.start} name="Staff member" onClose={() => {}} />,
       ),
     ).toContain("Too loud");
     expect(renderToStaticMarkup(<ComfortSection profile={profile} setProfile={() => {}} />)).toContain("Sky");

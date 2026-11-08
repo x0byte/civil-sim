@@ -1,16 +1,22 @@
+import { useLoadingTask } from "../loading/useLoadingTask.ts";
+import { LoadingState } from "../loading/LoadingState.tsx";
+import { runInBackground } from "../sim/background.ts";
+import { readImage } from "../loading/files.ts";
+import { stoppedError } from "../loading/progress.ts";
 import { type Step, completedSteps, useExperience } from "../experience/state.ts";
 import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
-import { buildProject, parseProjectOrPlan, projectFileName } from "../model/projectFile.ts";
+import { buildProject, projectFileName } from "../model/projectFile.ts";
 import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
-import { type DxfDrawing, parseDxf } from "../importers/dxf.ts";
+import { type DxfDrawing } from "../importers/dxf.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
-import { VoltMark } from "./Brand.tsx";
+import { ASSISTANT_NAME, Logo, Mark } from "./Brand.tsx";
 import { Menu, type MenuItem } from "./Menu.tsx";
 
 export function TopBar() {
+  const fileTask = useLoadingTask();
   const [dark, setDark] = useState(() => {
     try {
       const saved = localStorage.getItem("volt:theme");
@@ -29,6 +35,9 @@ export function TopBar() {
     }
   }, [dark]);
   const plan = useEditor((s) => s.plan);
+  const profile = useEditor((s) => s.profiles[s.plan.id]);
+  const run = useEditor((s) => s.run);
+  const comparison = useEditor((s) => s.comparison);
   const view = useEditor((s) => s.view);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
@@ -52,60 +61,65 @@ export function TopBar() {
     window.addEventListener("volt:bring", bring);
     return () => window.removeEventListener("volt:bring", bring);
   }, []);
-  const saveProject = () => {
-    const { options, profiles } = useEditor.getState();
-    const file = buildProject(plan, options, profiles);
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = projectFileName(plan);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    const n = options.length;
-    notify(`Saved ${a.download}: the plan, its People settings${n ? ` and ${n} saved option${n > 1 ? "s" : ""}` : ""}.`);
-  };
+  const saveProject = () =>
+    fileTask.run(async (signal, report) => {
+      const { plan, options, profiles } = useEditor.getState();
+      report({ message: "Preparing the project file…" });
+      const text = await runInBackground({ kind: "serialize", value: buildProject(plan, options, profiles) }, signal, report);
+      signal.throwIfAborted();
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = projectFileName(plan);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      notify(`Saved ${a.download}: the plan, its People settings and saved options.`);
+    });
 
-  const openFile = async (file: File) => {
-    ux.newBuilding();
-    try {
+  const openFile = (file: File) =>
+    fileTask.run(async (signal, report) => {
+      const before = useEditor.getState().plan;
+      report({ message: `Reading ${file.name}…` });
+      const text = await file.text();
+      signal.throwIfAborted();
       if (/\.dxf$/i.test(file.name)) {
-        const drawing = parseDxf(await file.text());
-        if (!drawing.layers.size) throw new Error("it has no straight lines to turn into walls");
+        const drawing = await runInBackground({ kind: "dxf", text }, signal, report);
+        signal.throwIfAborted();
+        if (!drawing.layers.size) throw new Error("This drawing has no straight lines to turn into walls.");
+        if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so opening the drawing was stopped.");
         setDxf({ drawing, name: file.name });
         return;
       }
-      const opened = parseProjectOrPlan(await file.text());
+      const opened = await runInBackground({ kind: "project", text }, signal, report);
+      signal.throwIfAborted();
+      if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so opening the file was stopped.");
+      report({ message: "Opening the building and saved settings…" });
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
-        const n = opened.project.options.length;
-        notify([`Opened ${opened.project.plan.name}${n ? ` with ${n} saved option${n > 1 ? "s" : ""}` : ""}.`, ...opened.warnings].join(" "));
+        notify([`Opened ${opened.project.plan.name}.`, ...opened.warnings].join(" "));
       } else {
         load(opened.plan);
         notify([`Opened ${opened.plan.name} (plan only, no People settings).`, ...opened.warnings].join(" "));
       }
-    } catch (e) {
-      notify(`Couldn't open that file: ${(e as Error).message}.`);
-    }
-  };
+      ux.newBuilding();
+    });
 
-  const uploadImage = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = String(reader.result);
-      const img = new Image();
-      img.onload = () => {
-        // First guess: the image spans the plan's width. The scale tool fixes it properly.
-        const metresPerPixel = plan.bounds.width / img.naturalWidth;
-        commit((p) => ({ ...p, underlay: { image, metresPerPixel, origin: { x: 0, y: 0 }, opacity: 0.5 } }));
-        setTool("calibrate");
-        notify("Plan image added. Now click both ends of a wall or dimension you know the length of.");
-      };
-      img.src = image;
-    };
-    reader.readAsDataURL(file);
-  };
+  const uploadImage = (file: File) =>
+    fileTask.run(async (signal, report) => {
+      const before = useEditor.getState().plan;
+      report({ message: "Loading the plan image…" });
+      const image = await readImage(file, signal);
+      signal.throwIfAborted();
+      if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so loading the image was stopped.");
+      report({ message: "Preparing the image for tracing…" });
+      commit((p) => ({ ...p, underlay: { image: image.image, metresPerPixel: p.bounds.width / image.width, origin: { x: 0, y: 0 }, opacity: 0.5 } }));
+      ux.newBuilding();
+      setTool("calibrate");
+      notify("Plan image added. Now click both ends of a wall or dimension you know the length of.");
+    });
 
-  const done = completedSteps(plan, ux.peopleReady, useEditor.getState().run);
+  const activeRun = view === "compare" ? (comparison?.b ?? null) : run;
+  const done = completedSteps(plan, ux.peopleReady, activeRun, profile);
   const go = (step: Step) => {
     ux.go(step);
     if (step < 3) setView("2d");
@@ -135,44 +149,55 @@ export function TopBar() {
     { label: "Redo", shortcut: "⇧⌘Z", disabled: !canRedo, onSelect: redo },
   ];
   const viewItems: MenuItem[] = [
-    { label: "Plan", checked: view === "2d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("2d") },
-    { label: "Building in 3D", checked: view === "3d", disabled: ux.home || ux.step !== 1, onSelect: () => setView("3d") },
+    {
+      label: "Plan",
+      checked: view === "2d",
+      disabled: ux.home || ux.step !== 1,
+      onSelect: () => {
+        setView("2d");
+        ux.setPresentation("2d");
+      },
+    },
+    {
+      label: "Building in 3D",
+      checked: view === "3d",
+      disabled: ux.home || ux.step !== 1,
+      onSelect: () => {
+        setView("3d");
+        ux.setPresentation("3d");
+      },
+    },
     "separator",
     { label: "Simple panels", checked: !ux.detailed, onSelect: () => ux.setDetailed(false) },
     { label: "Detailed panels", checked: ux.detailed, onSelect: () => ux.setDetailed(true) },
     "separator",
     { label: "Dark theme", checked: dark, onSelect: () => setDark(!dark) },
-    { label: "Volt Assistant", checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
-    { label: "Dock the assistant", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
+    { label: ASSISTANT_NAME, checked: ux.assistantOpen, onSelect: ux.toggleAssistant },
+    { label: "Dock Ella", checked: ux.assistantDocked, onSelect: () => ux.setAssistantDocked(!ux.assistantDocked) },
   ];
 
   return (
     <header className="appbar">
       <div className="appbar-left">
         <button className="appbar-brand" onClick={() => ux.setHome(true)} title="Home">
-          <VoltMark size={18} />
-          <span>Volt Design</span>
+          <Logo height={22} />
         </button>
         <Menu label="File" items={fileItems} />
         <Menu label="Edit" items={editItems} />
         <Menu label="View" items={viewItems} />
       </div>
 
-      {ux.home ? (
-        <div />
-      ) : (
-        <nav className="workspaces" aria-label="Steps">
-          {STEPS.map((label, i) => {
-            const step = (i + 1) as Step;
-            return (
-              <button key={label} aria-current={ux.step === step ? "step" : undefined} onClick={() => go(step)}>
-                <span className={`step-dot ${done[i] ? "done" : ""}`}>{done[i] ? "✓" : step}</span>
-                {label}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      <nav className="workspaces" aria-label="Steps">
+        {STEPS.map((label, i) => {
+          const step = (i + 1) as Step;
+          return (
+            <button key={label} aria-current={!ux.home && ux.step === step ? "step" : undefined} onClick={() => go(step)}>
+              <span className={`step-dot ${done[i] ? "done" : ""}`}>{done[i] ? "✓" : step}</span>
+              {label}
+            </button>
+          );
+        })}
+      </nav>
 
       <div className="appbar-right">
         {!ux.home && (
@@ -188,9 +213,9 @@ export function TopBar() {
             </span>
           </>
         )}
-        <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title="Volt Assistant">
-          <VoltMark size={14} />
-          Assistant
+        <button className={`appbar-assistant ${ux.assistantOpen ? "on" : ""}`} onClick={ux.toggleAssistant} title={ASSISTANT_NAME}>
+          <Mark size={14} />
+          {ASSISTANT_NAME}
         </button>
       </div>
 
@@ -216,6 +241,9 @@ export function TopBar() {
           e.target.value = "";
         }}
       />
+      <div className="file-work-status">
+        <LoadingState task={fileTask} onCancel={() => fileTask.cancel()} onRetry={fileTask.retry} onDismiss={fileTask.clear} />
+      </div>
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (
@@ -352,7 +380,17 @@ const STEPS = ["Building", "People", "Simulate"] as const;
 
 function UndoIcon({ redo }: { redo?: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={redo ? { transform: "scaleX(-1)" } : undefined}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={redo ? { transform: "scaleX(-1)" } : undefined}
+    >
       <path d="M5.5 4L2.5 7l3 3" />
       <path d="M2.5 7H10a3.5 3.5 0 0 1 0 7H8" />
     </svg>

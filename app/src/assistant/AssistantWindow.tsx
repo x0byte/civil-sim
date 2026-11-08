@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { suggestions, useExperience } from "../experience/state.ts";
+import { GLOSSARY, suggestions, useExperience } from "../experience/state.ts";
 import { useEditor } from "../state/store.ts";
-import { VoltMark } from "../ui/Brand.tsx";
+import { ASSISTANT_NAME, Mark } from "../ui/Brand.tsx";
 import { AssistantPanel } from "./AssistantPanel.tsx";
 import { useAssistant } from "./assistant.ts";
 
@@ -18,14 +18,14 @@ function savedPos(): { x: number; y: number } {
   return { x: window.innerWidth - WIDTH - 24, y: 72 };
 }
 
-/** Keeps the window's header on screen, however the browser window was resized. */
+/** Keeps the window's whole title bar on screen, however the browser window was resized. */
 const clamp = (p: { x: number; y: number }) => ({
-  x: Math.min(Math.max(8, p.x), window.innerWidth - 120),
+  x: Math.min(Math.max(8, p.x), Math.max(8, window.innerWidth - WIDTH - 8)),
   y: Math.min(Math.max(48, p.y), window.innerHeight - 60),
 });
 
 /**
- * The Volt Assistant: a window that floats over the workspace (drag it by its title bar), docks
+ * The Assistant: a window that floats over the workspace (drag it by its title bar), docks
  * beside it, or shrinks to a button. It shows what the assistant is doing while it works.
  */
 export function AssistantWindow() {
@@ -46,9 +46,9 @@ export function AssistantWindow() {
 
   if (!open) {
     return (
-      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open the Volt Assistant">
-        <VoltMark size={20} className={busy ? "is-thinking" : ""} />
-        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask Volt"}</span>
+      <button className={`assistant-fab ${busy ? "busy" : ""}`} onClick={() => ux.ask()} title="Open Ella">
+        <Mark size={20} className={busy ? "is-thinking" : ""} />
+        <span>{busy ? "Working…" : proposal ? "A change is waiting" : "Ask Ella"}</span>
       </button>
     );
   }
@@ -75,11 +75,11 @@ export function AssistantWindow() {
     <section
       className={`assistant-window ${docked ? "docked" : "floating"}`}
       style={docked ? undefined : { left: pos.x, top: pos.y, width: WIDTH }}
-      aria-label="Volt Assistant"
+      aria-label={ASSISTANT_NAME}
     >
       <header className="assistant-titlebar" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
-        <VoltMark size={16} className={busy ? "is-thinking" : ""} />
-        <strong>Volt Assistant</strong>
+        <Mark size={16} className={busy ? "is-thinking" : ""} />
+        <strong>{ASSISTANT_NAME}</strong>
         <span className={`assistant-state ${busy ? "busy" : ""}`}>{busy ? "Working" : "Ready"}</span>
         <span className="spacer" />
         {lines > 0 && (
@@ -100,6 +100,15 @@ export function AssistantWindow() {
       </header>
       <div className="assistant-window-body">
         <AssistantPanel suggestions={<Suggestions />} />
+        <details className="glossary">
+          <summary>A few useful words</summary>
+          {Object.entries(GLOSSARY).map(([term, meaning]) => (
+            <p key={term}>
+              <strong>{term}: </strong>
+              {meaning}
+            </p>
+          ))}
+        </details>
       </div>
     </section>
   );
@@ -135,7 +144,7 @@ export function Thinking() {
   return (
     <div className="thinking" role="status" aria-live="polite">
       <div className="thinking-orb">
-        <VoltMark size={22} className="is-thinking" />
+        <Mark size={22} className="is-thinking" />
       </div>
       <div className="thinking-steps">
         {done.map((a, i) => (
@@ -157,7 +166,15 @@ export function Thinking() {
   );
 }
 
-const svg = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const };
+const svg = {
+  width: 16,
+  height: 16,
+  viewBox: "0 0 16 16",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+};
 const DockIcon = () => (
   <svg {...svg}>
     <rect x="2" y="2.5" width="12" height="11" rx="1.5" />

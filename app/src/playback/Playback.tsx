@@ -1,3 +1,4 @@
+import { soundWord } from "../experience/wording.ts";
 import { useExperience } from "../experience/state.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
@@ -148,7 +149,7 @@ export interface PlayClock {
 
 /** Simulation time that plays in real time at `speed` simulated seconds per second. Restarts when `resetKey` changes. */
 export function usePlayClock(durationS: number, resetKey: unknown, initialT = 0): PlayClock {
-  const [t, setT] = useState(0);
+  const [t, setT] = useState(initialT);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(300);
 
@@ -161,7 +162,7 @@ export function usePlayClock(durationS: number, resetKey: unknown, initialT = 0)
     if (!playing) return;
     let last = performance.now();
     let raf = requestAnimationFrame(function tick(now) {
-      const dt = (now - last) / 1000;
+      const dt = Math.max(0, (now - last) / 1000);
       last = now;
       setT((prev) => {
         const next = prev + dt * speed;
@@ -371,7 +372,7 @@ export function PlanPlayer({
           text: [
             label.title,
             heat === "noise"
-              ? `${Math.round(v)} dB(A) at its loudest (15-minute average)`
+              ? `${soundWord(v)} · ${Math.round(v)} dB(A) at its loudest (15-minute average)`
               : heat === "light"
                 ? `${Math.round(v)} lux at its dimmest`
                 : heat === "glare"
@@ -451,7 +452,15 @@ export function PlanPlayer({
           {poses
             .filter((p) => p.id === selectedPerson)
             .map((p) => (
-              <circle key={`follow-${p.id}`} cx={p.pose.x} cy={p.pose.y} r={0.65} fill="none" stroke="var(--accent)" strokeWidth={3 / cam.s} />
+              <circle
+                key={`follow-${p.id}`}
+                cx={p.pose.x}
+                cy={p.pose.y}
+                r={0.65}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={3 / cam.s}
+              />
             ))}
           {poses.map(({ id, kind, profileId, pose }) => {
             const fill = ACTIVITY_STYLE[pose.activity as keyof typeof ACTIVITY_STYLE]?.color ?? "#888";
@@ -486,7 +495,16 @@ export function PlanPlayer({
                 strokeWidth={1.5 / cam.s}
               />
             ) : (
-              <circle key={id} cx={pose.x} cy={pose.y} r={0.3 * big} fill={fill} opacity={opacity} stroke="var(--paper)" strokeWidth={2 / cam.s} />
+              <circle
+                key={id}
+                cx={pose.x}
+                cy={pose.y}
+                r={0.3 * big}
+                fill={fill}
+                opacity={opacity}
+                stroke="var(--paper)"
+                strokeWidth={2 / cam.s}
+              />
             );
           })}
         </g>
@@ -643,7 +661,7 @@ export function Legend({
               {heat === "crowd"
                 ? `${CROWD_FROM} per m²`
                 : heat === "noise"
-                  ? "40 dB(A)"
+                  ? "40 dB(A) · quiet"
                   : heat === "light"
                     ? "0 lux (dim)"
                     : heat === "glare"
@@ -654,9 +672,9 @@ export function Legend({
               {heat === "crowd"
                 ? `${CROWD_SCALE}+`
                 : heat === "noise"
-                  ? "80+"
+                  ? "80+ · loud"
                   : heat === "light"
-                    ? "1000+ lux"
+                    ? "1000+ lux · bright"
                     : heat === "glare"
                       ? "1 (worst)"
                       : "more"}

@@ -74,7 +74,11 @@ export function storyScores(run: SimRun): Score[] {
     {
       name: "Access for everyone",
       signal:
-        blocked || checks.some((c) => ["step_free_route_per_floor", "door_width"].includes(c.code)) ? "attention" : checks.length ? "check" : "good",
+        blocked || checks.some((c) => ["step_free_route_per_floor", "door_width"].includes(c.code))
+          ? "attention"
+          : checks.length
+            ? "check"
+            : "good",
       sentence: blocked
         ? "Some people could not reach a place they needed."
         : checks.length
@@ -96,7 +100,10 @@ export function storyScores(run: SimRun): Score[] {
 }
 export function duration(s: number): string {
   const n = Math.ceil(s);
-  return `${Math.floor(n / 60)} min ${n % 60} s`;
+  const m = Math.floor(n / 60),
+    r = n % 60;
+  if (!m) return `${r} s`;
+  return r ? `${m} min ${r} s` : `${m} min`;
 }
 export function topFixes(run: SimRun): Fix[] {
   const p = run.plan,
@@ -144,7 +151,7 @@ export function topFixes(run: SimRun): Fix[] {
     });
   };
   const alarm = run.result.events.find((e) => e.type === "alarm")?.t ?? 0;
-  for (const w of run.result.warnings.filter((w) => w.code === "evacuation"))
+  for (const w of run.result.warnings.filter((w) => w.code === "evacuation" && (m.evacuation?.stranded ?? 0) > 0))
     add(
       `safety:${w.refIds[0]}`,
       100,
@@ -152,9 +159,22 @@ export function topFixes(run: SimRun): Fix[] {
       w.refIds,
       alarm,
     );
+  for (const refuge of m.evacuation?.refuges ?? []) {
+    const room = p.spaces.find((s) => s.id === refuge.spaceId);
+    add(
+      `rescue:${refuge.spaceId}`,
+      98,
+      `Plan assisted rescue for ${refuge.people} people waiting at ${room?.name ?? "a refuge"}.`,
+      [refuge.spaceId],
+      alarm + refuge.lastS,
+    );
+  }
   for (const c of m.accessibility.filter((c) => !c.ok)) {
     const names = c.refIds
-      .map((id) => p.levels.find((l) => l.id === id)?.name ?? p.spaces.find((s) => s.id === id)?.name ?? p.connectors.find((x) => x.id === id)?.name)
+      .map(
+        (id) =>
+          p.levels.find((l) => l.id === id)?.name ?? p.spaces.find((s) => s.id === id)?.name ?? p.connectors.find((x) => x.id === id)?.name,
+      )
       .filter(Boolean)
       .join(", ");
     const text =
@@ -176,7 +196,12 @@ export function topFixes(run: SimRun): Fix[] {
       for (let i = 1; i < tr.points.length; i++) {
         const a = tr.points[i - 1],
           b = tr.points[i];
-        if (a.levelId === b.levelId && a.activity === "in_lift" && pointInPolygon(a, connector.polygon) && b.t - a.t > longest.to - longest.from)
+        if (
+          a.levelId === b.levelId &&
+          a.activity === "in_lift" &&
+          pointInPolygon(a, connector.polygon) &&
+          b.t - a.t > longest.to - longest.from
+        )
           longest = { from: a.t, to: b.t, personId: tr.personId };
       }
     add(
@@ -192,7 +217,8 @@ export function topFixes(run: SimRun): Fix[] {
     const f = p.fixtures.find((f) => f.id === d.deskId)!;
     const person = run.scenario.people.find((p) => p.deskId === d.deskId);
     const tr = run.result.tracks.find((t) => t.personId === person?.id);
-    const t = tr?.discomfort?.find((d) => d.cause === "glare")?.from ?? m.comfort?.bySpace.find((s) => s.spaceId === f.spaceId)?.worstGlareT ?? 0;
+    const t =
+      tr?.discomfort?.find((d) => d.cause === "glare")?.from ?? m.comfort?.bySpace.find((s) => s.spaceId === f.spaceId)?.worstGlareT ?? 0;
     add(
       `glare:${d.deskId}`,
       70 + d.glareMinutes / 100,
@@ -213,7 +239,13 @@ export function topFixes(run: SimRun): Fix[] {
   }
   for (const c of m.comfort?.bySpace.filter((c) => c.discomfortMinutes > 0 && c.loudestDbA > 65) ?? []) {
     const room = p.spaces.find((s) => s.id === c.spaceId)!;
-    add(`noise:${c.spaceId}`, 68, `${room.name} gets loud around ${clockAt(run.scenario.workday.start, c.loudestT)}.`, [c.spaceId], c.loudestT);
+    add(
+      `noise:${c.spaceId}`,
+      68,
+      `${room.name} gets loud around ${clockAt(run.scenario.workday.start, c.loudestT)}.`,
+      [c.spaceId],
+      c.loudestT,
+    );
   }
   for (const q of m.queues.filter((q) => q.longestWaitS > 60)) {
     const room = p.spaces.find((s) => s.id === q.spaceId)!;
@@ -246,7 +278,9 @@ export function topFixes(run: SimRun): Fix[] {
       w.refIds,
     );
   }
-  return [...new Map(items.map((item) => [item.key, item])).values()].sort((a, b) => b.rank - a.rank || a.key.localeCompare(b.key)).slice(0, 5);
+  return [...new Map(items.map((item) => [item.key, item])).values()]
+    .sort((a, b) => b.rank - a.rank || a.key.localeCompare(b.key))
+    .slice(0, 5);
 }
 export function Story({ run }: { run: SimRun }) {
   const fixes = topFixes(run),

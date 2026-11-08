@@ -9,7 +9,7 @@ const officeA = SAMPLE_PLANS.find((s) => s.id === "office-a")!.plan;
 
 // desk-01 is at (3, 8), desk-02 at (6, 8), desk-07 at (3, 11)
 const scenario: Scenario = {
-  version: "0.9",
+  version: "1.0",
   id: "t",
   name: "t",
   seed: 1,

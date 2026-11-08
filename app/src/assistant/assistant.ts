@@ -1,3 +1,4 @@
+import { runInBackground } from "../sim/background.ts";
 // The design assistant: a conversation with Claude that turns plain requests ("add a window
 // to the right wall of the first floor") into edits on a draft. The user sees the draft on
 // the plan and applies or discards it; nothing reaches the editor without that click.
@@ -10,14 +11,14 @@ import { create } from "zustand";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { useEditor } from "../state/store.ts";
-import { type Change, type Draft, TOOLS, describe, runTool } from "./tools.ts";
+import { type Change, type Draft, TOOLS, describe } from "./tools.ts";
 
-const MODEL = "claude-opus-5-5";
+export const MODEL = "claude-opus-5-5";
 const KEY_STORAGE = "civil-sim:anthropic-key";
 /** Model turns per message before giving up, so a confused loop can't run up a bill. */
 const MAX_STEPS = 24;
 
-const SYSTEM = `You are Volt, the design assistant inside Volt Design, a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
+export const SYSTEM = `You are Ella, the design assistant inside Nine Arches (named after Ella, the hill town where the Nine Arches Bridge stands). If asked your name, you are Ella. Nine Arches is a tool where architects, builders and clients in Sri Lanka draw a building's floor plan, fill it with simulated people (office staff, visitors, shoppers) and watch how they move to find where the layout causes problems.
 
 You change the plan and the people settings by calling tools. Your changes go into a proposal that the user sees highlighted on the plan and then applies or discards, so make the change asked for rather than asking permission. Ask a short question first only when the request is genuinely ambiguous (for example, which of two rooms they mean).
 
@@ -60,6 +61,7 @@ interface AssistantState {
   setKey: (key: string, remember: boolean) => void;
   forgetKey: () => void;
   send: (text: string) => Promise<void>;
+  cancel: () => void;
   apply: () => void;
   discard: () => void;
   reset: () => void;
@@ -80,6 +82,7 @@ function currentDraft(): Draft {
 
 /** A note for the model, added to the next user message (never edited into history). */
 let pendingNote = "";
+let requestController: AbortController | undefined;
 
 export const useAssistant = create<AssistantState>((set, get) => ({
   key: storedKey(),
@@ -109,9 +112,12 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     set({ key: "", remember: false });
   },
 
+  cancel: () => requestController?.abort(),
   send: async (text) => {
     const { key, busy } = get();
     if (busy || !text.trim() || !key) return;
+    const controller = new AbortController();
+    requestController = controller;
     const proposal = get().proposal;
     const current = currentDraft();
     const start = proposal ?? { base: current, draft: current, changes: [] };
@@ -125,7 +131,13 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     pendingNote = "";
     const history: Anthropic.Beta.BetaMessageParam[] = [
       ...get().history,
-      { role: "user", content: [{ type: "text", text: intro }, { type: "text", text }] },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: intro },
+          { type: "text", text },
+        ],
+      },
     ];
     set({ busy: true, activity: ["Reading your plan"], error: null, history, lines: [...get().lines, { role: "user", text }] });
 
@@ -137,18 +149,22 @@ export const useAssistant = create<AssistantState>((set, get) => ({
       for (let step = 0; ; step++) {
         if (step >= MAX_STEPS) throw new Error("The assistant took too many steps on this request, so it was stopped. Try asking for less at once.");
         set({ activity: [...get().activity, step === 0 ? "Thinking it through" : "Checking the result"] });
-        const response = await client.beta.messages.create({
-          model: MODEL,
-          max_tokens: 16000,
-          system: SYSTEM,
-          tools: TOOLS,
-          messages: get().history,
-          thinking: { type: "adaptive" },
-          output_config: { effort: "medium" },
-          cache_control: { type: "ephemeral" },
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        });
+        controller.signal.throwIfAborted();
+        const response = await client.beta.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 16000,
+            system: SYSTEM,
+            tools: TOOLS,
+            messages: get().history,
+            thinking: { type: "adaptive" },
+            output_config: { effort: "medium" },
+            cache_control: { type: "ephemeral" },
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+          },
+          { signal: controller.signal },
+        );
         set({ history: [...get().history, { role: "assistant", content: response.content }] });
         for (const b of response.content) if (b.type === "text" && b.text.trim()) reply.push(b.text.trim());
 
@@ -160,24 +176,53 @@ export const useAssistant = create<AssistantState>((set, get) => ({
         if (response.stop_reason === "max_tokens" && calls.length) throw new Error("The reply was cut off. Try a smaller request.");
         if (!calls.length) break;
 
-        const results: Anthropic.Beta.BetaToolResultBlockParam[] = calls.map((call) => {
-          const out = runTool(call.name, call.input as Record<string, unknown>, draft);
+        const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+        for (const call of calls) {
+          const out = await runInBackground(
+            { kind: "assistantTool", name: call.name, input: call.input as Record<string, unknown>, draft },
+            controller.signal,
+          );
+          controller.signal.throwIfAborted();
           draft = out.draft;
           if (out.change) changes.push(out.change);
           set({ activity: [...get().activity, toolActivity(call.name, out.error)] });
-          return { type: "tool_result", tool_use_id: call.id, content: out.result, ...(out.error ? { is_error: true } : {}) };
-        });
+          results.push({ type: "tool_result", tool_use_id: call.id, content: out.result, ...(out.error ? { is_error: true } : {}) });
+        }
         // All results for one turn go back in a single message.
         set({ history: [...get().history, { role: "user", content: results }] });
       }
     } catch (e) {
-      set({ error: errorText(e) });
+      if (controller.signal.aborted) {
+        draft = start.draft;
+        changes = [...start.changes];
+      }
+      set({ error: controller.signal.aborted ? "Stopped. Your building has not changed." : errorText(e) });
       // History must end on an assistant turn before the next user message; drop a dangling
       // tool-result turn by closing it with a short assistant note rather than editing history.
       const last = get().history[get().history.length - 1];
+      if (last?.role === "assistant" && Array.isArray(last.content)) {
+        const unfinished = last.content.filter((b) => b.type === "tool_use");
+        if (unfinished.length)
+          set({
+            history: [
+              ...get().history,
+              {
+                role: "user",
+                content: unfinished.map((b) => ({
+                  type: "tool_result" as const,
+                  tool_use_id: b.id,
+                  content: "Stopped before this tool finished.",
+                  is_error: true,
+                })),
+              },
+              { role: "assistant", content: "The request was stopped. The building is unchanged." },
+            ],
+          });
+      }
       if (last?.role === "user") set({ history: [...get().history, { role: "assistant", content: "(stopped: an error interrupted this request)" }] });
     }
 
+    if (requestController === controller) requestController = undefined;
     const changed = draft.plan !== start.base.plan || draft.profile !== start.base.profile;
     set({
       busy: false,
@@ -215,7 +260,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   },
 }));
 
-function errorText(e: unknown): string {
+export function errorText(e: unknown): string {
   if (e instanceof Anthropic.AuthenticationError) return "That API key wasn't accepted. Check it and enter it again.";
   if (e instanceof Anthropic.PermissionDeniedError) return "This API key isn't allowed to use the model.";
   if (e instanceof Anthropic.RateLimitError) return "Too many requests right now. Wait a moment and try again.";

@@ -1,3 +1,4 @@
+import { plainText } from "../experience/wording.ts";
 import { useMemo } from "react";
 import { validateFloorPlan } from "../../../contracts/validate.ts";
 import { editorWarnings } from "../model/planOps.ts";
@@ -10,14 +11,13 @@ export function useProblems() {
 
 export function Problems() {
   const { errors, warnings } = useProblems();
+  const plan = useEditor((s) => s.plan);
   return (
     <section className="panel">
       <header>
         <div>
           <h2>Ready to simulate?</h2>
-          <span className="muted">
-            {errors.length ? `${errors.length} thing${errors.length > 1 ? "s" : ""} to fix` : "Plan is valid"}
-          </span>
+          <span className="muted">{errors.length ? `${errors.length} thing${errors.length > 1 ? "s" : ""} to fix` : "Plan is valid"}</span>
         </div>
       </header>
       <div className="panel-body">
@@ -25,12 +25,12 @@ export function Problems() {
         <ul className="problems">
           {errors.map((e, i) => (
             <li key={`e${i}`} className="error">
-              {e}
+              {plainText(plan, e)}
             </li>
           ))}
           {warnings.map((w, i) => (
             <li key={`w${i}`} className="warning">
-              {w}
+              {plainText(plan, w)}
             </li>
           ))}
         </ul>

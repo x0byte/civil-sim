@@ -5,169 +5,6 @@
   --ux-green: #19766b;
   --ux-soft: #e1efea;
 }
-.flow-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--paper);
-  z-index: 25;
-  flex-shrink: 0;
-}
-.step-list {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-}
-.step-list button {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  border: 0;
-  background: transparent;
-  padding: 9px 12px;
-}
-.step-list button[aria-current] {
-  background: var(--ux-soft);
-  color: #16584f;
-}
-.step-list button > span {
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-}
-.step-list small {
-  font-size: 10px;
-  color: var(--muted);
-}
-.detail-switch {
-  display: flex;
-}
-.detail-switch button {
-  border-radius: 0;
-}
-.detail-switch button[aria-pressed="true"] {
-  background: var(--ux-green);
-  color: white;
-}
-.assistant-launch {
-  background: var(--ux-green);
-  color: white;
-  border: 0 !important;
-  padding: 10px !important;
-}
-.topbar {
-  min-height: 52px !important;
-}
-.compact-topbar .project-actions,
-.home-topbar .project-actions {
-  display: none;
-}
-.topbar .group select {
-  max-width: 180px;
-}
-.start-screen {
-  overflow: auto;
-  flex: 1;
-  padding: 32px max(32px, calc((100vw - 1120px) / 2));
-  background: radial-gradient(ellipse at top right, var(--ux-soft), transparent 65%), var(--bg);
-  color: var(--ink);
-}
-.start-intro {
-  max-width: 760px;
-  margin-bottom: 25px;
-}
-.eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--ux-green);
-}
-.start-intro h1 {
-  font-size: clamp(28px, 3.3vw, 44px);
-  line-height: 1.13;
-  letter-spacing: -1.3px;
-  margin: 12px 0;
-}
-.start-intro p {
-  font-size: 16px;
-  line-height: 1.6;
-  max-width: 650px;
-  color: var(--muted);
-}
-.start-screen h2 {
-  font-size: 17px;
-  margin: 22px 0 12px;
-}
-.sample-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-.sample-cards > button {
-  padding: 0;
-  overflow: hidden;
-  text-align: left;
-  border-radius: 12px;
-  display: grid;
-  grid-template-columns: 42% 58%;
-  background: var(--paper);
-  border: 1px solid var(--border);
-}
-.sample-cards svg {
-  width: 100%;
-  height: 140px;
-  padding: 12px;
-  color: #465c62;
-  background: var(--ux-soft);
-}
-.sample-cards > button > span {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 18px;
-  gap: 9px;
-}
-.sample-cards strong {
-  font-size: 22px;
-}
-.sample-cards small {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-.bring-options {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-.bring-options button {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  padding: 17px;
-  gap: 8px;
-  background: var(--paper);
-  border-radius: 9px;
-}
-.bring-options span {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-.continue-project {
-  margin-top: 20px;
-}
-.honest-note {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 18px 0;
-}
 .link {
   border: 0;
   background: none;
@@ -312,18 +149,18 @@
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #69828b;
+  background: var(--ink-3);
   display: inline-block;
   margin-top: 2px;
 }
 .good .signal-dot {
-  background: #2a9b70;
+  background: var(--good);
 }
 .check .signal-dot {
-  background: #d9951b;
+  background: var(--warn);
 }
 .attention .signal-dot {
-  background: #df5f51;
+  background: var(--danger);
 }
 .fixes {
   list-style: none;
@@ -341,30 +178,6 @@
 }
 .fixes button {
   margin: 3px 6px 3px 0;
-}
-.assistant-drawer {
-  position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 410px;
-  max-width: 90vw;
-  overflow: auto;
-  background: var(--paper);
-  z-index: 60;
-  box-shadow: -12px 0 50px #0003;
-  border-left: 1px solid var(--border);
-}
-.drawer-heading {
-  position: sticky;
-  top: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: var(--paper);
-  border-bottom: 1px solid var(--border);
-  z-index: 2;
 }
 .assistant-suggestions {
   display: flex;
@@ -541,56 +354,13 @@
   --ux-green: #7bcabb;
   --ux-soft: #243c3a;
 }
-[data-theme="dark"] .step-list button[aria-current] {
-  color: #aeebe0;
-}
-[data-theme="dark"] .assistant-launch {
-  background: #326b60;
-  color: white;
-}
 @media (max-width: 1150px) {
-  .flow-header {
-    gap: 7px;
-    padding: 10px;
-  }
-  .step-list {
-    gap: 0;
-  }
-  .step-list button {
-    padding: 8px;
-    font-size: 12px;
-    gap: 5px;
-  }
-  .step-list small {
-    display: none;
-  }
-  .assistant-launch {
-    font-size: 11px;
-  }
   .home-button {
     font-size: 11px;
   }
   .sidebar {
     width: 330px;
     min-width: 300px;
-  }
-  .topbar .project-actions select {
-    display: none;
-  }
-  .start-screen {
-    padding: 24px 35px;
-  }
-  .start-intro h1 {
-    font-size: 32px;
-  }
-  .sample-cards svg {
-    height: 125px;
-  }
-  .sample-cards strong {
-    font-size: 20px;
-  }
-  .bring-options button {
-    padding: 12px;
   }
   .walk-controls {
     gap: 5px;
@@ -642,12 +412,6 @@
 .estimate:hover [role="tooltip"],
 .estimate:focus [role="tooltip"] {
   display: block;
-}
-
-.home-topbar > .group,
-.home-topbar > .spacer + button,
-.home-topbar > .spacer + button + button {
-  display: none;
 }
 .story-scorecard {
   gap: 8px;

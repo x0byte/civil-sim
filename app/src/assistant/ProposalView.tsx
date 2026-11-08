@@ -7,15 +7,32 @@ import { getItem, onLevel } from "../model/planOps.ts";
 import { useEditor } from "../state/store.ts";
 import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
 import { useAssistant } from "./assistant.ts";
+import type { Draft } from "./tools.ts";
 import { diffPlans } from "./diff.ts";
 
 /**
  * The assistant's proposal drawn on the plan: new and changed items in the accent colour,
  * removed ones dashed red. Read-only; pan with a drag, zoom with the wheel.
  */
-export function ProposalView() {
-  const proposal = useAssistant((s) => s.proposal)!;
-  const { apply, discard } = useAssistant.getState();
+export function ProposalView({
+  proposal: supplied,
+  onApply,
+  onDiscard,
+  title,
+  discardLabel = "Discard",
+  applyDisabled = false,
+}: {
+  proposal?: { base: Draft; draft: Draft };
+  onApply?: () => void;
+  onDiscard?: () => void;
+  title?: string;
+  discardLabel?: string;
+  applyDisabled?: boolean;
+} = {}) {
+  const waiting = useAssistant((s) => s.proposal);
+  const proposal = supplied ?? waiting!;
+  const apply = onApply ?? useAssistant.getState().apply;
+  const discard = onDiscard ?? useAssistant.getState().discard;
   const plan = proposal.draft.plan;
   const before = proposal.base.plan;
   // Its own floor choice: a floor the proposal adds isn't in the editor yet.
@@ -65,7 +82,7 @@ export function ProposalView() {
 
       <div className="proposal-bar">
         <div>
-          <strong>Proposed by the assistant</strong>
+          <strong>{title ?? "Proposed by Ella"}</strong>
           <span className="muted">
             {" "}
             · {diff.changed.length} new or changed, {diff.removed.length} removed
@@ -73,8 +90,8 @@ export function ProposalView() {
           </span>
         </div>
         <div className="proposal-actions">
-          <button onClick={discard}>Discard</button>
-          <button className="primary" onClick={apply}>
+          <button onClick={discard}>{discardLabel}</button>
+          <button className="primary" onClick={apply} disabled={applyDisabled}>
             Apply
           </button>
         </div>
@@ -94,8 +111,14 @@ function mark(plan: FloorPlan, kind: string, id: string, level: string, color: s
   const common = { stroke: color, strokeWidth: sx(3), strokeDasharray: dash, fill: "none" };
   const poly = (pts: Vec2[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
   switch (kind) {
-    case "neighbour": { const n = getItem(plan, "neighbour", id); return n ? <polygon key={id} points={poly(n.polygon)} {...common} /> : null; }
-    case "road": { const r = getItem(plan, "road", id); return r ? <polyline key={id} points={poly(r.path)} {...common} /> : null; }
+    case "neighbour": {
+      const n = getItem(plan, "neighbour", id);
+      return n ? <polygon key={id} points={poly(n.polygon)} {...common} /> : null;
+    }
+    case "road": {
+      const r = getItem(plan, "road", id);
+      return r ? <polyline key={id} points={poly(r.path)} {...common} /> : null;
+    }
     case "wall": {
       const w = getItem(plan, "wall", id);
       if (!w || w.levelId !== level) return null;

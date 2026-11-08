@@ -1,5 +1,5 @@
 {
-  "version": "0.6",
+  "version": "0.7",
   "id": "mall-2f-comfort",
   "name": "Small mall: west glass, street noise and glossy floors",
   "units": "m",
@@ -271,6 +271,20 @@
       "thickness": 0.15,
       "height": 3,
       "levelId": "first"
+    },
+    {
+      "id": "f-w-food",
+      "a": {
+        "x": 0,
+        "y": 16
+      },
+      "b": {
+        "x": 14,
+        "y": 16
+      },
+      "thickness": 0.15,
+      "height": 3,
+      "levelId": "first"
     }
   ],
   "openings": [
@@ -354,6 +368,13 @@
       "kind": "door",
       "offset": 35,
       "width": 2.4
+    },
+    {
+      "id": "f-d-food",
+      "wallId": "f-w-food",
+      "kind": "door",
+      "offset": 10,
+      "width": 3
     },
     {
       "id": "f-win-food-west",
@@ -730,7 +751,8 @@
         "f-d-shop-1",
         "f-d-shop-2",
         "f-d-shop-3",
-        "f-d-shop-4"
+        "f-d-shop-4",
+        "f-d-food"
       ],
       "acoustics": "hard",
       "floorLRV": 72,
@@ -760,7 +782,9 @@
           "y": 24
         }
       ],
-      "doorIds": [],
+      "doorIds": [
+        "f-d-food"
+      ],
       "attraction": 2.5,
       "acoustics": "hard",
       "lightingLux": 300,

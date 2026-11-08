@@ -33,7 +33,7 @@ export function buildProject(
 }
 
 export const projectFileName = (plan: FloorPlan) =>
-  `${plan.name.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project"}.volt.json`;
+  `${plan.name.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project"}.ninearches.json`;
 
 export type Opened =
   | { kind: "project"; project: ProjectFile; warnings: string[] }
@@ -53,7 +53,7 @@ export function parseProjectOrPlan(text: string): Opened {
   const obj = data as Record<string, unknown>;
   if (obj?.format === PROJECT_FORMAT) {
     if (obj.version !== PROJECT_VERSION) {
-      throw new Error(`it was saved by a newer version of Volt Design (project version ${String(obj.version)})`);
+      throw new Error(`it was saved by a newer version of Nine Arches (project version ${String(obj.version)})`);
     }
     const p = obj as unknown as ProjectFile;
     if (!isPlan(p.plan)) throw new Error("its floor plan is missing or damaged");
@@ -73,14 +73,14 @@ export function parseProjectOrPlan(text: string): Opened {
     const plan = upgradePlan(obj);
     return { kind: "plan", plan, warnings: planWarnings(plan) };
   }
-  throw new Error("it isn't a Volt Design project or floor plan");
+  throw new Error("it isn't a Nine Arches project or floor plan");
 }
 
 /** Older plans (v0.1 single floor, v0.2 before shops) are accepted and upgraded. */
 function isPlan(x: unknown): x is FloorPlan {
   const p = x as FloorPlan;
   const version = (p as { version?: string } | undefined)?.version;
-  const known = version === "0.1" || ((version === "0.2" || version === "0.3" || version === "0.4" || version === "0.5" || version === "0.6") && Array.isArray(p.levels) && p.levels.length > 0);
+  const known = version === "0.1" || ((version === "0.2" || version === "0.3" || version === "0.4" || version === "0.5" || version === "0.6" || version === "0.7") && Array.isArray(p.levels) && p.levels.length > 0);
   return !!p && known && typeof p.id === "string" && Array.isArray(p.walls) && Array.isArray(p.spaces);
 }
 
@@ -93,4 +93,9 @@ function isProfile(x: unknown): x is OfficeProfile {
 function planWarnings(plan: FloorPlan): string[] {
   const n = checkFloorPlan(plan).length;
   return n ? [`The plan has ${n} problem${n > 1 ? "s" : ""} to fix (see "Ready to simulate?").`] : [];
+}
+
+/** File names are deliberately unrestricted: legacy exports and plain JSON remain readable. */
+export async function readProjectFile(file: Pick<File, "name" | "text">): Promise<Opened> {
+  return parseProjectOrPlan(await file.text());
 }

@@ -191,7 +191,7 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[], p
 
 /** Shared chronological capacity and FCFS scheduler; generators retain each person's behaviour. */
 export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scenario: Scenario,
-  navigation: Navigation, events: SimEvent[], warn: (warning: Warning) => void): Track[] {
+  navigation: Navigation, events: SimEvent[], warn: (warning: Warning) => void, onProgress?: (t: number) => void): Track[] {
   const capped = plan.spaces.filter((space) => (space.type === "toilet" || space.type === "pantry") && space.capacity !== undefined);
   // Queue motion itself must never use a different capacity-limited room as
   // overflow space. All rooms share one union grid for line positions/shuffling;
@@ -281,10 +281,12 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   };
 
   schedules.forEach((schedule, index) => advance({ schedule, index }));
+  let lastProgress = -Infinity;
   while (actions.length) {
     if (Array.isArray(actions)) actions.sort(compare);
     const action = actions.shift()!;
     const t = action.t; now = t;
+    if (onProgress && t - lastProgress >= 60) { lastProgress = t; onProgress(t); }
     if (action.kind === "lift" || action.kind === "crowd") { action.run();
     } else if (action.kind === "timeout") {
       if (action.waiter.active) {

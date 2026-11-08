@@ -1,25 +1,62 @@
-import logoUrl from "../assets/volt-logo.png";
-import markUrl from "../assets/volt-mark.png";
+import { useId } from "react";
 
-/** The Volt mark, drawn in the current text colour so it works on light and dark. */
-export function VoltMark({ size = 18, className = "" }: { size?: number; className?: string }) {
+/**
+ * The Nine Arches logo: the folded-arch symbol and the wordmark, drawn from the supplied artwork
+ * (`assets/brand/nine-arches-logo.svg`). The dark face and the wordmark switch to light versions in
+ * the dark theme through CSS variables in `shell.css`, so the logo stays visible on both.
+ */
+/** The assistant is called Ella, after the hill town where the Nine Arches Bridge stands. */
+export const ASSISTANT_NAME = "Ella";
+
+const RIGHT = "M181.5 7.5 L290 56.2 Q295 58.5 295 74.5 L295 251 L204 251 L204 45.5 C203 28 193.5 12 181.5 7.5 Z";
+const LEFT = "M0 92 L99 107 L99 205 L0 254 L0 103 Q0 96 0 92 Z";
+const TOP = "M4 88.2 L140 5.8 C153 -2 168 -1 181.5 7.5 C195.4 16 202.1 28 204 45.5 L104 103.2 Q98 106.5 98 112 L98 107 L0 92 C0 90 2 89.2 4 88.2 Z";
+const WORDMARK = "m 379.0625,190 h 14.92187 v -66.40625 c 0,-5.625 -0.54687,-17.26562 -1.17187,-32.1875 9.0625,16.17188 13.51562,23.98438 18.82812,32.34375 l 42.1875,66.25 h 17.65625 V 73.59375 H 456.64062 V 145 c 0,6.25 0.0781,16.17187 1.01563,27.42187 -5.3125,-10.54687 -10.625,-19.45312 -13.75,-24.375 L 396.5625,73.59375 h -17.5 z m 118.82812,0 h 14.0625 v -87.34375 h -14.0625 z M 505,88.359375 c 5.39062,0 9.84375,-4.140625 9.84375,-9.296875 0,-5.15625 -4.45313,-9.296875 -9.84375,-9.296875 -5.3125,0 -9.76563,4.140625 -9.76563,9.296875 0,5.15625 4.45313,9.296875 9.76563,9.296875 z m 45.70312,49.296875 c 0,-14.92187 9.45313,-23.4375 22.03125,-23.4375 12.1875,0 19.6875,8.04688 19.6875,21.48437 V 190 h 14.0625 v -55.46875 c 0,-22.10937 -11.875,-32.96875 -29.53125,-32.96875 -11.71875,0 -21.09375,4.92188 -26.71875,17.26563 l -0.0781,-16.17188 H 536.64062 V 190 h 14.0625 z m 117.1875,54.21875 c 17.89063,0 30.9375,-8.98438 35,-22.1875 l -13.59375,-3.75 c -3.28125,8.90625 -11.01562,13.4375 -21.32812,13.4375 -15.46875,0 -26.09375,-10 -26.79688,-28.28125 h 63.125 v -5.85938 c 0,-32.26562 -19.53125,-43.67187 -38.04687,-43.67187 -23.82813,0 -39.29688,18.67188 -39.29688,45.46875 0,26.875 15.625,44.84375 40.9375,44.84375 z M 641.25,139.21875 c 0.85937,-13.35937 10,-25.15625 25,-25.15625 14.375,0 22.42187,10.3125 23.75,25.15625 z M 761.17187,190 h 15.78125 l 11.25,-32.5 h 47.96875 L 847.8125,190 h 15.625 L 820.625,73.59375 h -17.1875 z m 31.5625,-45.46875 8.20313,-23.59375 c 2.5,-7.1875 6.09375,-18.28125 11.01562,-35.46875 4.92188,16.875 8.35938,27.65625 11.17188,35.46875 l 8.4375,23.59375 z M 879.84375,190 h 14.0625 v -54.6875 c 0,-11.79687 9.21875,-20.3125 21.79687,-20.3125 3.75,0 7.57813,0.625 8.4375,0.78125 v -14.14062 c -1.64062,-0.0781 -5.07812,-0.23438 -7.10937,-0.23438 -10.39063,0 -19.45313,5.85938 -22.65625,14.6875 h -0.9375 v -13.4375 h -13.59375 z m 93.125,1.875 c 17.10937,0 31.01565,-9.29688 35.70315,-24.84375 l -13.43753,-3.82813 c -2.57812,9.45313 -10.54687,16.09375 -22.26562,16.09375 -17.42188,0 -25.46875,-15.23437 -25.46875,-32.42187 0,-17.42188 8.04687,-32.73437 25.46875,-32.73437 11.48437,0 19.29687,6.40625 21.875,15.39062 l 13.51565,-3.82812 c -4.7657,-15.23438 -18.51565,-24.14063 -35.39065,-24.14063 -23.75,0 -39.76563,17.96875 -39.76563,45.3125 0,26.95312 16.01563,45 39.76563,45 z m 69.92185,-54.21875 c 0,-14.92187 9.4532,-23.4375 22.0313,-23.4375 12.1875,0 19.6875,8.04688 19.6875,21.48437 V 190 h 14.1406 v -55.46875 c 0,-22.10937 -11.9531,-32.96875 -29.6094,-32.96875 -11.4062,0 -20.5468,4.60938 -26.25,16.25 V 73.59375 h -14.0625 V 190 h 14.0625 z m 117.2657,54.21875 c 17.8906,0 30.9375,-8.98438 35,-22.1875 l -13.5938,-3.75 c -3.2812,8.90625 -11.0156,13.4375 -21.3281,13.4375 -15.4688,0 -26.0938,-10 -26.7969,-28.28125 h 63.125 v -5.85938 c 0,-32.26562 -19.5312,-43.67187 -38.0469,-43.67187 -23.8281,0 -39.2968,18.67188 -39.2968,45.46875 0,26.875 15.625,44.84375 40.9375,44.84375 z m -26.6407,-52.65625 c 0.8594,-13.35937 10,-25.15625 25,-25.15625 14.375,0 22.4219,10.3125 23.75,25.15625 z m 112.8907,52.65625 c 20.4687,0 34.4531,-11.17188 34.4531,-26.48438 0,-11.95312 -7.4219,-19.84375 -23.2813,-23.59375 l -13.2031,-3.125 c -10.2344,-2.42187 -14.6875,-6.01562 -14.6875,-12.49999 0,-7.26563 7.8125,-12.65625 18.2031,-12.65625 11.25,0 16.1719,6.09375 18.5938,12.34375 l 12.7344,-3.28125 c -3.9844,-12.26563 -13.4375,-21.01563 -31.4063,-21.01563 -18.5937,0 -32.3437,10.46875 -32.3437,25.46875 0,12.26562 7.5781,20.07812 23.4375,23.82812 l 14.5312,3.4375 c 8.5938,2.03125 12.8125,6.01563 12.8125,12.03125 0,7.1875 -7.8125,13.20313 -20,13.20313 -10.4687,0 -17.5781,-4.29688 -20.0781,-13.90625 l -13.3594,3.20312 c 3.125,15.07813 15.625,23.04688 33.5938,23.04688 z";
+
+/** The three-face symbol with its gradients. Gradient ids are unique per copy on the page. */
+function Symbol() {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   return (
-    <span
-      className={`volt-mark ${className}`}
-      aria-hidden="true"
-      style={{ width: size, height: size, WebkitMaskImage: `url(${markUrl})`, maskImage: `url(${markUrl})` }}
-    />
+    <>
+      <defs>
+        <linearGradient id={`${id}-left`} x1="15%" y1="0%" x2="82%" y2="100%">
+          <stop offset="0%" stopColor="#78ADF2" />
+          <stop offset="52%" stopColor="#B6D2F9" />
+          <stop offset="100%" stopColor="#E4F0FF" />
+        </linearGradient>
+        <linearGradient id={`${id}-top`} x1="0%" y1="100%" x2="98%" y2="0%">
+          <stop offset="0%" stopColor="#9BC3F9" />
+          <stop offset="48%" stopColor="#468FF0" />
+          <stop offset="100%" stopColor="#1974E1" />
+        </linearGradient>
+        <linearGradient id={`${id}-right`} x1="0%" y1="0%" x2="20%" y2="100%">
+          <stop offset="0%" stopColor="var(--brand-face-1, #082B5D)" />
+          <stop offset="100%" stopColor="var(--brand-face-2, #082653)" />
+        </linearGradient>
+      </defs>
+      <path fill={`url(#${id}-right)`} d={RIGHT} />
+      <path fill={`url(#${id}-left)`} d={LEFT} />
+      <path fill={`url(#${id}-top)`} d={TOP} />
+    </>
   );
 }
 
-/** The full Volt logo (mark and wordmark), in the current text colour. */
-export function VoltLogo({ height = 24 }: { height?: number }) {
+/** The symbol on its own, centred in a square, for icon-sized places. */
+export function Mark({ size = 18, className = "" }: { size?: number; className?: string }) {
   return (
-    <span
-      className="volt-mark"
-      role="img"
-      aria-label="Volt"
-      style={{ width: (height * 1085) / 426, height, WebkitMaskImage: `url(${logoUrl})`, maskImage: `url(${logoUrl})` }}
-    />
+    <svg className={`brand-mark ${className}`} width={size} height={size} viewBox="-6 -26 307 307" aria-hidden="true">
+      <Symbol />
+    </svg>
+  );
+}
+
+/** The full logo, symbol and wordmark, as supplied. */
+export function Logo({ height = 24 }: { height?: number }) {
+  return (
+    // Cropped to the artwork (the supplied file pads it), so the wordmark is legible at small heights.
+    <svg className="brand-logo" width={(height * 1372) / 268} height={height} viewBox="-6 -7 1372 268" role="img" aria-label="Nine Arches">
+      <Symbol />
+      <path d={WORDMARK} fill="var(--brand-ink, #082856)" />
+    </svg>
   );
 }

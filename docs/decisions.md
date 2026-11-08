@@ -1,4 +1,39 @@
+## 2026-11-07 — Simulation timing checks use warm medians
+
+The evacuation speed check now measures only simulate(), taking the median of three runs after an untimed warm-up and retaining the 3,000 ms mall-weekend-evac target. The people-mall checks also warm up before their existing three samples, retaining their 6,000 ms targets and behaviour assertions. Timing samples are logged for review. The evacuation acceptance test has a 30 s whole-test timeout for its six simulations plus assertions; the two-simulation refuge/lift test has 20 s. No behaviour assertions, simulation implementation, app files, contracts or samples change.
+
+## 2026-11-07 — Find improvements compares frozen experiments
+
+The assistant proposes exactly three independent layout drafts, in separate conversations using the existing editing tools. People/profile tools are excluded and profile changes refused. Each valid option runs serially in a terminable browser worker against the base scenario's people, seed, hours and weather. Recasting may reseat people, but cannot drop staff, visitors, meetings or required daily activities. Evacuation goals require an existing evacuation run and reuse its alarm/blocked exits while also comparing the ordinary day. Rankings use lower-is-better measures, deterministic option-id tie ordering and shared Best labels; access and safety prioritize blocked/stranded/refuge counts ahead of time. Mean walking includes shoppers and visitors, unlike the legacy staff-only summary. Apply is guarded against plan and people edits and records one undo entry. Free-text restrictions guide proposals; the user reviews the highlighted draft and rough scope before applying. No plan is changed by generation, preview or simulation.
+
+## 2026-11-07 — Approved sample hash refresh
+
+The product owner approved an exception to the next brief's no-engine-changes rule: refresh 15 mall entries in five engine/test/data hash JSON files to account for the requested food-court wall/door. Only test data changes; engine source and test assertions/limits stay unchanged. The exact review patch is docs/polish-baseline-refresh.patch.
+
+## 2026-11-07 — Simple People controls and sample doorway
+
+Simple mode keeps the comfort switch alongside building type, day, crowd and people mix; all detailed people controls remain under Fine-tune. Accent fills and accent text have separate tokens for readable themes. Removed shell predecessors only after searching TS/TSX references. The upper mall food court now has a 3 m doorway in a new 14 m wall along its existing concourse boundary; the generated mall variants inherit it. OSM transport failures receive plain retry wording.
+
+## 2026-11-07 — Nine Arches identity
+
+The product and exported files use Nine Arches; existing project formats, storage keys and JSON imports stay compatible. The placeholder nine-arch mark lives in Brand.tsx, with a generated SVG favicon. The assistant name is centralized there for a future name.
+
 # Decision log
+
+## 2026-11-05 — 3D before simulation and a shared solar clock
+
+Building previews need no simulation or people: 2D, Overview and Walk use shared building geometry and wall/connector controls. Date, sky and site edits use the existing undoable plan/profile operations; the preview time changes only the view. Choosing 3D carries that view into Step 3. Solar lighting imports the engine’s existing sun-position and cloud functions without changing engine code. Simulation lighting uses the run’s saved plan/date/weather and absolute playback time; figure walk cycles use that same clock, including pause. A sized orthographic shadow camera covers neighbouring buildings, and an extended ground receives their long shadows. Outdoor walking includes the saved context extent and blocks neighbour footprints. Cutaway/peeled views are illustrative geometry, not recalculated comfort results. Full-height views are appropriate for comparing the building’s intact shadows.
+
+## 2026-11-04 — attached toolbar flyouts
+
+The drawing tools use a compact icon rail. Furniture and floor connections open attached choice flyouts; choosing an item closes the flyout and keeps that tool active for placement. Group icons remember the selected subtype. Flyouts render in a portal so the scrolling toolbar cannot clip them, and support outside-click/Escape dismissal and arrow-key navigation.
+
+
+## 2026-11-04 — friendly flow and walk-through
+
+Continue on Claude’s Volt shell. Keep UX/view state separate from the plan and contracts. Result traffic lights share the initial, uncalibrated cutoffs in `app/src/experience/Story.tsx`; affected-person totals are explicitly a lower bound. Ranked actions carry existing result references plus place/time targets, and prepare assistant proposals without applying them. Capture the people settings with each app run so changing settings makes completion/results stale; evacuation saves the same settings snapshot it runs. Refuge rescue actions remain distinct from stranded-person warnings.
+
+Figures are instanced display geometry following the existing tracks, with kinds inferred from the built-in profile names (custom unmatched names use adult figures). Walking sweeps a 22 cm camera radius in at most 8 cm increments: only doors open wall gaps, windows block movement. Connector footprints trigger floor changes and the camera rises smoothly; lifts require a click. The development-only 850-figure stress drawing never changes simulation data. Five-second browser frame measurements and the usability screenshots are in `docs/ux-walkthrough-report.md`. Clamp animation-clock deltas to zero to avoid a negative first frame briefly showing the previous minute.
 
 
 ## 2026-11-04 — v0.9 evacuation and accessibility
@@ -17,6 +52,15 @@ Neighbour sun rays include floor elevation, with nine samples across each window
 The app uses explicit user fetches only: a single 200 m Overpass query, four visible OSM tiles at most, and ten sequential small Open-Meteo archive requests for a typical calendar date. Half-hour time zones interpolate archived GMT observations into 24 local hours. Typical means the preceding ten fully past years; 29 February uses 28 February in non-leap years. Overpass endpoint and tile template can be set with VITE_OVERPASS_URL and VITE_OSM_TILE_URL for deployment. No automatic retry or provider fallback. Public API failures leave saved data intact. Long OSM roads are clipped to 250 m each side of the plan origin, and footprints overlapping the plan bounds are omitted to avoid self-shading; this heuristic needs review near adjacent buildings. Location/north changes reproject saved surroundings to keep their earth positions fixed. Corrected heights survive refresh. History now snapshots People settings with the plan so weather edits and assistant changes undo correctly. Network failures prevented a successful recorded Overpass fixture; see the v0.8 report.
 
 Newest first. One entry per decision: what, why, who decided.
+
+## 2026-11-07: Opening screen and model thumbnails
+- **An opening screen in `index.html`, shown before the app's code arrives:** white, with blooms of the logo's blues plus violet, teal and peach bursting from the centre with a ring and sparks, the three logo faces flying in and locking together, then the wordmark revealed. It dissolves once the app has drawn (at least 1.9 s, so the animation completes; never more than 12 s if the app fails). Reduced motion gets a still version. *(Product owner: "like ElevenLabs, white and minimal with a splash of colour, a controlled explosion")*
+- **Sample cards show each building as a small axonometric model** (floors stacked a little apart, walls raised with door gaps, glass in windows, rooms softly tinted), drawn in SVG from the plan with theme colours, instead of flat coloured room squares. The featured row shows only as many cards as fit on one line. A soft wash of the opening colours sits behind the welcome heading. *(Product owner: "I don't like how the samples look like odd coloured squares")*
+
+## 2026-11-07: Place on site
+- **Everything fetched from OpenStreetMap is remembered in real-world coordinates**, and the neighbours the simulation sees are worked out for wherever the building stands: buildings it covers are replaced, and come back when it moves away. Before, buildings on the plot were dropped at fetch time and lost. *(Product owner: "move the building and in real time it should remove the other buildings")*
+- **Demolish and keep are read off the plan, not stored separately:** a fetched building left out of `site.neighbours` while not covered is demolished; one included while covered is kept. Undo and redo stay consistent with no contract change; the remembered surroundings live in this browser per plan. *(Claude)*
+- **A "Place on site" view** shows the building on the real map among 3D neighbours: drag to move, Q / E or a slider to turn about its centre, live "will be replaced" as it moves, click a building to demolish, keep or correct its height, sun and date for shadows. Letting go is one undo step; a burst of turns is one step. The camera starts from the direction with the least in the way, high enough to see over nearby towers. *(Claude)*
 
 ## 2026-11-04: Volt Design: name, app shell and assistant window
 - **The product is called Volt Design**, with the Volt logo. The repository, packages and saved-data keys keep `civil-sim`, so existing saved plans, options and API keys still load; saved project files are now named `….volt.json` and old ones still open. *(Product owner)*
@@ -245,3 +289,56 @@ Newest first. One entry per decision: what, why, who decided.
 - **Parallel build: Claude on the editor (`app/`), Codex on the simulation core (`engine/`), meeting only at `contracts/`.** *(Product owner)*
 - **Floor plan input starts as upload-and-trace plus drawing.** Automatic wall detection and DXF import come later. *(Agreed)*
 - **TypeScript, runs in the browser.** Pitching should be as simple as sending a link. *(Claude)*
+
+## 2026-11-07 · One spacing and type scale (app)
+`app/src/ui/system.css` loads last and holds the scale: spacing 4/8/12/16/24/32 px; type 11 caption, 12 secondary,
+13 body, 15 section title, 20 screen title, 26 page title; one 32 px height for panel controls. New styles should use
+these tokens (`--space-*`, `--text-*`, `--control-h`) rather than new pixel values. Selects and text fields sit under
+their label (full width) so choices are never cut off; number fields keep the label beside them. The sidebar keeps
+88 px of room at the bottom so the floating assistant button never covers the last panel.
+
+## 2026-11-07 · Cloud dims the sun, not the daylight (3D views)
+The 3D light used to scale sunlight by (1 − cloud cover), so Colombo's usual afternoon cloud (about 80–100% by 14:00)
+made every 3D view go dark. Now cloud only removes the direct beam (and its hard shadows); total daylight follows
+Kasten and Czeplak, 1 − 0.75·c^3.4, and the difference comes back as even sky light, with a greyer sky colour. This is
+the visual preview only; the engine's comfort light and glare calculations are unchanged.
+
+## 2026-11-07 · Dropdowns
+App-bar menus and every `<select>` share one look (tokens `--pop-*` in `app/src/ui/system.css`): a floating card,
+a soft accent tint on hover and keyboard focus, and a thin chevron. Menus take arrow keys, Home/End and Escape, and
+while one is open, hovering another title switches to it. Where the browser supports `appearance: base-select`
+(Chrome, Edge), the open select list is styled to match, with a checkmark on the current choice; other browsers keep
+their system list with the styled closed control. Selects stay native elements, so forms and tests need no change.
+
+## 2026-11-07 · Ella, icon view switches, controls
+- The assistant is called **Ella**, after the hill town where the Nine Arches Bridge stands (`ASSISTANT_NAME` in
+  `app/src/ui/Brand.tsx`; the system prompt tells the model its name). Code names (`useAssistant`, `assistant/`) stay.
+- View switches use icons (`app/src/ui/icons.tsx`) with a short 2D/3D label and a tooltip (`data-tip`); each keeps an
+  `aria-label` with the full name. Every "pick one" row (`.view-tabs`, `.segmented`) shares one look: a tinted track
+  with the chosen option raised.
+- Buttons, checkboxes, radio buttons and sliders are restyled in `system.css`. Button rules use low specificity
+  (`button:where(...)`) so purpose-built buttons keep their own looks.
+- In the 3D walk-through, the frame rate moved into the dev-only performance panel, and the crowding caveat sits
+  behind an ⓘ next to the clock line.
+
+## 2026-11-08 · Landing page (`site/`)
+The ninearches.ai landing page lives in `site/` (Vite, vanilla TypeScript, GSAP + ScrollTrigger, Lenis, Rough.js),
+built from `docs/website-spec.md`. Sketches are generated with Rough.js at runtime (seeded, so every load is the same)
+and drawn on with `pathLength=1` stroke animation. The demo floor plans use a small crowd model made for the site
+(`site/src/plan.ts`: routes, queues at gates with a flow rate, a heat trail), not the real engine; demo numbers are
+labelled Illustrative. Run with `npm run dev` in `site/` (port 5180). Placeholders still to replace: the app URL and
+`TODO_CONTACT`.
+
+## 2026-11-08 · Contracts v1.0 approved
+Floor plan v0.7, scenario v1.0, results v1.0 (see `contracts/README.md`). The product owner accepted the recommended
+answers: money only when the user enters a staff hour value (no default salary); 12 uncertainty runs by default;
+evacuation pass/fail only against a limit the user states (no country's code is built in); the first optimiser moves
+teams between zones only. All new fields are optional, so v0.6 plans and v0.9 scenarios upgrade by taking the new
+version. Office samples now carry two team zones, a relationship and a keep goal.
+
+## 2026-11-08 · Every parameter has bounds and a bell curve
+Product owner's call. Each behavioural parameter has a lower and upper bound; uncertainty runs draw from a normal
+curve peaking at the registry value, truncated at the bounds (about two standard deviations out; split normal when
+off-centre). Sourced parameters use published envelopes; unsourced ones default to ±30%, labelled "range assumed, not
+measured". Model settings (speed floor, caches, time steps) are tagged and stay fixed. Sensitivity ranks the assumed
+ranges too, which becomes the list of what to measure first.

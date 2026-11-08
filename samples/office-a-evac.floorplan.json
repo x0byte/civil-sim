@@ -561,7 +561,57 @@
       "levelId": "ground"
     }
   ],
-  "version": "0.6",
+  "zones": [
+    {
+      "id": "zone-ops",
+      "levelId": "ground",
+      "name": "Operations",
+      "use": "team",
+      "polygon": [
+        {
+          "x": 1.5,
+          "y": 6.5
+        },
+        {
+          "x": 19.5,
+          "y": 6.5
+        },
+        {
+          "x": 19.5,
+          "y": 9.5
+        },
+        {
+          "x": 1.5,
+          "y": 9.5
+        }
+      ]
+    },
+    {
+      "id": "zone-sales",
+      "levelId": "ground",
+      "name": "Sales",
+      "use": "team",
+      "polygon": [
+        {
+          "x": 1.5,
+          "y": 9.6
+        },
+        {
+          "x": 19.5,
+          "y": 9.6
+        },
+        {
+          "x": 19.5,
+          "y": 12.6
+        },
+        {
+          "x": 1.5,
+          "y": 12.6
+        }
+      ]
+    }
+  ],
+  "version": "0.7",
   "levels": [
     {
       "id": "ground",

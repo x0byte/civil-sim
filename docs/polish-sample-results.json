@@ -1,0 +1,82 @@
+[
+  {
+    "plan": "mall-2f",
+    "scenario": "mall-day",
+    "before": {
+      "people": 14,
+      "walkingM": 1531,
+      "foodPassBys": 0,
+      "shopVisits": 0
+    },
+    "after": {
+      "people": 14,
+      "walkingM": 1531,
+      "foodPassBys": 0,
+      "shopVisits": 0
+    }
+  },
+  {
+    "plan": "mall-2f",
+    "scenario": "mall-weekend",
+    "before": {
+      "people": 847,
+      "walkingM": 2012,
+      "foodPassBys": 0,
+      "shopVisits": 3022
+    },
+    "after": {
+      "people": 847,
+      "walkingM": 2012,
+      "foodPassBys": 478,
+      "shopVisits": 3022
+    }
+  },
+  {
+    "plan": "mall-2f",
+    "scenario": "mall-weekend-people",
+    "before": {
+      "people": 847,
+      "walkingM": 2231,
+      "foodPassBys": 0,
+      "shopVisits": 3010
+    },
+    "after": {
+      "people": 847,
+      "walkingM": 2231,
+      "foodPassBys": 510,
+      "shopVisits": 3004
+    }
+  },
+  {
+    "plan": "mall-2f-comfort",
+    "scenario": "mall-weekend-comfort",
+    "before": {
+      "people": 847,
+      "walkingM": 2230,
+      "foodPassBys": 0,
+      "shopVisits": 3012
+    },
+    "after": {
+      "people": 847,
+      "walkingM": 2230,
+      "foodPassBys": 512,
+      "shopVisits": 3004
+    }
+  },
+  {
+    "plan": "mall-2f-evac",
+    "scenario": "mall-weekend-evac",
+    "before": {
+      "people": 847,
+      "walkingM": 1687,
+      "foodPassBys": 0,
+      "shopVisits": 2111
+    },
+    "after": {
+      "people": 847,
+      "walkingM": 1687,
+      "foodPassBys": 339,
+      "shopVisits": 2112
+    }
+  }
+]

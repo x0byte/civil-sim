@@ -1,15 +1,18 @@
+import { ImprovementsButton } from "../improvements/Improvements.tsx";
+import { CubeIcon, PlanIcon } from "../ui/icons.tsx";
 import { useState } from "react";
 import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
 import { useEditor } from "../state/store.ts";
 import { getItem } from "../model/planOps.ts";
+import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
-import { DEFAULT_SHOPPERS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
+import { DEFAULT_SHOPPERS, MALL_HOURS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
 import { kindsFromPreset, type KindsPreset } from "../population/kinds.ts";
 import { TextField } from "../ui/fields.tsx";
 import { runDay } from "../sim/runDay.ts";
 import { EvacuationDialog } from "../sim/EvacuationDialog.tsx";
-import { runComparison } from "../sim/runSimulation.ts";
+import { runSimulationJob, SimulationStatus, useSimulationJob } from "../sim/jobs.tsx";
 
 export function SimpleBuilding() {
   const state = useEditor(),
@@ -25,7 +28,7 @@ export function SimpleBuilding() {
         <p>
           {state.plan.spaces.length} rooms · {state.plan.levels.length} {state.plan.levels.length === 1 ? "floor" : "floors"} · dimensions in metres
         </p>
-        <p>Select something on the plan, or tell the assistant what to change.</p>
+        <p>Select something on the plan, or tell Ella what to change.</p>
         <button
           className="primary"
           onClick={() =>
@@ -63,7 +66,11 @@ export function SimplePeople() {
                 ux.ask("Help me add shops and a food court so I can try a shopping mall crowd.");
                 return;
               }
-              save({ ...profile, shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" } });
+              save({
+                ...profile,
+                shoppers: { ...(profile.shoppers ?? DEFAULT_SHOPPERS), enabled: e.target.value === "mall" },
+                ...(e.target.value === "mall" && profile.workday.start === "08:30" ? { workday: MALL_HOURS } : {}),
+              });
             }}
           >
             <option value="office">Office</option>
@@ -108,9 +115,23 @@ export function SimplePeople() {
                 <option value={1}>Everyone comes in</option>
                 <option value={0.8}>A typical workday · most come in</option>
                 <option value={0.5}>A quieter day · half come in</option>
+                {![1, 0.8, 0.5].includes(profile.attendance) && (
+                  <option value={profile.attendance}>Your day · {Math.round(profile.attendance * 100)}% come in</option>
+                )}
               </select>
             </label>
-            <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask the assistant to change teams or add visitors.</p>
+            <label className="field">
+              <span>Crowd size</span>
+              <select value={profile.attendance} onChange={(e) => save({ ...profile, attendance: Number(e.target.value) })}>
+                <option value={1}>Full team</option>
+                <option value={0.8}>Most of the team</option>
+                <option value={0.5}>Half the team</option>
+                {![1, 0.8, 0.5].includes(profile.attendance) && (
+                  <option value={profile.attendance}>Your setting · {Math.round(profile.attendance * 100)}%</option>
+                )}
+              </select>
+            </label>
+            <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask Ella to change teams or add visitors.</p>
           </>
         )}
         <label className="field">
@@ -128,6 +149,14 @@ export function SimplePeople() {
             {profile.kinds?.preset === "custom" && <option value="custom">Your own mix</option>}
           </select>
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={profile.comfort?.enabled ?? false}
+            onChange={(e) => save({ ...profile, comfort: { ...(profile.comfort ?? DEFAULT_COMFORT), enabled: e.target.checked } })}
+          />
+          Check comfort · sound and light
+        </label>
         <button onClick={() => ux.ask("Help me choose who uses this building. Explain the assumptions first.")}>Help me choose</button>
         <button className="primary" onClick={() => ux.go(3)}>
           Use these people →
@@ -139,46 +168,27 @@ export function SimplePeople() {
 export function RunControls() {
   const state = useEditor(),
     ux = useExperience();
-  const [evac, setEvac] = useState(false),
-    [busy, setBusy] = useState(false);
-  const run = () => {
-    setBusy(true);
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        try {
-          runDay();
-          ux.go(3);
-        } catch {
-          state.notify("We couldn’t finish that day. Check the plan and try again.");
-        } finally {
-          setBusy(false);
-        }
-      }, 0),
-    );
-  };
+  const [evac, setEvac] = useState(false);
+  const job = useSimulationJob();
+  const busy = job.status === "working";
   const last = state.past.at(-1);
   const compare = () => {
     if (!last) return;
-    setBusy(true);
-    setTimeout(() => {
-      try {
-        const out = runComparison(last.plan, state.plan, ["Before", "Your change"], last.profiles[last.plan.id]);
-        if ("errors" in out) state.notify(`We couldn’t compare those layouts: ${out.errors[0]}`);
-        else {
-          state.setComparison(out.comparison);
-          state.setView("compare");
-        }
-      } finally {
-        setBusy(false);
-      }
-    }, 0);
+    void runSimulationJob(
+      { kind: "compare", a: last.plan, b: state.plan, labels: ["Before", "Your change"], profile: last.profiles[last.plan.id] },
+      (out) => {
+        if ("errors" in out) return;
+        state.setComparison(out.comparison);
+        state.setView("compare");
+      },
+    );
   };
   return (
     <div className="run-controls">
       <h2>See what happens</h2>
       <p>Try the day, then look for one thing to improve.</p>
-      <button className="primary big-run" disabled={busy} onClick={run}>
-        {busy ? "People are getting ready…" : "▶ Run the day"}
+      <button className="primary big-run" disabled={busy} onClick={() => void runDay()}>
+        {busy ? "Working in the background…" : "▶ Run the day"}
       </button>
       <button disabled={busy} onClick={() => setEvac(true)}>
         Run an evacuation…
@@ -188,25 +198,33 @@ export function RunControls() {
           Compare with before
         </button>
       )}
+      <SimulationStatus />
+      {state.run && <ImprovementsButton />}
       {state.run && (
-        <div className="presentation-switch" role="group" aria-label="View results">
+        <div className="presentation-switch view-tabs wide" role="group" aria-label="View results">
           <button
             aria-pressed={ux.presentation === "2d"}
+            aria-label="2D analysis"
+            data-tip="Heatmaps on the plan"
             onClick={() => {
               ux.setPresentation("2d");
               state.setView("sim");
             }}
           >
-            2D analysis
+            <PlanIcon />
+            <span>2D</span>
           </button>
           <button
             aria-pressed={ux.presentation === "3d"}
+            aria-label="3D walk-through"
+            data-tip="Walk through in 3D"
             onClick={() => {
               ux.setPresentation("3d");
               state.setView("sim");
             }}
           >
-            3D walk-through
+            <CubeIcon />
+            <span>3D</span>
           </button>
         </div>
       )}

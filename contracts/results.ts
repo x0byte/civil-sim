@@ -1,8 +1,8 @@
-// Simulation results contract, v0.9.
+// Simulation results contract, v1.0.
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "0.9";
+export const RESULTS_VERSION = "1.0";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -18,6 +18,85 @@ export interface SimulationResult {
   /** Plain-language list of behaviour assumptions used, shown to the user next to the numbers. */
   assumptions: string[];
   warnings: Warning[];
+  /**
+   * The numbers a stakeholder acts on, each with its range across the uncertainty runs (v1.0).
+   * `tracks`, `heatmaps`, `events` and `metrics` describe one representative run: the one closest
+   * to the median time lost. Missing: produced by an engine older than v1.0.
+   */
+  decision?: DecisionMetrics;
+  /** Every parameter the result rests on, with its source, and which ones move each headline metric (v1.0). */
+  evidence?: Evidence;
+}
+
+/** A number with its range across the uncertainty runs (v1.0). Same seed and scenario always give the same three numbers. */
+export interface Ranged {
+  /** Median across runs. */
+  value: number;
+  /** 10th percentile. */
+  low: number;
+  /** 90th percentile. */
+  high: number;
+  unit: "s" | "m" | "people" | "people_per_min" | "hours_per_day" | "currency_per_year" | "ratio" | "count";
+}
+
+/** Results a stakeholder can act on (v1.0). */
+export interface DecisionMetrics {
+  /** How many runs these ranges come from. */
+  runs: number;
+  /**
+   * Staff time lost each day: queuing, lift waits, and walking beyond each trip's shortest route at free
+   * walking speed. Money only when scenario `costs.staffHourValue` is set.
+   */
+  timeLost: {
+    hoursPerDay: Ranged;
+    byCause: { cause: "queue" | "lift_wait" | "detour" | "walk"; hoursPerDay: Ranged }[];
+    costPerYear?: Ranged;
+  };
+  /** Peak demand in any one-minute window against capacity, for every door, stair, lift, escalator and serviced room. */
+  capacity: {
+    /** Opening, connector or space id. */
+    refId: string;
+    kind: "door" | "stair" | "lift" | "escalator" | "ramp" | "room";
+    peakDemandPerMin: Ranged;
+    /** From the parameter registry (e.g. specific flow × clear width). */
+    capacityPerMin: number;
+    /** peakDemandPerMin ÷ capacityPerMin. Above 0.85 is flagged. */
+    utilisation: Ranged;
+    /** Seconds from workday start of the worst minute, in the representative run. */
+    worstAt: number;
+  }[];
+  /** Only for evacuation scenarios. Pass/fail only when the user set a goal `evacuation_limit`. */
+  evacuation?: { totalS: Ranged; limitS?: number; pass?: boolean; criticalExitId?: string };
+  /** Interaction-weighted walking time between teams that work together, per person per day. Offices with teams. */
+  teamDistance?: {
+    secondsPerPersonPerDay: Ranged;
+    /** Largest contributions first. walkS is centroid to centroid along walkable routes. */
+    pairs: { a: string; b: string; walkS: number; perPersonPerDay: number; from: "user" | "meetings" | "survey" }[];
+  };
+  /** How much each space is used: peak occupancy against capacity, and share of open hours occupied. */
+  spaceUse: { spaceId: string; peakOccupancy: Ranged; capacity?: number; occupiedShare: Ranged }[];
+  /** Retail units: people passing and entering per hour, dwell, and a revenue proxy when `costs.spendPerVisit` is set. */
+  retail?: { spaceId: string; passersPerHour: Ranged; entriesPerHour: Ranged; dwellS: Ranged; revenuePerYear?: Ranged }[];
+  /** Pass/fail checks, each naming the rule (and registry parameter) it comes from. */
+  checks: { code: string; ok: boolean; rule: string; message: string; refIds: string[] }[];
+}
+
+/** What a result rests on (v1.0). */
+export interface Evidence {
+  /** Every registry parameter the run used. */
+  parameters: {
+    key: string;
+    value: number;
+    low: number;
+    high: number;
+    unit: string;
+    /** A citation with table or page, or "Assumption: <reason>" where no source exists. */
+    source: string;
+    /** True when the scenario overrode the registry value; `source` is then the override's source. */
+    overridden: boolean;
+  }[];
+  /** For each headline metric, the parameters that move it most when varied across their range. */
+  sensitivity: { metric: string; drivers: { key: string; swingPct: number }[] }[];
 }
 
 export type Activity =

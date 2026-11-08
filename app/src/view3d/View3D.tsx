@@ -1,94 +1,23 @@
+import { sceneBounds } from "./sun.ts";
 // 3D walkthrough of the plan. Plan (x, y) maps to world (x, 0, y); walls rise along +y.
 // Floors stack at their elevation, from the ground up to the floor picked in the floor switcher.
 
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useMemo, useState } from "react";
+import { Html } from "@react-three/drei";
+import { useMemo } from "react";
 import * as THREE from "three";
 import type { Connector, FloorPlan, Vec2, Wall } from "../../../contracts/floorplan.ts";
-import { WINDOW_SILL, WINDOW_TOP, openingSpan, pointAlong, pointInPolygon, polygonCentroid, wallLength, wallPieces } from "../model/geometry.ts";
+import {
+  WINDOW_SILL,
+  WINDOW_TOP,
+  openingSpan,
+  pointAlong,
+  pointInPolygon,
+  polygonCentroid,
+  wallLength,
+  wallPieces,
+} from "../model/geometry.ts";
 import { SPACE_COLORS } from "../editor/colors.ts";
 import { onLevel } from "../model/planOps.ts";
-import { useEditor } from "../state/store.ts";
-import { FloorSwitcher } from "../ui/FloorSwitcher.tsx";
-
-export function View3D() {
-  const plan = useEditor((s) => s.plan);
-  const level = useEditor((s) => s.level);
-  const { width, height } = plan.bounds;
-  const [surroundings, setSurroundings] = useState(false);
-  const points = surroundings ? [...(plan.site?.neighbours ?? []).flatMap((n) => n.polygon), ...(plan.site?.roads ?? []).flatMap((r) => r.path)] : [];
-  const minX = Math.min(0, ...points.map((p) => p.x));
-  const minY = Math.min(0, ...points.map((p) => p.y));
-  const maxX = Math.max(width, ...points.map((p) => p.x));
-  const maxY = Math.max(height, ...points.map((p) => p.y));
-  const span = Math.max(maxX - minX, maxY - minY, ...(surroundings ? (plan.site?.neighbours ?? []).map((n) => n.heightM) : []));
-  const centre: [number, number, number] = [(minX + maxX) / 2, 0, (minY + maxY) / 2];
-  const [cut, setCut] = useState(true);
-
-  return (
-    <div className="canvas-wrap view3d">
-      <Canvas
-        key={`${plan.id}:${surroundings}`}
-        shadows
-        camera={{ position: [centre[0] + span * 0.45, span * 0.85, centre[2] + span * 0.95], fov: 40, near: 0.1, far: 1000 }}
-      >
-        <color attach="background" args={["#eef1f5"]} />
-        <hemisphereLight args={["#ffffff", "#c4cbd6", 1.3]} />
-        <Sun centre={centre} span={span} />
-        <Building plan={plan} level={level} cutHeight={cut ? CUT_HEIGHT : null} />
-        <OrbitControls target={centre} maxPolarAngle={Math.PI / 2.05} makeDefault />
-      </Canvas>
-      <FloorSwitcher levels={plan.levels} />
-      <div className="canvas-zoom">
-        {plan.site?.neighbours?.length || plan.site?.roads?.length ? (
-          <button onClick={() => setSurroundings((v) => !v)}>{surroundings ? "Building" : "Surroundings"}</button>
-        ) : null}
-        <div className="segmented">
-          <button className={cut ? "active" : ""} onClick={() => setCut(true)} title="Cut walls at 1.2 m to see inside rooms">
-            Cut walls
-          </button>
-          <button className={cut ? "" : "active"} onClick={() => setCut(false)}>
-            Full height
-          </button>
-        </div>
-      </div>
-      <div className="canvas-status">
-        <span>Drag to orbit · right-drag to pan · scroll to zoom</span>
-      </div>
-    </div>
-  );
-}
-
-/** Directional light aimed at the plan centre, high and from the front-left, so rooms aren't lost in wall shadows. */
-function Sun({ centre, span }: { centre: [number, number, number]; span: number }) {
-  const target = useMemo(() => {
-    const o = new THREE.Object3D();
-    o.position.set(...centre);
-    return o;
-  }, [centre[0], centre[2]]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <>
-      <primitive object={target} />
-      <directionalLight
-        position={[centre[0] - span * 0.25, span * 1.6, centre[2] + span * 0.35]}
-        target={target}
-        intensity={1.1}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0005}
-        shadow-camera-left={-span}
-        shadow-camera-right={span}
-        shadow-camera-top={span}
-        shadow-camera-bottom={-span}
-        shadow-camera-far={span * 4}
-      />
-    </>
-  );
-}
-
-/** Like an architect's section: walls cut low so you can see into every room. */
-const CUT_HEIGHT = 1.2;
 
 /** Every floor from the ground up to `level`, each at its elevation, plus the stairs, escalators and lifts between them. */
 export function Building({
@@ -98,6 +27,8 @@ export function Building({
   visibleLevels,
   peel = 0,
   labels = true,
+  surroundings = true,
+  ground = true,
 }: {
   plan: FloorPlan;
   level: string;
@@ -105,8 +36,11 @@ export function Building({
   visibleLevels?: string[];
   peel?: number;
   labels?: boolean;
+  surroundings?: boolean;
+  /** Draw a grey ground patch under the building. Off when something else (a map) is the ground. */
+  ground?: boolean;
 }) {
-  const { width, height } = plan.bounds;
+  const bounds = sceneBounds(plan, surroundings);
   const top = Math.max(
     0,
     plan.levels.findIndex((l) => l.id === level),
@@ -116,18 +50,25 @@ export function Building({
   const holes = useMemo(() => new Map(plan.levels.map((l) => [l.id, wells(plan, l.id)])), [plan]);
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[width / 2, -0.01, height / 2]} receiveShadow>
-        <planeGeometry args={[width + 4, height + 4]} />
-        <meshStandardMaterial color="#dfe3e8" />
-      </mesh>
-      {(plan.site?.neighbours ?? []).map((n) => (
+      {ground && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[bounds.cx, -0.04, bounds.cy]} receiveShadow>
+          <planeGeometry args={[bounds.width + Math.max(16, bounds.top * 6), bounds.depth + Math.max(16, bounds.top * 6)]} />
+          <meshStandardMaterial color="#dfe3e8" />
+        </mesh>
+      )}
+      {(surroundings ? (plan.site?.neighbours ?? []) : []).map((n) => (
         <NeighbourBlock key={n.id} polygon={n.polygon} height={n.heightM} />
       ))}
-      {(plan.site?.roads ?? []).flatMap((r) =>
+      {(surroundings ? (plan.site?.roads ?? []) : []).flatMap((r) =>
         r.path.slice(1).map((b, i) => {
           const a = r.path[i];
           return (
-            <mesh key={`${r.id}-${i}`} position={[(a.x + b.x) / 2, -0.02, (a.y + b.y) / 2]} rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}>
+            <mesh
+              receiveShadow
+              key={`${r.id}-${i}`}
+              position={[(a.x + b.x) / 2, -0.02, (a.y + b.y) / 2]}
+              rotation={[0, -Math.atan2(b.y - a.y, b.x - a.x), 0]}
+            >
               <boxGeometry args={[Math.hypot(b.x - a.x, b.y - a.y), 0.04, r.kind === "main" ? 6 : 4]} />
               <meshStandardMaterial color="#9298a0" />
             </mesh>
@@ -180,7 +121,12 @@ const flip = (p: Vec2) => new THREE.Vector2(p.x, -p.y);
 function Slab({ plan, holes }: { plan: FloorPlan; holes: Vec2[][] }) {
   const { width, height } = plan.bounds;
   const geom = useMemo(() => {
-    const shape = new THREE.Shape([flip({ x: 0, y: 0 }), flip({ x: width, y: 0 }), flip({ x: width, y: height }), flip({ x: 0, y: height })]);
+    const shape = new THREE.Shape([
+      flip({ x: 0, y: 0 }),
+      flip({ x: width, y: 0 }),
+      flip({ x: width, y: height }),
+      flip({ x: 0, y: height }),
+    ]);
     for (const h of holes) shape.holes.push(new THREE.Path(h.map(flip)));
     return new THREE.ShapeGeometry(shape);
   }, [holes, width, height]);
@@ -215,7 +161,12 @@ function ConnectorMesh({ connector: c, from, to, reaches }: { connector: Connect
   const tilt = Math.atan2(rise, run);
   const color = c.kind === "escalator" ? "#7a8494" : "#c9b79c";
   return (
-    <mesh position={[(x0 + x1) / 2, from + rise / 2, (y0 + y1) / 2]} rotation={alongX ? [0, 0, tilt] : [-tilt, 0, 0]} castShadow receiveShadow>
+    <mesh
+      position={[(x0 + x1) / 2, from + rise / 2, (y0 + y1) / 2]}
+      rotation={alongX ? [0, 0, tilt] : [-tilt, 0, 0]}
+      castShadow
+      receiveShadow
+    >
       <boxGeometry args={alongX ? [slope, 0.15, d] : [w, 0.15, slope]} />
       <meshStandardMaterial color={color} />
     </mesh>

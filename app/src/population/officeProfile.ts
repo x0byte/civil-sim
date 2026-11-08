@@ -5,7 +5,7 @@
 // Kept in the app for now. When malls arrive it becomes a shared contract.
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
-import type { Comfort, Weather, Meeting, Person, Scenario, Visitor } from "../../../contracts/scenario.ts";
+import { SCENARIO_VERSION, type Comfort, type Weather, type Meeting, type Person, type Scenario, type Visitor } from "../../../contracts/scenario.ts";
 import { type KindsSettings, kindsFromPreset, expandKinds } from "./kinds.ts";
 import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, type ShopperSettings, expandShoppers, hasShops } from "./shoppers.ts";
@@ -255,7 +255,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
 
   return {
     scenario: {
-      version: "0.9",
+      version: SCENARIO_VERSION,
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,

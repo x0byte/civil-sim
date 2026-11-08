@@ -1,6 +1,11 @@
+import { useExperience } from "../experience/state.ts";
+import { useLoadingTask } from "../loading/useLoadingTask.ts";
+import { LoadingState } from "../loading/LoadingState.tsx";
+import { runInBackground } from "../sim/background.ts";
+import { stoppedError } from "../loading/progress.ts";
 import { useState } from "react";
 import { useEditor } from "../state/store.ts";
-import { type DxfDrawing, UNIT_CHOICES, dxfToPlan, looksLikeWalls } from "./dxf.ts";
+import { type DxfDrawing, UNIT_CHOICES, looksLikeWalls } from "./dxf.ts";
 
 /** Pick which layers hold the walls and what units the drawing is in, then build a plan. */
 export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDrawing; fileName: string; onClose: () => void }) {
@@ -9,27 +14,27 @@ export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDr
   const [layers, setLayers] = useState<string[]>(guessed.length ? guessed : names);
   const [unit, setUnit] = useState(drawing.unitsM ?? 0.001);
   const [mergeDoubles, setMergeDoubles] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const task = useLoadingTask();
   const { load, notify, setTool } = useEditor.getState();
 
-  const run = () => {
-    try {
-      const out = dxfToPlan(drawing, {
-        name: fileName.replace(/\.dxf$/i, ""),
-        layers,
-        metresPerUnit: unit,
-        mergeDoubles,
-      });
+  const run = () =>
+    task.run(async (signal, report) => {
+      const before = useEditor.getState().plan;
+      const out = await runInBackground(
+        { kind: "buildDxf", drawing, options: { name: fileName.replace(/\.dxf$/i, ""), layers, metresPerUnit: unit, mergeDoubles } },
+        signal,
+        report,
+      );
+      signal.throwIfAborted();
+      if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so importing the drawing was stopped.");
       load(out.plan);
+      useExperience.getState().newBuilding();
       setTool("door");
       notify(
         `Imported ${out.walls} walls${out.merged ? ` (${out.merged} double lines joined)` : ""}. Next: click a wall to add the entrance, then draw the rooms.`,
       );
       onClose();
-    } catch (e) {
-      setError(`Couldn't import: ${(e as Error).message}.`);
-    }
-  };
+    });
 
   return (
     <div className="backdrop" onClick={onClose}>
@@ -42,10 +47,7 @@ export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDr
         }}
       >
         <h3>Import a DXF drawing</h3>
-        <p>
-          Straight lines on the chosen layers become walls. Doors, furniture and text are skipped; you add doors and rooms
-          afterwards.
-        </p>
+        <p>Straight lines on the chosen layers become walls. Doors, furniture and text are skipped; you add doors and rooms afterwards.</p>
         <div className="option-list">
           <span className="muted">Layers with walls</span>
           {names.map((n) => (
@@ -60,7 +62,8 @@ export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDr
           ))}
         </div>
         <label>
-          Drawing units {drawing.unitsM ? <span className="muted">(from the file)</span> : <span className="muted">(not in the file; please check)</span>}
+          Drawing units{" "}
+          {drawing.unitsM ? <span className="muted">(from the file)</span> : <span className="muted">(not in the file; please check)</span>}
           <select value={unit} onChange={(e) => setUnit(Number(e.target.value))}>
             {UNIT_CHOICES.map((u) => (
               <option key={u.label} value={u.m}>
@@ -73,12 +76,12 @@ export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDr
           <input type="checkbox" checked={mergeDoubles} onChange={(e) => setMergeDoubles(e.target.checked)} />
           Walls are drawn as two parallel lines (join them into one wall)
         </label>
-        {error && <p className="warn">{error}</p>}
+        <LoadingState task={task} onCancel={() => task.cancel()} onRetry={() => void run()} />
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="primary" disabled={!layers.length}>
+          <button type="submit" className="primary" disabled={!layers.length || task.busy}>
             Import
           </button>
         </div>

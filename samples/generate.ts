@@ -10,8 +10,8 @@
 // staff and visitors have to change floors.
 
 import { writeFileSync } from "node:fs";
-import type { Connector, Fixture, FloorPlan, Level, Opening, Space, Vec2, Wall } from "../contracts/floorplan.ts";
-import type { Scenario } from "../contracts/scenario.ts";
+import { FLOORPLAN_VERSION, type Connector, type Fixture, type FloorPlan, type Level, type Opening, type Space, type Vec2, type Wall } from "../contracts/floorplan.ts";
+import { SCENARIO_VERSION, type Scenario } from "../contracts/scenario.ts";
 
 const dir = new URL(".", import.meta.url);
 
@@ -25,7 +25,7 @@ interface Draft extends Omit<FloorPlan, "version" | "levels" | "connectors" | "w
 const GROUND: Level = { id: "ground", name: "Ground floor", elevation: 0 };
 const singleFloor = (d: Draft): FloorPlan => ({
   ...d,
-  version: "0.6",
+  version: FLOORPLAN_VERSION,
   levels: [GROUND],
   walls: d.walls.map((w) => ({ ...w, levelId: GROUND.id })),
   spaces: d.spaces.map((x) => ({ ...x, levelId: GROUND.id })),
@@ -137,7 +137,12 @@ function officeDraft(id: string, name: string, rooms: StripRoom[]): Draft {
     { id: "coffee", type: "coffee", position: { x: (pantry.x0 + pantry.x1) / 2, y: 2 }, rotation: 0, spaceId: "pantry" },
     { id: "printer", type: "printer", position: { x: 22, y: 9 }, rotation: 0, spaceId: "open-office" },
   ];
-  return { id, name, units: "m", bounds: { width: W, height: H }, walls, openings, spaces, fixtures };
+  // Team zones (v0.7): operations on the front row of desks, sales on the back row.
+  const zones: FloorPlan["zones"] = [
+    { id: "zone-ops", levelId: GROUND.id, name: "Operations", use: "team", polygon: rect(1.5, 6.5, 19.5, 9.5) },
+    { id: "zone-sales", levelId: GROUND.id, name: "Sales", use: "team", polygon: rect(1.5, 9.6, 19.5, 12.6) },
+  ];
+  return { id, name, units: "m", bounds: { width: W, height: H }, walls, openings, spaces, fixtures, zones };
 }
 
 const manager: StripRoom = {
@@ -214,16 +219,19 @@ const people: Scenario["people"] = [
 const team = (t: string) => people.filter((p) => p.teamId === t).map((p) => p.id);
 
 const officeScenario: Scenario = {
-  version: "0.9",
+  version: SCENARIO_VERSION,
   id: "office-day",
   name: "Ordinary workday, 13 people, lunch and 2 visitors",
   seed: 42,
   workday: { start: "08:30", end: "17:30" },
   teams: [
     { id: "mgmt", name: "Management" },
-    { id: "ops", name: "Operations" },
-    { id: "sales", name: "Sales" },
+    { id: "ops", name: "Operations", zoneId: "zone-ops" },
+    { id: "sales", name: "Sales", zoneId: "zone-sales" },
   ],
+  // v1.0: operations and sales work together sometimes; management stays where it is.
+  relationships: [{ a: "ops", b: "sales", perPersonPerDay: 1, from: "user" }],
+  goals: [{ kind: "keep", teamId: "mgmt" }],
   people,
   meetings: [
     { id: "m-ops", spaceId: "meeting", start: "10:00", durationMin: 45, attendeeIds: ["p-m", ...team("ops"), "v-client"] },
@@ -241,7 +249,7 @@ const officeScenario: Scenario = {
 };
 
 const sealedScenario: Scenario = {
-  version: "0.9",
+  version: SCENARIO_VERSION,
   id: "sealed-day",
   name: "Two people, one unreachable desk",
   seed: 7,
@@ -271,7 +279,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
     ...[10, 20, 30].map((x) => wall(`${p}w-shop-${x}`, { x, y: 0 }, { x, y: 7 })),
     ...(ground
       ? [wall(`${p}w-wc`, { x: 32, y: 18 }, { x: W, y: 18 }), wall(`${p}w-wc-side`, { x: 32, y: 18 }, { x: 32, y: H })]
-      : []),
+      : [wall(`${p}w-food`, { x: 0, y: 16 }, { x: 14, y: 16 })]),
   ].map(L);
   const openings: Opening[] = [
     ...[5, 15, 25, 35].map((x, i) => door(`${p}d-shop-${i + 1}`, `${p}w-shops`, x, 2.4)),
@@ -282,7 +290,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
           { ...door(`${p}d-side`, `${p}w-left`, 15, 1.8, true), arrivalShare: 0.3 },
           door(`${p}d-wc`, `${p}w-wc`, 4, 1.2),
         ]
-      : []),
+      : [door(`${p}d-food`, `${p}w-food`, 10, 3)]),
   ];
   const shopNames = ground ? ["Pharmacy", "Bookshop", "Phone store", "Clothing"] : ["Sports", "Electronics", "Shoes", "Toys"];
   // How strongly each shop pulls shoppers; the clothing store is the anchor.
@@ -332,7 +340,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             { x: 14, y: 16 },
             { x: 0, y: 16 },
           ],
-          doorIds: [1, 2, 3, 4].map((i) => `${p}d-shop-${i}`),
+          doorIds: [...[1, 2, 3, 4].map((i) => `${p}d-shop-${i}`), `${p}d-food`],
         },
     ...(ground
       ? [
@@ -355,7 +363,7 @@ function mallFloor(level: Level, p: string): Pick<FloorPlan, "walls" | "openings
             type: "food_court",
             privacy: "public",
             polygon: rect(0, 16, 14, H),
-            doorIds: [],
+            doorIds: [`${p}d-food`],
             attraction: 2.5,
           } satisfies Space,
         ]),
@@ -382,7 +390,7 @@ const connectors: Connector[] = [
   { id: "lift", name: "Lift", kind: "lift", polygon: rect(2, 9, 4.5, 11.5), levelIds: both, capacity: 8 },
 ];
 const mall: FloorPlan = {
-  version: "0.6",
+  version: FLOORPLAN_VERSION,
   id: "mall-2f",
   name: "Small mall: two floors",
   units: "m",
@@ -398,7 +406,7 @@ const mall: FloorPlan = {
 mall.spaces.find((s) => s.id === "g-toilets")!.doorIds = ["g-d-wc"];
 
 const mallScenario: Scenario = {
-  version: "0.9",
+  version: SCENARIO_VERSION,
   id: "mall-day",
   name: "Shop staff and a few shoppers",
   seed: 11,
@@ -422,7 +430,7 @@ const mallScenario: Scenario = {
 // A Saturday: the mall open 10:00–21:00 with a lunch bump and a bigger evening peak.
 // Arrival rates and shopper types are assumptions until calibrated against door counts.
 const mallWeekend: Scenario = {
-  version: "0.9",
+  version: SCENARIO_VERSION,
   id: "mall-weekend",
   name: "Saturday: shop staff and about 850 shoppers",
   seed: 21,

@@ -1,3 +1,5 @@
+import type { SimulationOptions } from "./progress.ts";
+export type { SimulationOptions, SimulationProgress } from "./progress.ts";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import { RESULTS_VERSION } from "../../contracts/results.ts";
 import type { SimEvent, SimulationResult, Track, Warning } from "../../contracts/results.ts";
@@ -56,7 +58,8 @@ function floorPlanErrors(plan: FloorPlan): string[] {
 }
 
 /** Pure, synchronous, browser-compatible simulation. Neither input is mutated. */
-export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult {
+export function simulate(plan: FloorPlan, scenario: Scenario, options: SimulationOptions = {}): SimulationResult {
+  options.onProgress?.({ stage: "checking" });
   // The brief explicitly requires a warning for missing exterior doors; the shared
   // validator classifies this single condition as an error. All other errors throw.
   const errors = [
@@ -103,6 +106,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     warn(warning);
   });
   const requests = shopperRequests(scenario);
+  options.onProgress?.({ stage: "seating", people: scenario.people.length + (scenario.visitors?.length ?? 0) + requests.length });
   const people = new People(scenario);
   for (const person of scenario.people) people.add(person.id, "staff", person.profileId);
   for (const visitor of scenario.visitors ?? []) people.add(visitor.id, "visitor", visitor.profileId);
@@ -143,12 +147,14 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     const world = new ShopperWorld(plan, navigation, warn, requests.map((r) => r.arrival), scenario.people.length + (scenario.visitors?.length ?? 0));
     schedules.push(...requests.map((request) => scheduleShopper(world, scenario, request, durationS, events, people.people.get(request.id))));
   }
-  const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn);
+  const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn, options.onProgress ? (t) => options.onProgress!({ stage: "simulating", t, durationS }) : undefined);
   for (const track of tracks) { const profile = people.people.get(track.personId)?.profile; if (profile) track.profileId = profile.id; }
+  if (scenario.evacuation) options.onProgress?.({ stage: "evacuating" });
   const evacuation = scenario.evacuation ? evacuate(plan,scenario,tracks,events,people,warn) : undefined;
   const accessibility = accessibilityChecks(plan,access);
   for(const check of accessibility) if(!check.ok) warn({code:"accessibility",message:check.message,refIds:check.refIds});
-  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS);
+  options.onProgress?.({ stage: "measuring" });
+  const aggregated = aggregate(plan,scenario,tracks,events,evacuation ? actualConnectorMetrics(plan,tracks,clockSeconds(scenario.evacuation!.alarmAt)-clockSeconds(scenario.workday.start)) : navigation.connectorMetrics,people,warn,evacuation?.durationS, options.onProgress ? () => options.onProgress!({ stage: "comfort" }) : undefined);
   aggregated.metrics.evacuation = evacuation?.metrics ?? null; aggregated.metrics.accessibility = accessibility;
   if(evacuation) aggregated.metrics.headcount = aggregated.metrics.headcount.filter(p=>p.t<=evacuation.durationS);
   events.sort((a, b) => a.t - b.t || (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0));
@@ -158,6 +164,7 @@ export function simulate(plan: FloorPlan, scenario: Scenario): SimulationResult 
     assumptions: scenario.comfort ? [...assumptions(scenario).map((entry) => entry.replace("Comfort and temperature are not modelled.", "Temperature is not modelled.")), ...COMFORT_ASSUMPTIONS, ...(siteWeather(plan, scenario) ? SITE_ASSUMPTIONS : []), ...(plan.site?.credits ?? []), ...(scenario.comfort.weather ? [scenario.comfort.weather.source] : [])] : [...assumptions(scenario), ...(plan.site?.credits ?? [])], warnings,
   };
   result.assumptions.push(ACCESSIBILITY_NOTE,...(scenario.evacuation ? EVACUATION_ASSUMPTIONS : []),...(plan.connectors.some(c=>c.kind==="ramp") ? ["Ramps use the longer side of their minimum-area footprint rectangle. Step-free routes allow 1 in 12 or gentler. Ramp travel uses 85% of each person’s flat walking speed (base 1.3 m/s)."] : []));
+  options.onProgress?.({ stage: "complete" });
   return result;
 }
 
