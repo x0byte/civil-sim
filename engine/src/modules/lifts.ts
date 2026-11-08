@@ -1,3 +1,4 @@
+import { recordDemand } from "./decision-capture.ts";
 import { parameter } from "../parameters.ts";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics } from "../../../contracts/results.ts";
@@ -23,6 +24,7 @@ export class Lifts {
     });
   }
   call(request: RoomRequest, complete: (admitted: boolean) => void): void {
+    recordDemand(request.ride!.connectorId, request.track.t);
     const car = this.cars.get(request.ride!.connectorId)!;
     const call: Call = { request, arrived: request.track.t, complete, waiting: true };
     car.waiting.push(call);

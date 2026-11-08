@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
-import { analyseSensitivity, simulate } from "../../engine/src/index.ts";
+import { analyseSensitivity, simulate, measureDecision, streamDecisionResults } from "../../engine/src/index.ts";
 import { runInBackground, simulateInBackground } from "../src/sim/background.ts";
 
 class BrowserWorker {
@@ -39,7 +39,7 @@ describe("the shared background worker", () => {
       const plan = JSON.parse(readFileSync(new URL(`../../samples/${planName}.floorplan.json`, import.meta.url), "utf8")) as FloorPlan;
       const scenario = JSON.parse(readFileSync(new URL(`../../samples/${scenarioName}.scenario.json`, import.meta.url), "utf8")) as Scenario;
       const before = JSON.stringify([plan, scenario]);
-      const main = JSON.stringify(simulate(plan, scenario));
+      const main = JSON.stringify(simulate(plan, scenario, {decision:true}));
       const messages: string[] = [];
       const result = await simulateInBackground(plan, scenario, new AbortController().signal, (p) => messages.push(p.message));
       expect(JSON.stringify(result)).toBe(main);
@@ -55,9 +55,11 @@ describe("the shared background worker", () => {
     vi.stubGlobal("Worker", BrowserWorker);
     const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
     const scenario = JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8"));
-    const central = simulate(plan, scenario);
+    const central = simulate(plan, scenario, {decision:true});
     const expected = analyseSensitivity(plan, scenario, central.evidence!,
-      (p, s, movementOnly) => simulate(p, s, { measurement: movementOnly ? "movement" : undefined }));
+      (p, s) => simulate(p, s, { decision:true, measurement:"headlines" }), {
+        movementOnly:true, metrics:r=>Object.fromEntries(Object.entries(measureDecision(r)).map(([key,row])=>[key,row.value])),
+      });
     const messages: string[] = [];
     const actual = await runInBackground({kind:"sensitivity",plan,scenario,evidence:central.evidence!},
       new AbortController().signal, p => messages.push(p.message));
@@ -66,10 +68,32 @@ describe("the shared background worker", () => {
     expect(messages.length).toBeGreaterThan(0);
     expect(messages.every(message => /^Checking what the result depends on · \d+ of \d+$/.test(message))).toBe(true);
   });
+  it("streams decision ranges through the real worker without waiting to publish partial counts", async () => {
+    vi.stubGlobal("Worker", BrowserWorker);
+    const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
+    const scenario = {...JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8")),uncertainty:{runs:2}};
+    const central = simulate(plan,scenario,{decision:true}), counts:number[]=[];
+    let data: import("../../engine/src/index.ts").DecisionRunData | undefined;
+    const expected = [...streamDecisionResults(plan,scenario,{central})].at(-1)!.result;
+    const actual = await runInBackground({kind:"ranges",plan,scenario,central},new AbortController().signal,()=>{},(decision,n)=>{
+      counts.push(n);expect(decision.runs).toBe(n);expect(central.decision!.runs).toBe(1);
+    }, value => {data=value;});
+    expect(counts).toEqual([1,2]);expect(actual).toEqual(expected);
+    expect(data!.series.samples).toHaveLength(2);expect(data!.representative!.total).toBe(2);
+  });
+  it("cancels fallback range work between streamed runs", async () => {
+    vi.stubGlobal("Worker",undefined);
+    const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
+    const scenario = JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8"));
+    const controller=new AbortController(), counts:number[]=[];
+    const promise=runInBackground({kind:"ranges",plan,scenario,central:simulate(plan,scenario,{decision:true})},controller.signal,
+      p=>{if(p.message.includes('1 of'))controller.abort();},(_decision,n)=>counts.push(n));
+    await expect(promise).rejects.toMatchObject({name:'AbortError'});expect(counts.length).toBeLessThanOrEqual(1);
+  });
   it("falls back with identical output when workers are unavailable", async () => {
     vi.stubGlobal("Worker", undefined);
     const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
     const scenario = JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8"));
-    expect(JSON.stringify(await simulateInBackground(plan, scenario, new AbortController().signal))).toBe(JSON.stringify(simulate(plan, scenario)));
+    expect(JSON.stringify(await simulateInBackground(plan, scenario, new AbortController().signal))).toBe(JSON.stringify(simulate(plan, scenario, {decision:true})));
   });
 });

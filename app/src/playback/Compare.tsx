@@ -1,7 +1,9 @@
+import { playbackIdentity, playbackDuration } from "./runPlayback.ts";
+import { DecisionComparison } from "./DecisionSummary.tsx";
 import { EvacuationResults } from "./EvacuationResults.tsx";
 import { defaultAlarm } from "../sim/EvacuationDialog.tsx";
 import { defaultProfile } from "../population/officeProfile.ts";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import type { Comparison } from "../sim/runSimulation.ts";
@@ -17,7 +19,8 @@ const INSETS = { top: 56, right: 24, bottom: 84, left: 24 };
 export function CompareView({ comparison }: { comparison: Comparison }) {
   const { a, b, labels } = comparison;
   const alarm = a.result.events.find((e) => e.type === "alarm")?.t;
-  const clock = usePlayClock(Math.max(a.result.durationS, b.result.durationS), comparison, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  const identity = useMemo(() => ({}), [playbackIdentity(a), playbackIdentity(b)]);
+  const clock = usePlayClock(Math.max(playbackDuration(a), playbackDuration(b)), identity, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && (!a.result.metrics.comfort || !b.result.metrics.comfort) ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
@@ -61,6 +64,7 @@ export function CompareResults({ comparison }: { comparison: Comparison }) {
   if (a.result.metrics.evacuation && b.result.metrics.evacuation)
     return (
       <>
+        <DecisionComparison comparison={comparison} />
         <h2>A · {labels[0]}</h2>
         <EvacuationResults run={a} />
         <h2>B · {labels[1]}</h2>
@@ -69,6 +73,7 @@ export function CompareResults({ comparison }: { comparison: Comparison }) {
     );
   return (
     <>
+      <DecisionComparison comparison={comparison} />
       <section className="panel">
         <header>
           <div>

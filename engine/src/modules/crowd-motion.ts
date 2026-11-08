@@ -1,3 +1,4 @@
+import { recordDemand } from "./decision-capture.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import type { SimEvent } from "../../../contracts/results.ts";
 import { DensityField, densitySpeed } from "./density.ts";
@@ -48,6 +49,7 @@ export class CrowdMotion {
     // a generator schedules a later stay or request.
   }
   private enqueue(key: string, rate: number, job: Job): Gate {
+    recordDemand(key.slice(key.indexOf(":") + 1), job.t);
     const gate = this.gates.get(key) ?? { key, rate, next: 0, queue: [], running: false };
     this.gates.set(key, gate); gate.queue.push(job);
     const stats=this.queueStats.get(key)??{peak:0,waitS:0}; stats.peak=Math.max(stats.peak,gate.queue.length-(gate.next<=job.t?1:0));this.queueStats.set(key,stats);

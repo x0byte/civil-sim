@@ -1,3 +1,4 @@
+import { useRangeJob } from "./rangeJob.tsx";
 import { create } from 'zustand';
 import { useEditor } from '../state/store.ts';
 import type { SimRun } from './runSimulation.ts';
@@ -65,6 +66,9 @@ export async function startSensitivity(run: SimRun): Promise<void> {
 /** Independent, non-blocking progress chip; result playback remains usable. */
 export function EvidenceStatus() {
   const job=useEvidenceJob();
+  const ranges = useRangeJob(state => state.status);
+  const comparison = useEditor(state => state.comparison);
+  if (ranges === 'working' && !comparison) return <section className="evidence-progress" role="status">Evidence · waiting for ranges</section>;
   if(job.status!=='working' && job.status!=='error')return null;
   return <section className="evidence-progress" aria-label="Evidence progress">
     <span role="status" aria-live="polite">{job.message}</span>

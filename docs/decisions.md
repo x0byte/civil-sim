@@ -363,3 +363,25 @@ App day runs publish without sensitivity, then use a separate cancellable worker
 only evidence. A new run, comparison, or plan/people edit cancels that work; generation and result identity guards
 reject late messages. Evidence updates preserve track identity so playback does not restart. Comparisons omit
 sensitivity. Secondary failures retain the central result and offer retry.
+
+## 2026-11-08 · Part B starts with a pull-based range runner
+The uncertainty runner yields the unchanged central result before sampling, then updates p10/median/p90 with each
+completed LHS run. Retained cache owners activate only for each synchronous call, restoring scope before yielding.
+Range measurements retain occupancy/retail but omit supporting grids unless comfort is a requested headline; the
+median-nearest sample is replayed once with full grids to avoid holding twelve track sets. Metric readers are
+explicit: this first increment does not label existing walking metrics as time lost or populate decision metrics.
+
+## 2026-11-09 · Part B decision ranges and background sequence
+App runs publish central decision estimates, then stream sampled ranges in a cancellable worker; only final
+median-nearest time-lost playback replaces tracks. Day sensitivity follows ranges; comparisons run ranges for each
+side sequentially without sensitivity. Time lost separates staff queue/lift waits, free-route detour and slowing;
+reaction waits are excluded. Capacity uses pre-service minute arrivals. Checks use actual registry sources and user
+limits; incomplete/refuge evacuation is censored and never passed. Comparisons require disjoint intervals for a
+preference. Raw simulate remains the single-run compatibility API; streamDecisionResults is the ranged API.
+
+## 2026-11-09 · Part B re-review: paired deltas and stable playback
+Supersedes separate-interval comparison for matched draws: retain per-run headline values, exact draw identity and
+seeds in ephemeral job metadata; report quantiles of B−A, with labelled interval subtraction only as fallback.
+Representative tracks share the foreground run's playback identity and viewing horizon, preserving controls and
+valid selections. Censored evacuation carries the largest observed not-out count and reads Cannot verify; no
+contract fields are added. Evidence says waiting for ranges until its sequential sensitivity task starts.

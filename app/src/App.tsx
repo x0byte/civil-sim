@@ -1,3 +1,4 @@
+import { RangeStatus } from "./sim/rangeJob.tsx";
 import { EvidenceStatus } from "./sim/evidenceJob.tsx";
 import { DeferredDetails } from "./loading/DeferredDetails.tsx";
 import { BackgroundStatus, useSimulationJob } from "./sim/jobs.tsx";
@@ -154,6 +155,7 @@ export function App() {
       )}
       <BackgroundStatus />
       <EvidenceStatus />
+      <RangeStatus />
       <AssistantWindow />
       <Improvements />
       {toast && (

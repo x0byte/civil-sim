@@ -19,15 +19,24 @@ export interface Navigation {
 interface CachedNavigation { navigation: Navigation; warnings: Warning[]; paths: Map<string,PathRoutes> }
 let batchCache: Map<string,unknown> | undefined;
 let geometryCache: Map<string, CachedNavigation> | undefined;
-/** Geometry/pathfinder caches live only for one synchronous sensitivity batch.
- * Horizontal routes depend solely on geometry. BuildingPaths are keyed by every expected-time parameter; mutable
- * capacities/metrics are rebuilt for every run, so speed/lift overrides remain
- * effective. Content keys handle evacuation door closures and access policies;
- * no cache survives a changed plan or leaks into a subsequent simulation.
+/** Retained caches are owned by a single batch. Activate only while executing a
+ * synchronous run, then restore the previous scope BEFORE yielding/awaiting.
+ * Geometry uses content keys; paths include every expected-time/access parameter.
+ * Queues, lift state and counters are still fresh in createNavigation.
  */
+export function createNavigationCache(): { run: <T>(work: () => T) => T } {
+  const geometry = new Map<string, CachedNavigation>();
+  const batch = new Map<string, unknown>();
+  return { run<T>(work: () => T): T {
+    const previous = geometryCache, previousBatch = batchCache;
+    geometryCache = geometry; batchCache = batch;
+    try { return work(); }
+    finally { geometryCache = previous; batchCache = previousBatch; }
+  } };
+}
+/** Scoped convenience for synchronous sensitivity batches. */
 export function withNavigationCache<T>(run: () => T): T {
-  const previous = geometryCache, previousBatch = batchCache; geometryCache = new Map(); batchCache = new Map();
-  try { return run(); } finally { geometryCache = previous; batchCache = previousBatch; }
+  return createNavigationCache().run(run);
 }
 export function memoGeometry<T>(namespace: string, key: () => unknown, create: () => T): T {
   if (!batchCache) return create();

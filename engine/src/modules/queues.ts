@@ -1,3 +1,4 @@
+import { recordDemand } from "./decision-capture.ts";
 import { parameter, parameterDefault } from "../parameters.ts";
 export const QUEUE_RETURN_BUFFER_S = parameterDefault("service.queue.return_buffer");
 import { CrowdMotion } from "./crowd-motion.ts";
@@ -307,6 +308,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
       if (request.ride) { lifts.call(request, (admitted) => advance(runner, { admitted, toGate: [], release: noRelease })); continue; }
       const room = rooms.get(request.spaceId);
       if (!room) { resume(runner, request, undefined, true, [request.gate]); continue; }
+      recordDemand(request.spaceId, t);
       if (!room.waiting.length && room.used < room.space.capacity! && t <= request.deadline) {
         resume(runner, request, room, true, [request.gate]);
         continue;
