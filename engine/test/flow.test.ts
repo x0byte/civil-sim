@@ -1,3 +1,4 @@
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { PersonProfile } from "../../contracts/scenario.ts";
@@ -16,7 +17,7 @@ describe("physical flow limits", () => {
     const constant = (mean: number) => ({ mean, sd: 0, min: mean, max: mean });
     const one: PersonProfile = { id: "large", name: "Large", speed: constant(1.3), familiarity: constant(1), crowdComfort: constant(1.5), size: 2, access: "any", prefers: { stairs: 1, escalator: 1, lift: 1 } };
     s.profiles = { list: [one], staff: [{ profileId: one.id, share: 1 }] };
-    const p: FloorPlan = { version: "0.6", id: "corridor", name: "Corridor", units: "m", bounds: { width: 20, height: 10 }, levels: [{ id: "ground", name: "Ground", elevation: 0 }], fixtures: [], connectors: [], spaces: [],
+    const p: FloorPlan = { version: FLOORPLAN_VERSION, id: "corridor", name: "Corridor", units: "m", bounds: { width: 20, height: 10 }, levels: [{ id: "ground", name: "Ground", elevation: 0 }], fixtures: [], connectors: [], spaces: [],
       walls: [{ id: "divider", levelId: "ground", a: { x: 10, y: 0 }, b: { x: 10, y: 10 }, thickness: 0.15, height: 3 }], openings: [{ id: "door", wallId: "divider", kind: "door", offset: 5, width: 0.8 }] };
     const nav = createNavigation(p, () => {}); const people = new People(s);
     function* traveller(i: number): PersonSchedule {

@@ -21,8 +21,8 @@ export function Experience3D({ run }: { run: SimRun }) {
   const ux = useExperience(),
     plan = run.plan,
     alarm = run.result.events.find((e) => e.type === "alarm")?.t;
-  const scene = useSceneLoading(run);
-  const clock = usePlayClock(run.result.durationS, run, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  const scene = useSceneLoading(run.result.tracks);
+  const clock = usePlayClock(run.result.durationS, run.result.tracks, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const time = useRef(clock.t);
   time.current = clock.t;
   const [floor, setFloor] = useState(plan.levels[0].id),
@@ -46,7 +46,7 @@ export function Experience3D({ run }: { run: SimRun }) {
   }, []);
   useEffect(() => {
     clock.setSpeed(1);
-  }, [run]);
+  }, [run.result.tracks]);
   useEffect(() => {
     if (!ux.focus) return;
     clock.setT(ux.focus.t);
@@ -55,7 +55,7 @@ export function Experience3D({ run }: { run: SimRun }) {
       setFloor(ux.focus.levelId);
       setWalker({ ...safeWalker(plan, ux.focus.levelId, { x: ux.focus.position.x, y: ux.focus.position.y + 2 }), pitch: -0.18 });
     }
-  }, [ux.focus?.key, run]);
+  }, [ux.focus?.key, run.result.tracks]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest("input,textarea,select,[contenteditable=true]")) return;

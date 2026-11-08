@@ -1,3 +1,4 @@
+import { cancelSensitivity, startSensitivity } from "./evidenceJob.tsx";
 import { create } from "zustand";
 import { useEditor } from "../state/store.ts";
 import { useExperience } from "../experience/state.ts";
@@ -21,6 +22,7 @@ export const useSimulationJob = create<JobState>(() => ({
   startedAt: 0,
   steps: [],
   cancel: (message = "Stopped. Kept the previous results.") => {
+    cancelSensitivity();
     active?.abort();
     active = undefined;
     unsubscribe?.();
@@ -32,6 +34,7 @@ export const useSimulationJob = create<JobState>(() => ({
 
 /** One foreground simulation job; changing the plan or people invalidates its result immediately. */
 export async function runSimulationJob<T extends SimulationTask>(task: T, apply: (value: TaskResults[T["kind"]]) => void): Promise<void> {
+  cancelSensitivity();
   const state = useEditor.getState();
   const plan = state.plan;
   const profiles = state.profiles;
@@ -68,6 +71,10 @@ export async function runSimulationJob<T extends SimulationTask>(task: T, apply:
     if ("errors" in value) throw new Error(value.errors.join(" "));
     apply(value);
     useSimulationJob.setState({ status: "done", message: "Results ready", fraction: 1 });
+    if (task.kind === "day" && "run" in value) {
+      const published = useEditor.getState().run;
+      if (published?.result === value.run.result) void startSensitivity(published);
+    }
   } catch (error) {
     if (!controller.signal.aborted) {
       useSimulationJob.setState({ status: "error", message: errorMessage(error), fraction: undefined });

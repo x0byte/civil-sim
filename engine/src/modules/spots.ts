@@ -1,6 +1,8 @@
+import { parameter } from "../parameters.ts";
 import { levelOf, onLevel } from "./levels.ts";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { pointInPolygon, polygonCentroid } from "./geometry.ts";
+import { memoGeometry } from "./navigation.ts";
 import type { Navigation } from "./navigation.ts";
 
 export interface RoomPerson {
@@ -13,8 +15,14 @@ interface Candidate { point: Vec2; index: number; centreDistanceSq: number }
 interface Assignment { personId: string; point: Vec2 }
 
 const squaredDistance = (a: Vec2, b: Vec2): number => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-const DESIRED_SPACING_SQ = 0.6 ** 2;
 
+
+/** Assignments are immutable after construction and can be shared for a batch
+ * only with identical geometry, people/desks, required rooms and spacing. */
+export function createRoomSpots(plan: FloorPlan, navigation: Navigation, people: RoomPerson[], requiredSpaces?: Set<string>): RoomSpots {
+  return memoGeometry('room-spots',()=>[plan,people,requiredSpaces ? [...requiredSpaces].sort() : null,parameter('service.standing.spacing')],
+    ()=>new RoomSpots(plan,navigation,people,requiredSpaces));
+}
 /** Stable person-specific standing spots, independent of request order or active visits. */
 export class RoomSpots {
   private readonly assigned = new Map<string, Map<number, Map<string, Vec2>>>();
@@ -78,7 +86,7 @@ export class RoomSpots {
           let bestClearance = -1;
           for (let i = 0; i < candidates.length; i++) {
             const clearance = owner1[i] === person ? d2[i] : d1[i];
-            if (clearance >= DESIRED_SPACING_SQ - 1e-12) { selectedIndex = i; break; }
+            if (clearance >= (parameter("service.standing.spacing") ** 2) - 1e-12) { selectedIndex = i; break; }
             if (clearance > bestClearance && clearance > 1e-12) { selectedIndex = i; bestClearance = clearance; }
           }
           if (selectedIndex < 0) continue;

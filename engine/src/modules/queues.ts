@@ -1,3 +1,5 @@
+import { parameter, parameterDefault } from "../parameters.ts";
+export const QUEUE_RETURN_BUFFER_S = parameterDefault("service.queue.return_buffer");
 import { CrowdMotion } from "./crowd-motion.ts";
 import { EventHeap } from "./event-heap.ts";
 import { densitySpeed } from "./density.ts";
@@ -39,9 +41,9 @@ export type PersonSchedule = Generator<RoomRequest, Track, Admission>;
 
 // A bounded queue offset makes early meeting/departure deadlines safe. The manager
 // applies this reserve itself; callers provide their ordinary gate-based deadline.
-export const QUEUE_RETURN_BUFFER_S = 20;
-const QUEUE_SPACING_M = 0.6;
-const LINE_STEP_M = 0.75;
+
+
+
 const outsideCache = new WeakMap<Navigation, Map<string, Pathfinder>>();
 
 function segmentDistance(point: Vec2, a: Vec2, b: Vec2): number {
@@ -125,12 +127,12 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[], p
   const length = Math.hypot(dx, dy) || 1;
   dx /= length;
   dy /= length;
-  const ideal = { x: gate.x + dx * LINE_STEP_M * (rank + 1), y: gate.y + dy * LINE_STEP_M * (rank + 1) };
+  const ideal = { x: gate.x + dx * (parameter("service.queue.grid_step")) * (rank + 1), y: gate.y + dy * (parameter("service.queue.grid_step")) * (rank + 1) };
   const grid = paths.grid;
   const gateIndex = grid.indexAt(gate);
   if (gateIndex < 0 || grid.components[gateIndex] < 0) return null;
   const component = grid.components[gateIndex];
-  const radius = QUEUE_RETURN_BUFFER_S * track.speed;
+  const radius = (parameter("service.queue.return_buffer")) * track.speed;
   const minCol = Math.max(0, Math.floor((gate.x - radius) / grid.cellSize));
   const maxCol = Math.min(grid.cols - 1, Math.floor((gate.x + radius) / grid.cellSize));
   const minRow = Math.max(0, Math.floor((gate.y - radius) / grid.cellSize));
@@ -179,10 +181,10 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[], p
     if (grid.components[candidate.index] !== component) continue;
     const point = candidate.point;
     if ((point.x - gate.x) * dx + (point.y - gate.y) * dy < -1e-9 || distance(point, gate) > radius) continue;
-    if (occupied.some((other) => distance(point, other) < QUEUE_SPACING_M - 1e-9)) continue;
+    if (occupied.some((other) => distance(point, other) < (parameter("service.queue.spacing")) - 1e-9)) continue;
     if (crowd && track.person && !crowd.field.canPlace({ ...point, levelId: room.space.levelId, id: track.person.id, size: track.person.size })) continue;
     const toGate = paths.route(point, gate);
-    if (!toGate || pathLength(toGate) / track.speed > QUEUE_RETURN_BUFFER_S) continue;
+    if (!toGate || pathLength(toGate) / track.speed > (parameter("service.queue.return_buffer"))) continue;
     const path = paths.route(track.position, point);
     if (path) return { point, path };
   }
@@ -217,7 +219,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   let now = 0;
   const crowd = scenario.crowding ? new CrowdMotion(plan, navigation, events, (t, run) => actions.push({ t, kind: "crowd", run })) : undefined;
   const results: Track[] = new Array(schedules.length);
-  const maxWaitS = (scenario.queueing?.maxWaitMin ?? 10) * 60;
+  const maxWaitS = (scenario.queueing?.maxWaitMin ?? parameter("service.queue.max_wait")) * 60;
   const restrictedLines = new WeakMap<WalkableGrid, Pathfinder>();
   const waitingPaths = (room: Room, waiter: Waiter): Pathfinder => {
     const source = waiter.request.track.person?.navigation?.grids.get(room.space.levelId);
@@ -310,7 +312,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
         continue;
       }
       const waiter: Waiter = { runner, request, arrival: t,
-        expires: Math.min(t + maxWaitS, request.deadline - QUEUE_RETURN_BUFFER_S), active: true, pointStart: request.track.points.length - 1 };
+        expires: Math.min(t + maxWaitS, request.deadline - (parameter("service.queue.return_buffer"))), active: true, pointStart: request.track.points.length - 1 };
       room.waiting.push(waiter);
       event(waiter, t, "queue_start");
       request.track.mark("queuing");

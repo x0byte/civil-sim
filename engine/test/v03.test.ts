@@ -1,3 +1,4 @@
+import { RESULTS_VERSION } from "../../contracts/results.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { SimEvent, SimulationResult, Track, TrackPoint } from "../../contracts/results.ts";
@@ -83,7 +84,7 @@ describe("v0.3 sample acceptance", () => {
     const start = performance.now();
     const result = simulate(p, s);
     expect(performance.now() - start).toBeLessThan(1000);
-    expect(result.version).toBe("0.9");
+    expect(result.version).toBe(RESULTS_VERSION);
     expect(JSON.stringify(simulate(p, s))).toBe(JSON.stringify(result));
     expect(JSON.stringify([p, s])).toBe(before);
     expect(result.metrics.queues.map((metric) => metric.spaceId)).toEqual(p.spaces
@@ -165,7 +166,8 @@ describe("queue order, limits and visitors", () => {
     const explicit = simulate(p, s);
     delete s.queueing;
     const implicit = simulate(p, s);
-    expect(implicit).toEqual(explicit);
+    // Values agree; evidence distinguishes an explicit saved input from a default.
+    expect({ ...implicit, evidence: undefined }).toEqual({ ...explicit, evidence: undefined });
     const waits = queueWaits(implicit.events, "toilet");
     expect(waits.length).toBeGreaterThan(0);
     expect(waits.every((wait) => wait.gaveUp)).toBe(true);

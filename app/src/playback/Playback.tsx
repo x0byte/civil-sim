@@ -73,12 +73,12 @@ export function useShownLevel(run: SimRun): string {
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
   const alarm = run.result.events.find((e) => e.type === "alarm")?.t;
-  const clock = usePlayClock(run.result.durationS, run.result, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  const clock = usePlayClock(run.result.durationS, run.result.tracks, alarm === undefined ? 0 : Math.max(0, alarm - 60));
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
   const [personId, setPersonId] = useState<string | null>(null);
-  useEffect(() => setPersonId(null), [run]);
+  useEffect(() => setPersonId(null), [run.result.tracks]);
   const track = run.result.tracks.find((tr) => tr.personId === personId);
   const ringed = useMemo(
     () => [

@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { Vec2, Road } from "../../../contracts/floorplan.ts";
 import type { Track, Activity } from "../../../contracts/results.ts";
 import { Environment, roomAcoustics } from "./environment.ts";
@@ -36,10 +37,10 @@ export class Sound {
     const sampler = new TrackSampler(tracks); const start = clockSeconds(env.scenario.workday.start);
     const staticSources = [
       ...(env.plan.noiseSources ?? []).map((s) => ({ ...s, from: s.hours ? clockSeconds(s.hours.from) - start : 0, to: s.hours ? clockSeconds(s.hours.to) - start : duration })),
-      ...env.plan.connectors.filter((c) => c.kind !== "stairs").flatMap((c) => c.levelIds.map((levelId) => ({ id: c.id, position: polygonCentroid(c.polygon), levelId, dbA: c.kind === "lift" ? 50 : 60, from: 0, to: duration }))),
+      ...env.plan.connectors.filter((c) => c.kind !== "stairs").flatMap((c) => c.levelIds.map((levelId) => ({ id: c.id, position: polygonCentroid(c.polygon), levelId, dbA: c.kind === "lift" ? parameter("comfort.sound.lift") : parameter("comfort.sound.escalator"), from: 0, to: duration }))),
     ];
     const roads = (env.plan.site?.roads ?? []).map((road) => ({ road,
-      from: clockSeconds(road.hours?.from ?? "06:00") - start, to: clockSeconds(road.hours?.to ?? "22:00") - start,
+      from: (road.hours ? clockSeconds(road.hours.from) : parameter("comfort.sound.road.start_hour") * 3600) - start, to: (road.hours ? clockSeconds(road.hours.to) : parameter("comfort.sound.road.end_hour") * 3600) - start,
       power: 10 ** ((road.dbA ?? ROAD_DB[road.kind]) / 10),
       kernels: new Map(env.plan.levels.map((l) => [l.id, this.roadKernel(road, l.id, l.elevation)])),
     }));
@@ -55,15 +56,15 @@ export class Sound {
         const p = present[j]; if (!p) continue;
         const index = this.index(p); const values = emissions.get(p.levelId) ?? new Map<number, number>();
         // Meetings share one 60 dB talker, with half the minute for speech and half for pauses/note-taking. Other social activity has a one-third speech duty.
-        const power = p.activity === "in_meeting" ? .5 * 10 ** 6 / meetingCounts.get(meetingGroup(p))!
-          : p.activity === "at_desk" || p.activity === "toilet" ? 10 ** 4
-          : p.activity === "walking" || p.activity === "in_lift" ? 10 ** 4.5 : 10 ** 5.5 / 3;
+        const power = p.activity === "in_meeting" ? parameter("comfort.sound.meeting.duty") * 10 ** parameter("comfort.sound.meeting.log_power") / meetingCounts.get(meetingGroup(p))!
+          : p.activity === "at_desk" || p.activity === "toilet" ? 10 ** parameter("comfort.sound.desk.log_power")
+          : p.activity === "walking" || p.activity === "in_lift" ? 10 ** parameter("comfort.sound.walking.log_power") : 10 ** parameter("comfort.sound.social.log_power") / parameter("comfort.sound.social.duty_divisor");
         const own = this.own.get(tracks[j].personId)!; const minute = t / 60;
         own.cells[minute] = index; own.levels[minute] = p.levelId; own.powers[minute] = power;
         values.set(index, (values.get(index) ?? 0) + power); emissions.set(p.levelId, values);
       }
       for (const [id, floor] of this.floors) {
-        const energy = new Float64Array(floor.points.length).fill(10 ** 3.5);
+        const energy = new Float64Array(floor.points.length).fill(10 ** parameter("comfort.sound.background.log_power"));
         for (const [index, power] of emissions.get(id) ?? []) this.add(energy, this.kernel(floor.points[index], id, `cell:${index}`), power);
         for (const s of staticSources) if (s.levelId === id) {
           const fraction = Math.max(0, Math.min(t + dt, s.to) - Math.max(t, s.from)) / dt;
@@ -94,7 +95,7 @@ export class Sound {
     const db = floor.minutes[minute][index]; const own = listenerId === undefined ? undefined : this.own.get(listenerId);
     if (!own || own.levels[minute] !== level || !own.powers[minute]) return db;
     const cell = own.cells[minute]; const contribution = own.powers[minute] * this.kernel(floor.points[cell], level, `cell:${cell}`)[index] * floor.gain[index];
-    return 10 * Math.log10(Math.max(10 ** 3.5 * floor.gain[index], 10 ** (db / 10) - contribution));
+    return 10 * Math.log10(Math.max(10 ** parameter("comfort.sound.background.log_power") * floor.gain[index], 10 ** (db / 10) - contribution));
   }
   private add(energy: Float64Array, kernel: Float32Array, power: number): void { for (let i = 0; i < energy.length; i++) energy[i] += power * kernel[i]; }
   private kernel(p: Vec2, level: string, key: string): Float32Array {
@@ -120,4 +121,9 @@ export class Sound {
   peakAverage(level: string, p: Vec2): number { return this.floors.get(level)!.peak[this.index(p)]; }
 }
 
-export const ROAD_DB: Record<Road["kind"], number> = { main: 75, secondary: 70, local: 62, service: 55 };
+export const ROAD_DB: Record<Road["kind"], number> = {
+  get main() { return parameter("comfort.sound.road.main"); },
+  get secondary() { return parameter("comfort.sound.road.secondary"); },
+  get local() { return parameter("comfort.sound.road.local"); },
+  get service() { return parameter("comfort.sound.road.service"); },
+};

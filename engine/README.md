@@ -570,3 +570,19 @@ and one warning per failed check. Common guidance; check your local regulations.
 `npm run benchmark:evacuation` records three-run medians, evacuation details for
 both supplied samples, and accessibility checks for all older sample pairs.
 The engine remains synchronous, offline and browser compatible.
+
+## v1.0 Part A: sourced parameters
+
+Every `simulate` result now carries parameter evidence. See [the parameter guide](../docs/parameters.md)
+for the registry, source verification, explicit gaps, overrides and numeric audit.
+`simulate(plan, scenario, { sensitivity: true, onProgress })` adds deterministic
+reduced-sample endpoint screening; run it in a worker. The app's existing worker
+dispatcher enables it. `calibrate(plan, scenario, observations)` checks door counts
+or room-queue lengths and returns inconsistencies with candidate calibration targets.
+Neither helper fits values automatically. Unsourced behaviours use explicitly assumed ±30%
+bounds, clipped to physical/distribution limits; settings and calibrated scalar overrides stay fixed.
+`sampleParameters` supplies seeded Latin hypercube draws on truncated-normal quantiles for Part B.
+Absent sensitivity drivers do not imply certainty. Part B's decision metrics and
+uncertainty ensembles are separate work.
+
+Run `npm run benchmark:evidence --prefix engine` for every sample pair’s evidence timing, progress and assumed drivers.

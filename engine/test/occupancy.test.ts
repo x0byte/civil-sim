@@ -1,3 +1,4 @@
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import type { Activity, Track, TrackPoint } from "../../contracts/results.ts";
@@ -7,7 +8,7 @@ const rect = (x0: number, y0: number, x1: number, y1: number): Vec2[] => [
   { x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 },
 ];
 function spaces(polygons: Vec2[][]): FloorPlan {
-  return { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "test", name: "Test", units: "m", bounds: { width: 20, height: 20 }, walls: [], openings: [], fixtures: [],
+  return { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "test", name: "Test", units: "m", bounds: { width: 20, height: 20 }, walls: [], openings: [], fixtures: [],
     spaces: polygons.map((polygon, i) => ({ id: `s-${i}`, levelId: "ground", name: "Test room", type: "other", privacy: "shared", polygon, doorIds: [] })) };
 }
 const point = (t: number, x: number, y: number, activity: Activity = "walking"): TrackPoint => ({ t, x, y, levelId: "ground", activity });

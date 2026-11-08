@@ -1,19 +1,20 @@
+import { parameter } from "../parameters.ts";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import { distance, EPSILON } from "./geometry.ts";
 
-const EXPOSURE_RADIUS_M = 2;
+
 
 /** Union of positive-length portions of a segment within 2 m of any door. */
 export function proximityIntervals(a: Vec2, b: Vec2, doors: Vec2[]): { from: number; to: number }[] {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const aa = dx * dx + dy * dy;
-  if (aa < EPSILON * EPSILON) return doors.some((door) => distance(a, door) < EXPOSURE_RADIUS_M) ? [{ from: 0, to: 1 }] : [];
+  if (aa < EPSILON * EPSILON) return doors.some((door) => distance(a, door) < (parameter("wayfinding.exposure.radius"))) ? [{ from: 0, to: 1 }] : [];
   const intervals = doors.flatMap((door) => {
     const fx = a.x - door.x;
     const fy = a.y - door.y;
     const bb = 2 * (fx * dx + fy * dy);
-    const cc = fx * fx + fy * fy - EXPOSURE_RADIUS_M * EXPOSURE_RADIUS_M;
+    const cc = fx * fx + fy * fy - (parameter("wayfinding.exposure.radius")) * (parameter("wayfinding.exposure.radius"));
     const discriminant = bb * bb - 4 * aa * cc;
     const roundoff = Number.EPSILON * 16 * Math.max(bb * bb, Math.abs(4 * aa * cc), 1);
     if (discriminant <= roundoff) return [];

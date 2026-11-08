@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan, Opening, Vec2 } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics, EvacuationMetrics, SimEvent, Track, TrackPoint, Warning } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
@@ -31,7 +32,7 @@ export function atTime(track:Track,t:number):{point:TrackPoint;next?:TrackPoint}
 }
 interface Evacuee { original:Track; track:TrackBuilder; person:Traveller; floor:string; entrance?:string; ready:number; done:boolean; exit?:Opening; refuge?:string; out?:number; safe?:number; stranded:boolean; used:Set<string>; }
 export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEvent[],people:People,warn:(w:Warning)=>void):{durationS:number;metrics:EvacuationMetrics}{
- const alarm=clockSeconds(s.evacuation!.alarmAt)-clockSeconds(s.workday.start),deadline=alarm+7200;
+ const alarm=clockSeconds(s.evacuation!.alarmAt)-clockSeconds(s.workday.start),deadline=alarm+parameter("evacuation.horizon");
  // Closed exits are also removed from the walking mesh, so they cannot be crossed en route.
  const evacPlan:FloorPlan={...plan,openings:plan.openings.map(o=>s.evacuation!.blockedExitIds?.includes(o.id)?{...o,kind:"window"}:o),connectors:plan.connectors.filter(c=>c.kind!=="lift"||c.evacuationLift).map(c=>c.kind==="escalator"?{...c,kind:"stairs",direction:undefined}:c)};
  const nav=createNavigation(evacPlan,()=>{}),access=new AccessRoutes(evacPlan,nav);
@@ -54,16 +55,16 @@ export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEven
     const lift=plan.connectors.find(c=>c.kind==="lift"&&c.levelIds.includes(point.levelId)&&c.levelIds.includes(landing)&&pointInPolygon(point,c.polygon));
     if(lift){const source=plan.levels.find(l=>l.id===point.levelId)!.elevation,target=plan.levels.find(l=>l.id===landing)!.elevation,sign=Math.sign(target-source);
      const board=original.points.filter(p=>p.t<=alarm).at(-1)!.t;
-     const height=source+sign*Math.min(Math.abs(target-source),Math.max(0,alarm-board)*1.5);
+     const height=source+sign*Math.min(Math.abs(target-source),Math.max(0,alarm-board)*parameter("capacity.lift.speed"));
      const next=plan.levels.filter(l=>lift.levelIds.includes(l.id)&&(l.elevation-height)*sign>=-1e-8&&(l.elevation-source)*sign>0).sort((a,b)=>(a.elevation-b.elevation)*sign)[0];
-     if(next&&next.id!==landing){landing=next.id;available=alarm+Math.abs(next.elevation-height)/1.5+8;}
+     if(next&&next.id!==landing){landing=next.id;available=alarm+Math.abs(next.elevation-height)/parameter("capacity.lift.speed")+parameter("capacity.lift.stop");}
     }
    }
    track.t=available;track.position={x:snapshot.next.x,y:snapshot.next.y,levelId:landing};track.mark("queuing");
   }else track.mark("queuing");
   const first=original.points.find(p=>p.activity!=="absent");
   const entrance=first?plan.openings.filter(o=>o.kind==="door"&&o.exterior&&!o.fireExit&&plan.walls.find(w=>w.id===o.wallId)!.levelId===first.levelId).sort((a,b)=>distance(openingCentre(plan,a),first)-distance(openingCentre(plan,b),first))[0]?.id:undefined;
-  const ready=Math.max(available,alarm+drawSpread(person.profile?.reactionS??{mean:60,sd:25,min:30,max:120},personSeed(person.seed,"evacuation:reaction")));
+  const ready=Math.max(available,alarm+drawSpread(person.profile?.reactionS??{mean:parameter("evacuation.reaction.mean"),sd:parameter("evacuation.reaction.sd"),min:parameter("evacuation.reaction.min"),max:parameter("evacuation.reaction.max")},personSeed(person.seed,"evacuation:reaction")));
   const e:Evacuee={original,track,person,floor:point.levelId,entrance,ready,done:false,stranded:false,used:new Set()};all.push(e);
   if(available===alarm)crowd.field.set({...track.position,id:person.id,size:person.size});else schedule(available,()=>crowd.field.set({...track.position,id:person.id,size:person.size}));
  }
@@ -87,7 +88,7 @@ export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEven
    const start=track.t;const request:RoomRequest={personId:e.person.id,spaceId:"",track,gate:track.position,approach:track.position,deadline};
    const landed=(ok:boolean)=>{if(!ok){finish(e,true);return;}i++;schedule(track.t,next);};
    if(c.kind==="lift")lifts.call({...request,ride:{connectorId:c.id,from:track.position.levelId,to:target.levelId!}},ok=>{const row=liftWait.get(c.id)??{wait:0,peak:0};row.wait+=Math.max(0,(track.points.at(-2)?.t??start)-start);liftWait.set(c.id,row);landed(ok);});
-   else crowd.flow({...request,flow:{key:c.id,rate:connectorRate(plan.connectors.find(o=>o.id===c.id)!)}},ok=>{if(!ok){finish(e,true);return;}crowd.ride(track,true);track.mark("evacuating");track.t+=(target.travelS??0)*(c.kind==="ramp"?1.3/e.person.speed:1);track.position={x:target.x,y:target.y,levelId:target.levelId!};track.mark("evacuating");schedule(track.t,()=>{crowd.ride(track,false);landed(true);});});
+   else crowd.flow({...request,flow:{key:c.id,rate:connectorRate(plan.connectors.find(o=>o.id===c.id)!)}},ok=>{if(!ok){finish(e,true);return;}crowd.ride(track,true);track.mark("evacuating");track.t+=(target.travelS??0)*(c.kind==="ramp"?parameter("walk.speed.adult")/e.person.speed:1);track.position={x:target.x,y:target.y,levelId:target.levelId!};track.mark("evacuating");schedule(track.t,()=>{crowd.ride(track,false);landed(true);});});
   };next();
  };
  const refugeSpots=new Map<string,Vec2[]>();
@@ -95,15 +96,15 @@ export function evacuate(plan:FloorPlan,s:Scenario,tracks:Track[],events:SimEven
  for(const e of all)schedule(e.ready,()=>{
   e.track.t=e.ready;
   const navigation=access.policy(e.person.profile?.access??"any");
-  const candidates=exits.flatMap(o=>{if(e.person.profile?.access==="step_free"&&o.width<.8)return[];const path=navigation.paths.route(e.track.position,exitPoint(o));return path?[{o,path,cost:travelTime(path,e.person.speed)+crowd.queueDelay(`door:${o.id}`,e.track.t)}]:[];}).sort((a,b)=>a.cost-b.cost);
-  let choice=candidates[0];const own=candidates.find(c=>c.o.id===e.entrance);if(e.original.kind!=="staff"&&e.person.familiarity<.7&&own&&own.cost<=choice.cost+60)choice=own;
+  const candidates=exits.flatMap(o=>{if(e.person.profile?.access==="step_free"&&o.width<parameter("access.door.min_width"))return[];const path=navigation.paths.route(e.track.position,exitPoint(o));return path?[{o,path,cost:travelTime(path,e.person.speed)+crowd.queueDelay(`door:${o.id}`,e.track.t)}]:[];}).sort((a,b)=>a.cost-b.cost);
+  let choice=candidates[0];const own=candidates.find(c=>c.o.id===e.entrance);if(e.original.kind!=="staff"&&e.person.familiarity<parameter("evacuation.familiarity_threshold")&&own&&own.cost<=choice.cost+parameter("evacuation.exit_switch_margin"))choice=own;
   e.track.t=e.ready;e.track.mark("evacuating");
   if(choice){e.exit=choice.o;move(e,choice.path,()=>{e.out=e.track.t;events.push({t:e.out,personId:e.person.id,type:"evacuated",openingId:choice.o.id});e.track.mark("absent");finish(e);});return;}
   const refuges=plan.spaces.filter(r=>r.refuge&&r.levelId===e.track.position.levelId).flatMap(r=>{
    const floor=navigation.paths.floors.get(r.levelId)!;let best:Vec2[]|null=null;
    for(const point of nav.targets.get(r.id)?.values()??[]){const path=floor.route(e.track.position,point);if(path&&(!best||travelTime(path,e.person.speed)<travelTime(best,e.person.speed)))best=path;}
    const occupied=refugeSpots.get(r.id)??[];
-   const points=Array.from({length:floor.grid.blocked.length},(_,i)=>i).filter(i=>!floor.grid.blocked[i]).map(i=>floor.grid.point(i)).filter(point=>pointInPolygon(point,r.polygon)&&occupied.every(p=>distance(p,point)>=.9));
+   const points=Array.from({length:floor.grid.blocked.length},(_,i)=>i).filter(i=>!floor.grid.blocked[i]).map(i=>floor.grid.point(i)).filter(point=>pointInPolygon(point,r.polygon)&&occupied.every(p=>distance(p,point)>=parameter("evacuation.refuge.inset")));
    points.sort((a,b)=>distance(b,e.track.position)-distance(a,e.track.position));
    best=null;for(const point of points){const path=floor.route(e.track.position,point);if(path){best=path;break;}}
 

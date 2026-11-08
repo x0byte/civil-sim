@@ -111,3 +111,22 @@
   z-index: 100;
   width: min(360px, calc(100vw - 80px));
 }
+
+.evidence-progress {
+  position: fixed;
+  right: var(--space-3, 12px);
+  bottom: 58px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  max-width: min(420px, calc(100vw - 24px));
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 2px 12px #0001;
+  font-size: var(--text-small);
+}
+.evidence-progress progress { width: 64px; }

@@ -1,3 +1,4 @@
+import { FLOORPLAN_VERSION } from "../../contracts/floorplan.ts";
 import { describe, expect, it } from "vitest";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import { simulate, SimulationInputError, walkingDistances } from "../src/index.ts";
@@ -12,7 +13,7 @@ function desk(p: FloorPlan, id: string): Vec2 {
 
 /** A connected, furnished-office-sized routing workload with intersecting partitions. */
 function largeOffice(): { p: FloorPlan; points: Vec2[] } {
-  const p: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "large-office", name: "60 by 40 metre office", units: "m",
+  const p: FloorPlan = { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "large-office", name: "60 by 40 metre office", units: "m",
     bounds: { width: 60, height: 40 }, walls: [], openings: [], spaces: [], fixtures: [] };
   for (const x of [10, 20, 30, 40, 50]) {
     const wallId = `vertical-${x}`;
@@ -149,7 +150,7 @@ describe("walkingDistances public API", () => {
   });
 
   it("handles empty input, one endpoint, duplicate endpoints and partial boundary cells", () => {
-    const p: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial", name: "Partial boundary", units: "m",
+    const p: FloorPlan = { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial", name: "Partial boundary", units: "m",
       bounds: { width: 4.1, height: 3.3 }, walls: [], openings: [], spaces: [], fixtures: [] };
     expect(walkingDistances(p, [])).toEqual([]);
     expect(walkingDistances(p, [{ x: 4.1, y: 3.3 }])).toEqual([[0]]);
@@ -161,7 +162,7 @@ describe("walkingDistances public API", () => {
   });
 
   it("uses physical edge lengths and wall-safe detours in partial boundary cells", () => {
-    const p: FloorPlan = { version: "0.6", levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial-wall", name: "Partial cells with a wall", units: "m",
+    const p: FloorPlan = { version: FLOORPLAN_VERSION, levels: [{ id: "ground", name: "Ground", elevation: 0 }], connectors: [], id: "partial-wall", name: "Partial cells with a wall", units: "m",
       bounds: { width: 4.1, height: 3.3 }, walls: [{ id: "divider", levelId: "ground", a: { x: 2, y: 0 }, b: { x: 2, y: 3.3 }, thickness: 0.1, height: 3 }],
       openings: [{ id: "door", wallId: "divider", kind: "door", offset: 1.65, width: 1 }], spaces: [], fixtures: [] };
     const points = [{ x: 0.125, y: 0.375 }, { x: 4.05, y: 0.375 }, { x: 4.1, y: 3.3 }];

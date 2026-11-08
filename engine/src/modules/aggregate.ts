@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { ConnectorMetrics, Heatmaps, Metrics, SimEvent, SpaceExposure, Track } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
@@ -14,7 +15,7 @@ import type { CrowdedSamples } from "./comfort.ts";
 import type { Warning } from "../../../contracts/results.ts";
 
 export const HEAT_CELL_M = 0.5;
-const EXPOSURE_RADIUS_M = 2;
+
 
 
 function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceExposure[] {
@@ -32,7 +33,7 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
         const b = track.points[i + 1];
         if (a.activity === "absent" || a.levelId !== space.levelId || b.levelId !== space.levelId || a.activity === "climbing" || a.activity === "in_lift") { inside = false; continue; }
         if (a.activity !== "walking" && a.activity !== "evacuating") {
-          inside = doors.some((door) => distance(b, door) <= EXPOSURE_RADIUS_M + EPSILON);
+          inside = doors.some((door) => distance(b, door) <= (parameter("wayfinding.exposure.radius")) + EPSILON);
           continue;
         }
         const intervals = proximityIntervals(a, b, doors);
@@ -50,10 +51,10 @@ function exposures(plan: FloorPlan, scenario: Scenario, tracks: Track[]): SpaceE
   });
 }
 
-export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}, duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start), onMeasureComfort?: () => void): { heatmaps: Heatmaps; metrics: Metrics } {
+export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], events: SimEvent[] = [], connectors: ConnectorMetrics[] = [], people?: People, warn: (warning: Warning) => void = () => {}, duration = clockSeconds(scenario.workday.end) - clockSeconds(scenario.workday.start), onMeasureComfort?: () => void, movementOnly = false): { heatmaps: Heatmaps; metrics: Metrics } {
   const cols = Math.ceil(plan.bounds.width / HEAT_CELL_M);
   const rows = Math.ceil(plan.bounds.height / HEAT_CELL_M);
-  const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: Array<number>(cols * rows).fill(0), dwellS: Array<number>(cols * rows).fill(0) }));
+  const levels = plan.levels.map((l) => ({ levelId: l.id, footfall: (movementOnly ? [] : Array<number>(cols * rows).fill(0)), dwellS: (movementOnly ? [] : Array<number>(cols * rows).fill(0)) }));
   const { footfall, dwellS } = levels[0];
   const byLevel = new Map(levels.map((l) => [l.levelId, l]));
   const allWalkingMetrics = tracks.map((track) => {
@@ -66,7 +67,7 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
       if (a.activity === "absent" || a.levelId !== b.levelId || a.activity === "climbing" || a.activity === "in_lift") { lastWalkingCell = -1; continue; }
       const { footfall, dwellS } = byLevel.get(a.levelId)!;
       const dt = b.t - a.t;
-      const spans = cellSpans(a, b, HEAT_CELL_M, cols, rows);
+      const spans = movementOnly ? [] : cellSpans(a, b, HEAT_CELL_M, cols, rows);
       for (const span of spans) dwellS[span.index] += dt * (span.to - span.from);
       if (a.activity !== "walking" && a.activity !== "evacuating") { lastWalkingCell = -1; continue; }
       walkingDistanceM += distance(a, b);
@@ -87,9 +88,9 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
       y: (Math.floor(index / cols) * HEAT_CELL_M + Math.min((Math.floor(index / cols) + 1) * HEAT_CELL_M, plan.bounds.height)) / 2,
       footfall: value,
     }));
-  const occupancy = peakOccupancy(plan, tracks);
+  const occupancy = movementOnly ? [] : peakOccupancy(plan, tracks);
   const crowded: CrowdedSamples = new Map();
-  const density = sampleDensity(plan, tracks, duration, people, occupancy, scenario.comfort ? (id, from, to) => {
+  const density = movementOnly ? { levels: levels.map(l=>({ ...l, peakDensity: [] as number[] })), crowding: [], discomfort: new Map<string,number>() } : sampleDensity(plan, tracks, duration, people, occupancy, scenario.comfort ? (id, from, to) => {
     const list = crowded.get(id) ?? []; const last = list.at(-1);
     if (last?.to === from) last.to = to; else list.push({ from, to });
     crowded.set(id, list);
@@ -99,12 +100,12 @@ export function aggregate(plan: FloorPlan, scenario: Scenario, tracks: Track[], 
   for (const metric of profiles) metric.blocked = events.filter((e) => e.type === "blocked" && profileByPerson.get(e.personId) === metric.profileId).length;
   const densityByLevel = new Map(density.levels.map((level) => [level.levelId, level.peakDensity]));
   const resultLevels = levels.map((level) => ({ ...level, peakDensity: densityByLevel.get(level.levelId)!, noiseDbA: [] as number[], lightLux: [] as number[], glare: [] as number[] }));
-  if (scenario.comfort) onMeasureComfort?.();
-  const comfort = scenario.comfort ? analyseComfort(plan, scenario, tracks, resultLevels, people, occupancy, crowded, warn) : null;
+  if (scenario.comfort && !movementOnly) onMeasureComfort?.();
+  const comfort = scenario.comfort && !movementOnly ? analyseComfort(plan, scenario, tracks, resultLevels, people, occupancy, crowded, warn) : null;
   return {
     heatmaps: { grid: { originX: 0, originY: 0, cellSize: HEAT_CELL_M, cols, rows }, footfall, dwellS, levels: resultLevels },
     metrics: { perPerson, summary: { meanWalkingDistanceM: perPerson.length ? totalDistance / perPerson.length : 0,
       meanWalkingTimeS: perPerson.length ? totalTime / perPerson.length : 0, totalWalkingTimeS: totalTime },
-      spaceExposure: exposures(plan, scenario, tracks), hotspots, peakOccupancy: occupancy, queues: queueMetrics(plan, events), connectors, ...retailMetrics(plan, scenario, tracks, events, allWalkingMetrics, occupancy), profiles, crowding: density.crowding, comfort, evacuation: null, accessibility: [] },
+      spaceExposure: movementOnly ? [] : exposures(plan, scenario, tracks), hotspots, peakOccupancy: occupancy, queues: queueMetrics(plan, events), connectors, ...retailMetrics(plan, scenario, tracks, events, allWalkingMetrics, occupancy), profiles, crowding: density.crowding, comfort, evacuation: null, accessibility: [] },
   };
 }

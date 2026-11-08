@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Scenario } from "../../contracts/scenario.ts";
-import { simulate } from "../../engine/src/index.ts";
-import { simulateInBackground } from "../src/sim/background.ts";
+import { analyseSensitivity, simulate } from "../../engine/src/index.ts";
+import { runInBackground, simulateInBackground } from "../src/sim/background.ts";
 
 class BrowserWorker {
   onmessage: ((event: { data: unknown }) => void) | null = null;
@@ -48,8 +48,24 @@ describe("the shared background worker", () => {
       expect(messages.some((m) => m.startsWith("Simulating the day"))).toBe(true);
       expect(messages.at(-1)).toBe("Preparing results…");
     },
+    // Two central runs plus worker startup; the separate evidence budget is benchmarked independently.
     20000,
   );
+  it("computes identical sensitivity in a second real worker with its own progress", async () => {
+    vi.stubGlobal("Worker", BrowserWorker);
+    const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
+    const scenario = JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8"));
+    const central = simulate(plan, scenario);
+    const expected = analyseSensitivity(plan, scenario, central.evidence!,
+      (p, s, movementOnly) => simulate(p, s, { measurement: movementOnly ? "movement" : undefined }));
+    const messages: string[] = [];
+    const actual = await runInBackground({kind:"sensitivity",plan,scenario,evidence:central.evidence!},
+      new AbortController().signal, p => messages.push(p.message));
+    expect(actual).toEqual(expected);
+    expect(central.evidence!.sensitivity).toEqual([]);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages.every(message => /^Checking what the result depends on · \d+ of \d+$/.test(message))).toBe(true);
+  });
   it("falls back with identical output when workers are unavailable", async () => {
     vi.stubGlobal("Worker", undefined);
     const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));

@@ -1,7 +1,7 @@
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
-import type { SimulationResult } from "../../../contracts/results.ts";
-import { simulate, type SimulationProgress } from "../../../engine/src/index.ts";
+import type { Evidence, SimulationResult } from "../../../contracts/results.ts";
+import { analyseSensitivity, simulate, type SimulationProgress } from "../../../engine/src/index.ts";
 import { runSimulation, runComparison, type SimRun } from "./runSimulation.ts";
 import { evaluateLayout, type EvaluationInput } from "../improvements/evaluate.ts";
 import type { Evaluation } from "../improvements/measures.ts";
@@ -15,6 +15,7 @@ import { runTool, type Draft } from "../assistant/tools.ts";
 import type { ReportProgress } from "../loading/progress.ts";
 
 export type BackgroundTask =
+  | { kind: "sensitivity"; plan: FloorPlan; scenario: Scenario; evidence: Evidence }
   | { kind: "fixed"; plan: FloorPlan; scenario: Scenario }
   | { kind: "day"; plan: FloorPlan; profile?: OfficeProfile; evacuation?: Scenario["evacuation"] }
   | { kind: "compare"; a: FloorPlan; b: FloorPlan; labels: [string, string]; profile?: OfficeProfile; evacuation?: Scenario["evacuation"] }
@@ -27,6 +28,7 @@ export type BackgroundTask =
   | { kind: "assistantTool"; name: string; input: Record<string, unknown>; draft: Draft }
   | { kind: "serialize"; value: unknown };
 export interface TaskResults {
+  sensitivity: Evidence["sensitivity"];
   fixed: SimulationResult;
   day: ReturnType<typeof runSimulation>;
   compare: ReturnType<typeof runComparison>;
@@ -50,13 +52,13 @@ function engineProgress(start: string, report: ReportProgress) {
       seating: `Seating ${p.people ?? "the"} people…`,
       simulating: `Simulating the day · ${clock(start, p.t ?? 0)}…`,
       evacuating: "Helping people reach exits and refuges…",
-      measuring: "Measuring routes and crowds…",
+      measuring: p.detail === "sensitivity" ? `Checking parameter sensitivity · ${p.completed ?? 0} of ${p.total ?? 0}…` : "Measuring routes and crowds…",
       comfort: "Measuring comfort…",
       complete: "Preparing results…",
     };
     report({
       message: messages[p.stage],
-      fraction:
+      fraction: p.detail === "sensitivity" ? 0.9 + 0.07 * (p.completed ?? 0) / Math.max(1, p.total ?? 1) :
         p.stage === "simulating"
           ? 0.1 + 0.65 * Math.min(1, (p.t ?? 0) / Math.max(1, p.durationS ?? 1))
           : ({ checking: 0.02, seating: 0.08, evacuating: 0.76, measuring: 0.8, comfort: 0.9, complete: 0.98 } as const)[p.stage],
@@ -67,6 +69,14 @@ function engineProgress(start: string, report: ReportProgress) {
 export function executeTask<T extends BackgroundTask>(task: T, report: ReportProgress = () => {}): TaskResults[T["kind"]] {
   const execute = (): unknown => {
     switch (task.kind) {
+      case "sensitivity":
+        return analyseSensitivity(task.plan, task.scenario, task.evidence,
+          (plan, scenario, movementOnly) => simulate(plan, scenario, { measurement: movementOnly ? "movement" : undefined }), {
+            onProgress: (completed,total) => report({
+              message: `Checking what the result depends on · ${completed} of ${total}`,
+              fraction: total ? completed/total : 1,
+            }),
+          });
       case "fixed":
         return simulate(task.plan, task.scenario, { onProgress: engineProgress(task.scenario.workday.start, report) });
       case "day":
@@ -80,7 +90,7 @@ export function executeTask<T extends BackgroundTask>(task: T, report: ReportPro
           let layout = task.labels[0],
             layoutIndex = -1;
           return runComparison(task.a, task.b, task.labels, task.profile, task.evacuation, {
-            onLayout: (label) => {
+              onLayout: (label) => {
               layoutIndex++;
               layout = label;
               report({ message: `Preparing ${label}…` });

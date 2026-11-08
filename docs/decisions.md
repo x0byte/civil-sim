@@ -336,9 +336,30 @@ evacuation pass/fail only against a limit the user states (no country's code is 
 teams between zones only. All new fields are optional, so v0.6 plans and v0.9 scenarios upgrade by taking the new
 version. Office samples now carry two team zones, a relationship and a keep goal.
 
+## 2026-11-08 · Part A evidence (engine)
+Behaviour defaults now resolve through `engine/src/parameters.ts`; numeric saved scenario behaviours receive stable
+`scenario.*` evidence keys. Verified literature spans are screening envelopes; unsourced assumptions stay explicitly
+labelled and pinned instead of receiving invented uncertainty bounds. Sourced scalar overrides pin their effective
+range (the contract has no override range). Worker runs enable deterministic reduced-sample sensitivity; direct scalar
+calls opt in. Until Part B supplies decision metrics, sensitivity names only existing measured outputs. Calibration
+reports inconsistency and candidate parameters, never unique causes or automatic fits. See `docs/parameters.md`.
+
 ## 2026-11-08 · Every parameter has bounds and a bell curve
 Product owner's call. Each behavioural parameter has a lower and upper bound; uncertainty runs draw from a normal
 curve peaking at the registry value, truncated at the bounds (about two standard deviations out; split normal when
 off-centre). Sourced parameters use published envelopes; unsourced ones default to ±30%, labelled "range assumed, not
 measured". Model settings (speed floor, caches, time steps) are tagged and stay fixed. Sensitivity ranks the assumed
 ranges too, which becomes the list of what to measure first.
+
+## 2026-11-08 · Part A review implementation
+The owner's bounds decision supersedes pinned unsourced defaults: behaviours use sourced envelopes or explicitly
+assumed ±30% bounds; settings stay fixed. The split-normal sampler gives each half equal probability to preserve
+the requested median at the value; population shares close on a bounded simplex. Sensitivity uses fixed office/retail
+sample budgets, scaled arrival endpoints and batch-scoped geometry caches keyed by routing parameters; mutable
+queues/counters and personal route choices stay per run. See `docs/parameters.md` and the research/review report.
+
+## 2026-11-08 · Publish central results before sensitivity
+App day runs publish without sensitivity, then use a separate cancellable worker with independent progress to patch
+only evidence. A new run, comparison, or plan/people edit cancels that work; generation and result identity guards
+reject late messages. Evidence updates preserve track identity so playback does not restart. Comparisons omit
+sensitivity. Secondary failures retain the central result and offer retry.

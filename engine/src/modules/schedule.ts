@@ -1,3 +1,4 @@
+import { parameter } from "../parameters.ts";
 import { crowdReserve } from "./profiles.ts";
 import { doorGates } from "./flow.ts";
 import type { Traveller } from "./profiles.ts";
@@ -17,7 +18,7 @@ import { roomTrip } from "./room-trip.ts";
 import type { RoomTrip } from "./room-trip.ts";
 import { RoomMovement, RoomMovementDenied } from "./movement.ts";
 import type { RoomSpots } from "./spots.ts";
-import { absentTrack, TrackBuilder, WALK_SPEED_M_S } from "./track.ts";
+import { absentTrack, TrackBuilder } from "./track.ts";
 
 export const clockSeconds = (time: string): number => Number(time.slice(0, 2)) * 3600 + Number(time.slice(3)) * 60;
 
@@ -25,7 +26,7 @@ interface Visit { t: number; activity: "toilet" | "pantry"; duration: number; ch
 
 function requests(scenario: Scenario, person: Person, duration: number) {
   const random = seededRandom(personSeed(scenario.seed, person.id));
-  const window = Math.min(1800, duration / 4);
+  const window = Math.min(parameter("arrival.staff.window"), duration / parameter("arrival.staff.day_divisor"));
   const arrival = random() * window;
   const departure = duration - window + random() * window;
   const visits: Visit[] = [];
@@ -34,7 +35,7 @@ function requests(scenario: Scenario, person: Person, duration: number) {
     if (!rate) continue;
     let t = 0;
     while ((t += -Math.log(1 - random()) * duration / rate) < duration) {
-      visits.push({ t, activity, duration: 180 + random() * 120, choice: random() });
+      visits.push({ t, activity, duration: parameter("service.facility.minimum") + random() * parameter("service.facility.spread"), choice: random() });
     }
   }
   visits.sort((a, b) => a.t - b.t);
@@ -54,7 +55,7 @@ function requests(scenario: Scenario, person: Person, duration: number) {
 
 export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Person, duration: number,
   navigation: Navigation, spots: RoomSpots, events: SimEvent[], warn: (warning: Warning) => void, personTraits?: Traveller): PersonSchedule {
-  const speed = personTraits?.speed ?? WALK_SPEED_M_S;
+  const speed = personTraits?.speed ?? parameter("walk.speed.adult");
   const { paths, targets, entrances } = navigation;
   const desk = plan.fixtures.find((f) => f.id === person.deskId)!;
   const deskPosition = onLevel(desk.position, desk.levelId);
@@ -74,11 +75,11 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
   const departurePath = back(arrivalPath);
   const commuteOutS = travelTime(departurePath, speed);
   const travelBudget = (path: Vec2[]) => {
-    const free = personTraits ? Math.max(travelTime(path, speed), travelTime(back(path), speed)) : (plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)))) / WALK_SPEED_M_S;
+    const free = personTraits ? Math.max(travelTime(path, speed), travelTime(back(path), speed)) : (plan.levels.length === 1 ? pathLength(path) : Math.max(pathLength(path), pathLength(back(path)))) / parameter("walk.speed.adult");
     if (!scenario.crowding) return free;
     // Leave time for a group to pass the same doors, in addition to slower walking.
     const size = personTraits!.people.activeSize(0);
-    return free * 2.5 + 4 + doorGates(plan, path).reduce((wait, door) => wait + size / door.rate, 0);
+    return free * parameter("walk.reserve.multiplier") + parameter("walk.reserve.margin") + doorGates(plan, path).reduce((wait, door) => wait + size / door.rate, 0);
   };
   const start = clockSeconds(scenario.workday.start);
   const meetings = scenario.meetings.filter((m) => m.attendeeIds.includes(person.id)).map((meeting) => {
@@ -91,19 +92,19 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       travelS: path ? travelBudget(path) : 0 };
   }).filter((m): m is typeof m & { path: Vec2[] } => m.path !== null).sort((a, b) => a.start - b.start);
   // Keep the requested first/last 30-minute windows, accommodating early/late meetings when possible.
-  const arrival = Math.max(0, Math.min(desired.arrival, ...meetings.map((m) => m.start - m.travelS - commuteInS - 1)));
-  const departure = Math.min(duration, Math.max(desired.departure, ...meetings.map((m) => m.end + m.travelS + commuteOutS + 1)));
+  const arrival = Math.max(0, Math.min(desired.arrival, ...meetings.map((m) => m.start - m.travelS - commuteInS - parameter("arrival.staff.desk_margin"))));
+  const departure = Math.min(duration, Math.max(desired.departure, ...meetings.map((m) => m.end + m.travelS + commuteOutS + parameter("arrival.staff.desk_margin"))));
   const liftExit = departurePath.some((p) => plan.connectors.some((c) => c.id === (p as { connectorId?: string }).connectorId && c.kind === "lift"));
   const closingReserve = personTraits ? crowdReserve(departurePath, personTraits, departure, plan)
-    + (liftExit ? 60 + 44 * Math.ceil(personTraits.people.activeSize(departure) / 8) : 0) : commuteOutS;
+    + (liftExit ? parameter("capacity.lift.closing_margin") + parameter("capacity.lift.closing_cycle") * Math.ceil(personTraits.people.activeSize(departure) / parameter("capacity.lift.car")) : 0) : commuteOutS;
   const deskDeparture = departure - closingReserve;
-  if (arrival + commuteInS + 1 > deskDeparture) {
+  if (arrival + commuteInS + parameter("arrival.staff.desk_margin") > deskDeparture) {
     warn({ code: "other", message: `The workday is too short for ${person.id} to reach their desk and leave; this person stays absent.`, refIds: [person.id] });
     return absent();
   }
   const track = new TrackBuilder(arrivalPath[0], navigation.first, speed, personTraits);
   const movement = new RoomMovement(plan, navigation, track, person.id);
-  let walkDeadline = Math.min(deskDeparture - 1, ...meetings.map((meeting) => meeting.start - meeting.travelS - 1));
+  let walkDeadline = Math.min(deskDeparture - parameter("arrival.staff.desk_margin"), ...meetings.map((meeting) => meeting.start - meeting.travelS - parameter("arrival.staff.desk_margin")));
   function* walk(path: Vec2[], activity: Activity, skipSpaceId?: string): Generator<RoomRequest, void, Admission> {
     yield* movement.walk(path, activity, walkDeadline, skipSpaceId);
   }
@@ -259,14 +260,14 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
     const { meeting, path, travelS } = appointment;
     const leaveDesk = Math.max(track.t, appointment.start - travelS);
     const reachRoom = leaveDesk + travelS;
-    const end = Math.min(appointment.end, deskDeparture - travelS - 1);
+    const end = Math.min(appointment.end, deskDeparture - travelS - parameter("arrival.staff.desk_margin"));
     if (reachRoom >= end) {
       warn({ code: "other", message: `${person.id} cannot fit meeting ${meeting.id} around travel, other meetings and departure; attendance is skipped.`, refIds: [person.id, meeting.id] });
       continue;
     }
     yield* fillDeskTime(leaveDesk);
     // Meeting start is a desired arrival, not an attendance cancellation deadline.
-    walkDeadline = scenario.crowding ? end - 1 : Math.max(appointment.start, track.t + travelS);
+    walkDeadline = scenario.crowding ? end - parameter("arrival.staff.desk_margin") : Math.max(appointment.start, track.t + travelS);
     try { yield* walk(path, scenario.crowding ? "waiting" : "in_meeting"); }
     catch (error) {
       if (!(error instanceof RoomMovementDenied) || !scenario.crowding) throw error;
@@ -285,7 +286,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
     events.push({ t: track.t, personId: person.id, type: "meeting_start", spaceId: meeting.spaceId });
     track.t = end;
     events.push({ t: end, personId: person.id, type: "meeting_end", spaceId: meeting.spaceId });
-    walkDeadline = Math.min(deskDeparture - 1, ...meetings.filter((next) => next.start >= end).map((next) => next.start - next.travelS - 1));
+    walkDeadline = Math.min(deskDeparture - parameter("arrival.staff.desk_margin"), ...meetings.filter((next) => next.start >= end).map((next) => next.start - next.travelS - parameter("arrival.staff.desk_margin")));
     yield* walk(back(path), "at_desk");
   }
   if (lunch) yield* takeLunch(lunch);
