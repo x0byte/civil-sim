@@ -117,3 +117,41 @@ describe('Part B decision measurements', () => {
     expect(pinned.pass).toBe(false);expect(pinned.limitS).toBe(1);
   },30000);
 });
+
+it('uses paired differences to detect a consistent improvement despite overlapping option ranges', () => {
+  const a=simulate(plan(),scenario(),{decision:true}),b=structuredClone(a);
+  const values=[75,80,85,90,95,100,105,110,115,120,125,130];
+  const make=(scale:number)=>({series:{scenarioSeed:42,total:12,samples:values.map((value,index)=>({index,seed:100+index,parameterSet:`draw-${index}`,measurements:{'timeLost.hoursPerDay':{value:value*scale,unit:'hours_per_day' as const}}}))}});
+  a.decision!.runs=12;b.decision!.runs=12;
+  a.decision!.timeLost.hoursPerDay={value:102.5,low:80.5,high:124.5,unit:'hours_per_day'};
+  b.decision!.timeLost.hoursPerDay={value:82,low:64.4,high:99.6,unit:'hours_per_day'};
+  expect(b.decision!.timeLost.hoursPerDay.high).toBeGreaterThan(a.decision!.timeLost.hoursPerDay.low);
+  const data={a:make(1),b:make(.8)};
+  const paired=compareResults(a,b,data).find(row=>row.metric==='timeLost.hoursPerDay')!;
+  expect(paired.method).toBe('paired');expect(paired.verdict).toBe('clearly better');
+  expect(paired.difference.value).toBeCloseTo(-20.5);expect(paired.difference.low).toBeCloseTo(-24.9);expect(paired.difference.high).toBeCloseTo(-16.1);
+  expect(compareResults(b,a,{a:data.b,b:data.a}).find(row=>row.metric==='timeLost.hoursPerDay')!.verdict).toBe('clearly worse');
+  expect(compareResults(a,a,{a:data.a,b:data.a}).find(row=>row.metric==='timeLost.hoursPerDay')!.verdict).toBe('within noise');
+  const fallback=compareResults(a,b).find(row=>row.metric==='timeLost.hoursPerDay')!;
+  expect(fallback.method).toBe('interval subtraction');expect(fallback.verdict).toBe('within noise');
+  for(const change of ['seed','draw','root','count'] as const){
+    const other=structuredClone(data.b);
+    if(change==='seed')other.series.samples[0].seed++;
+    if(change==='draw')other.series.samples[0].parameterSet='different';
+    if(change==='root')other.series.scenarioSeed++;
+    if(change==='count')other.series.samples.pop();
+    expect(compareResults(a,b,{a:data.a,b:other}).find(row=>row.metric==='timeLost.hoursPerDay')!.method).toBe('interval subtraction');
+  }
+});
+it('automatically retains pairing for engine streams and propagates censored counts outside the contract',()=>{
+  const p=plan(),s={...scenario(),uncertainty:{runs:2}};
+  const a=[...streamDecisionResults(p,s)].at(-1)!,b=[...streamDecisionResults(p,s)].at(-1)!;
+  expect(compareResults(a.result,b.result).every(row=>row.method==='paired')).toBe(true);
+  expect(a.data.series.samples).toHaveLength(2);expect(a.data.series.samples[0].measurements['timeLost.hoursPerDay']).toBeDefined();
+  const blocked=plan('office-a-evac'),day=scenario('office-day-evac');day.uncertainty={runs:2};
+  day.evacuation!.blockedExitIds=blocked.openings.filter(o=>o.exterior).map(o=>o.id);
+  const result=[...streamDecisionResults(blocked,day)].at(-1)!;
+  expect(result.data.evacuation!.censored).toBe(true);expect(result.data.evacuation!.notOut).toBeGreaterThan(0);
+  expect(compareResults(result.result,result.result).find(row=>row.metric==='evacuation.totalS')!.verdict).toBe('cannot verify');
+  expect('data' in result.result).toBe(false);
+});

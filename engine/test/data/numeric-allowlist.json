@@ -16,7 +16,15 @@
       "100 in row.utilisation.value * 100": 1,
       "1 in (row.utilisation.value * 100).toFixed(1)": 1,
       "100 in row.utilisation.high * 100": 1,
-      "1 in (row.utilisation.high * 100).toFixed(1)": 1
+      "1 in (row.utilisation.high * 100).toFixed(1)": 1,
+      "0 in notOut = 0": 1,
+      "0 in evacuation.refuges.reduce((sum, row) => sum + row.people, 0)": 1,
+      "0 in aSeries.samples.length > 0": 1,
+      ".5 in percentile(differences, .5)": 1,
+      ".1 in percentile(differences, .1)": 1,
+      ".9 in percentile(differences, .9)": 1,
+      "0 in difference.high < 0": 1,
+      "0 in difference.low > 0": 1
     }
   },
   "engine/src/decision.ts": {

@@ -22,7 +22,16 @@ export interface UncertaintyOptions {
   /** Optional already-published central result from EXACTLY these inputs. */
   central?: SimulationResult;
 }
+export interface RangeSample {
+  index: number;
+  seed: number;
+  /** Exact canonical key/value draw; sources/order do not affect pairing. */
+  parameterSet: string;
+  measurements: RangeMeasurement;
+}
+export interface RangeSeries { scenarioSeed: number; total: number; samples: RangeSample[] }
 export interface UncertaintySnapshot {
+  series: RangeSeries;
   stage: 'central' | 'range' | 'complete';
   completed: number;
   total: number;
@@ -86,9 +95,10 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
     throw new Error('Central result does not match uncertainty inputs');
   }
   const timings: UncertaintySnapshot['timings'] = { centralMs: performance.now() - start, rangeMs: [] };
+  const series: RangeSeries = { scenarioSeed: scenario.seed, total, samples: [] };
   const baseline = options.measure(central, new ParameterValues(scenario.parameters, scenario).scenario!);
   validateMeasurement(baseline, baseline, options.representativeMetric);
-  yield { stage: 'central', completed: 0, total, message: 'Central result ready', result: central, ranges: {}, timings: { ...timings, rangeMs: [] } };
+  yield { series: { ...series, samples: [] }, stage: 'central', completed: 0, total, message: 'Central result ready', result: central, ranges: {}, timings: { ...timings, rangeMs: [] } };
 
   options.signal?.throwIfAborted();
   const definitions = new ParameterValues(scenario.parameters, scenario).entries();
@@ -111,9 +121,10 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
     });
     validateMeasurement(measurement, baseline, options.representativeMetric);
     measurements.push(measurement);
+    series.samples.push({ index, seed, parameterSet: JSON.stringify(parameters.map(p => [p.key, p.value]).sort(([a], [b]) => String(a).localeCompare(String(b)))), measurements: structuredClone(measurement) });
     timings.rangeMs.push(performance.now() - rangeStart);
     ranges = rangeMeasurements(measurements);
-    yield { stage: 'range', completed: index + 1, total, message: `Ranges from ${index + 1} of ${total} runs`, result: central, ranges,
+    yield { series: { ...series, samples: [...series.samples] }, stage: 'range', completed: index + 1, total, message: `Ranges from ${index + 1} of ${total} runs`, result: central, ranges,
       timings: { ...timings, rangeMs: [...timings.rangeMs] } };
   }
   options.signal?.throwIfAborted();
@@ -127,7 +138,7 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
   const representativeStart = performance.now();
   const result = cache.run(() => simulate(plan, sampledScenarios[selected], options.simulation));
   timings.representativeMs = performance.now() - representativeStart;
-  yield { stage: 'complete', completed: total, total, message: `Ranges from ${total} of ${total} runs`, result, ranges,
+  yield { series: { ...series, samples: [...series.samples] }, stage: 'complete', completed: total, total, message: `Ranges from ${total} of ${total} runs`, result, ranges,
     representative: { index: selected, seed: sampledScenarios[selected].seed, parameters: draws[selected] },
     timings: { ...timings, rangeMs: [...timings.rangeMs] } };
 }

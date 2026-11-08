@@ -118,21 +118,40 @@ hard-coded: the effective registry door width remains authoritative.
 
 ## Comparisons
 
-`compareResults(a,b)` returns B−A for shared metric identities, with conservative
-interval subtraction `[B.low−A.high, B.high−A.low]`. A directional verdict requires
-disjoint p10–p90 intervals; overlap is **within noise**. Lower time/cost/evacuation/
-team travel/utilisation is better; higher retail passers/entries/revenue is better.
-Space occupancy, demand volume and dwell need design context and receive no
-invented preference. These are interval judgments, not statistical significance
-tests or estimates of paired covariance. Comparison scorecards lead with these
-metrics and withhold verdicts while either side is still collecting runs.
+`compareResults(a,b)` uses retained run metadata to compare matched draws. The
+worker sends each run's headline values, run seed and exact canonical parameter
+key/value set to the range job, outside `SimulationResult` and outside contracts.
+Sources and override ordering are not part of draw identity; their numeric values
+are. Pairing requires the same root seed, run count, indices, run seeds and draws.
+
+For matched runs the engine computes `B_i − A_i`, then its median and interpolated
+p10–p90. A directional verdict requires that **difference interval** to exclude
+zero, even when the separate A/B intervals overlap. Missing/incompatible run
+metadata uses labelled interval subtraction `[B.low−A.high, B.high−A.low]`.
+Engine streams retain a WeakMap association; the app passes its worker/job metadata
+explicitly after structured cloning. No measurements or twelve sets of tracks are
+added to the result contract. Metadata is kept only with the active job/run.
+
+Every difference reports `method: "paired" | "interval subtraction"`; the scorecard
+names the method, including per-measure labels if only some measurements can be
+paired. Lower time/cost/evacuation/team travel/utilisation is better; higher retail
+passers/entries/revenue is better. Occupancy, demand and dwell need context and
+receive no invented preference. Censored evacuation is **Cannot verify**, never
+a numeric winning verdict. Partial comparisons remain provisional until both
+sides finish. These intervals are model-based spread, not a safety certification.
 
 ## Background execution and budget
 
 The central day/comparison worker publishes first. A separate range worker sends
 only the small decision payload on each partial update, preserving playback track
-identity. Final delivery replaces playback once with the full representative run.
-Day sensitivity follows range completion; CPU-heavy tasks are sequential.
+identity. Final delivery swaps in the representative tracks but keeps a stable
+foreground-run playback identity, play time, playing/paused state and speed in 2D,
+3D and comparison views. Selection/follow is cleared only if that person is absent.
+The viewing horizon retains at least the central duration so a shorter sampled
+run cannot force a pause or rewind. A new foreground run still resets normally.
+A visible note says “Now showing a typical run · run n of 12”.
+Day sensitivity follows range completion; the Evidence status says “waiting for
+ranges” in the meantime. CPU-heavy tasks are sequential.
 Comparisons process each side's ranges sequentially and never run sensitivity.
 
 A new run/comparison or plan/people edit terminates background work. Generation,
@@ -167,7 +186,7 @@ fallback, occupancy shares, source envelopes, representative replay, real worker
 partial counts, fallback cancellation, edits, retries, late messages and sequential
 comparison work. Full-suite and every-sample timings follow below.
 
-## Every-sample timings (final decision path)
+## Every-sample timings before review (`b8cbb18`)
 
 `npm run benchmark:ranges --prefix engine`, sequential, default 12 draws. These
 measure the actual decision reader and median-time-lost representative selection,
@@ -215,7 +234,7 @@ not treat the last unaided exit as everyone having left. Source/route-baseline
 checks were inspected for all samples: none reported an unconnected staff trip
 baseline or an omitted team route in these sample pairs.
 
-## Decision-headline sensitivity budget
+## Decision-headline sensitivity budget (`b8cbb18`, unchanged path)
 
 `npm run benchmark:evidence --prefix engine -- --decision` exercises the same
 headline reader and grid-skipping callback as the app sensitivity worker, after
@@ -240,7 +259,7 @@ Sensitivity is reduced-population one-at-a-time screening, not a full-crowd
 variance decomposition. A censored evacuation total may have no ranked drivers;
 that never overrides the failed evacuation-completion check or proves safety.
 
-## Final validation
+## Validation before Claude’s Part B review (`b8cbb18`)
 
 Suites ran **one after the other**, with no benchmark running alongside them:
 
@@ -256,4 +275,80 @@ Suites ran **one after the other**, with no benchmark running alongside them:
   streamed range decisions, and no-worker cancellation between range runs.
 - `onLayout` indentation in `app/src/sim/tasks.ts` is fixed.
 
-Part B is ready for Claude's review. It is not merged into master.
+Those results describe the pre-review revision. Current re-review validation is
+recorded below. The branch remains unmerged.
+
+## Part B review changes (2026-11-09)
+
+Read `docs/review-v1-part-b.md` in full. All three required changes and the smaller
+notes are addressed. The review was copied from the documentation worktree,
+without merging its unrelated branch state.
+
+- **Paired comparison:** the regression example has overlapping A/B ranges
+  (80.5–124.5 versus 64.4–99.6), while B wins all twelve matched runs by 20%.
+  The paired difference is **−20.5** (p10–p90 **−24.9 to −16.1**), so B is
+  **clearly better**. Without pairing metadata the same marginal intervals
+  correctly use interval subtraction and return within noise. Reversing the
+  pair gives clearly worse; equal paired measurements give within noise. Tests
+  reject pairing after a changed root seed, run seed, draw or sample count.
+- **Playback:** React hook tests cover playing and paused viewers, changed speed,
+  selected and followed people, a shorter representative, disappearance of the
+  selected person, metadata-only updates and an actual new foreground run. Real
+  worker tests verify that metadata survives transport without entering contracts.
+- **Censored evacuation:** headline and detailed results show “More than {horizon}
+  s · {n} people not out (at refuges or unresolved)”; assessments say “Cannot
+  verify”. Count metadata keeps the largest number not out across observed runs,
+  even if the representative itself clears. It never silently shows zero because
+  the selected playback omitted the unresolved draw. Legacy results without counts
+  say the count is unknown. A censored comparison also withholds a numeric verdict.
+- **Smaller notes:** unknown capacity references use their kind and id, never
+  “Door 0”; `ResultsPanel` indentation is corrected; evidence explicitly waits for
+  ranges rather than showing a bare spinner.
+
+Registry values and simulation physics are unchanged by this review revision.
+Per-run metadata contains scalar headline measurements and draw identity, not
+tracks, comfort grids or additional simulations. Budget checks and sequential
+full-suite results for this revision follow below.
+
+### Re-review budget, with retained draw/measurement metadata
+
+`npm run benchmark:ranges --prefix engine`, all samples sequentially after both
+full suites; 12 draws per sample. These CPU/stream timings include constructing
+the retained scalar records and draw identities. Browser structured-clone and
+rendering overhead remain outside the script; the real-thread tests verify that
+metadata crosses the worker boundary. Supporting comfort grids are still skipped.
+
+| Plan / scenario | Central (s) | 12 range runs (s) | Representative (s) | Total (s) |
+|---|---:|---:|---:|---:|
+| office-a / office-day | 0.080 | 0.236 | 0.018 | 0.347 |
+| office-b / office-day | 0.031 | 0.235 | 0.019 | 0.291 |
+| sealed-room / sealed-day | 0.002 | 0.010 | 0.000 | 0.015 |
+| mall-2f / mall-day | 1.058 | 4.253 | 0.035 | 5.353 |
+| mall-2f / mall-weekend | 1.020 | 7.901 | 0.517 | 9.445 |
+| mall-2f / mall-weekend-people | 1.769 | 15.127 | 0.918 | 17.825 |
+| office-a-comfort / office-day-comfort | 0.262 | 0.385 | 0.225 | 0.880 |
+| mall-2f-comfort / mall-weekend-comfort | 3.792 | 15.663 | 2.991 | 22.460 |
+| office-a-site / office-day-site | 0.328 | 0.339 | 0.311 | 0.985 |
+| mall-2f-evac / mall-weekend-evac | 2.613 | 23.577 | 0.997 | 27.198 |
+| office-a-evac / office-day-evac | 0.045 | 0.238 | 0.009 | 0.296 |
+
+All 11 emitted the central snapshot first, every sample count and a completed
+representative snapshot. Simulation outputs and the 140-person bottleneck
+figures remain unchanged. Largest observed not-out counts are retained alongside
+the headline records; no twelve track sets are kept.
+
+### Re-review validation
+
+- Whole engine: **330/330**, 27 files, **158.67 s**.
+- Then whole app (`npx vitest run` in `app/`): **219/219**, 31 files, **40.36 s**.
+- No engine/app suites or benchmarks ran concurrently.
+- Contracts: **11/11** sample pairs; contract, engine and app type checks passed.
+- Production app build passed (2.45 s Vite phase; existing large-chunk advisory).
+- Historical raw-result hashes and numeric-literal audit passed unchanged apart
+  from explicit arithmetic/indexing exceptions for the new paired calculation.
+- Focused React tests exercise the actual shared 2D/3D playback hooks. Real worker
+  tests cover structured-cloned series/representative metadata; comparison/UI
+  tests cover paired wins, fallback, censoring, unknown reference names and the
+  typical-run notice. Evidence's waiting label is checked in a mounted component.
+
+Ready for Claude's re-review; not merged into master.

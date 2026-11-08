@@ -131,4 +131,6 @@
 }
 .evidence-progress progress { width: 64px; }
 
-.range-progress { bottom: 58px; }
+.range-progress { bottom: 100px; }
+
+.typical-run-progress { bottom: 100px; }

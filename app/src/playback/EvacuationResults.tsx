@@ -1,3 +1,4 @@
+import { evacuationStatus, censoredEvacuationHeadline } from "./evacuationStatus.ts";
 import { DetailSections } from "../experience/common.tsx";
 import { plainText } from "../experience/wording.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -33,14 +34,16 @@ export function EvacuationResults({ run }: { run: SimRun }) {
     const door = run.plan.openings.find((o) => o.id === id)!;
     return `${door.fireExit ? "Fire exit" : "Exit"} ${run.plan.openings.filter((o) => o.kind === "door" && o.exterior).indexOf(door) + 1} · ${floor(run.plan.walls.find((w) => w.id === door.wallId)!.levelId)}`;
   };
+  const status = evacuationStatus(run);
   const refuge = e.refuges.reduce((n, r) => n + r.people, 0);
   return (
     <DetailSections>
       <section className="panel">
         <header>
-          <h2>{e.stranded || refuge ? `${refuge} at refuges · ${e.stranded} stranded` : `Everyone out in ${evacuationTime(e.outS)}`}</h2>
+          <h2>{status.censored ? censoredEvacuationHeadline(run) : `Everyone out in ${evacuationTime(e.outS)}`}</h2>
         </header>
         <div className="panel-body">
+          {status.censored && <p><strong>Cannot verify</strong> evacuation completion or pass/fail. Largest observed count: {status.notOut ?? 'unknown'} people not out.</p>}
           <p>
             Everyone who could leave was out in {evacuationTime(e.outS)}.
             {refuge > 0 ? ` Refuge arrivals completed in ${evacuationTime(e.refugeS)}; assisted rescue is not simulated.` : ""}

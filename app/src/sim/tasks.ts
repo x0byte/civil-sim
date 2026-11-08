@@ -1,7 +1,7 @@
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import type { DecisionMetrics, Evidence, SimulationResult } from "../../../contracts/results.ts";
-import { analyseSensitivity, simulate, streamDecisionResults, measureDecision, type SimulationProgress } from "../../../engine/src/index.ts";
+import { analyseSensitivity, simulate, streamDecisionResults, measureDecision, type SimulationProgress, type DecisionRunData } from "../../../engine/src/index.ts";
 import { runSimulation, runComparison, type SimRun } from "./runSimulation.ts";
 import { evaluateLayout, type EvaluationInput } from "../improvements/evaluate.ts";
 import type { Evaluation } from "../improvements/measures.ts";
@@ -68,7 +68,7 @@ function engineProgress(start: string, report: ReportProgress) {
   };
 }
 /** The exact same dispatcher is used in the worker and the no-worker fallback. */
-export function executeTask<T extends BackgroundTask>(task: T, report: ReportProgress = () => {}, publish: (decision: DecisionMetrics, completed: number, total: number) => void = () => {}): TaskResults[T["kind"]] {
+export function executeTask<T extends BackgroundTask>(task: T, report: ReportProgress = () => {}, publish: (decision: DecisionMetrics, completed: number, total: number, data?: DecisionRunData) => void = () => {}, finish: (data: DecisionRunData) => void = () => {}): TaskResults[T["kind"]] {
   const execute = (): unknown => {
     switch (task.kind) {
       case "ranges": {
@@ -76,7 +76,8 @@ export function executeTask<T extends BackgroundTask>(task: T, report: ReportPro
         for (const snapshot of streamDecisionResults(task.plan, task.scenario, { central: task.central })) {
           if (snapshot.stage === 'central') continue;
           report({ message: snapshot.message, fraction: snapshot.completed / snapshot.total });
-          if (snapshot.stage === 'range') publish(snapshot.result.decision!, snapshot.completed, snapshot.total);
+          if (snapshot.stage === 'range') publish(snapshot.result.decision!, snapshot.completed, snapshot.total, snapshot.data);
+          if (snapshot.stage === 'complete') finish(snapshot.data);
           result = snapshot.result;
         }
         return result;

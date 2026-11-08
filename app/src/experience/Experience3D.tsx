@@ -1,3 +1,4 @@
+import { playbackIdentity } from "../playback/runPlayback.ts";
 import { SceneReady, SceneSkeleton, SceneFallback, useSceneLoading } from "../view3d/SceneReady.tsx";
 import { SunLight } from "../view3d/SunLight.tsx";
 import { sceneBounds, runSunScenario, clockSeconds, sunDate } from "../view3d/sun.ts";
@@ -8,7 +9,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { SimRun } from "../sim/runSimulation.ts";
 import { Building } from "../view3d/View3D.tsx";
-import { Timeline, usePlayClock, heatValues, heatPeak, comfortHeatColor, type HeatMode } from "../playback/Playback.tsx";
+import { Timeline, useRunPlayback, heatValues, heatPeak, comfortHeatColor, type HeatMode } from "../playback/Playback.tsx";
 import { poseAt, clockAt } from "../playback/tracks.ts";
 import { ACTIVITY_STYLE } from "../playback/colors.ts";
 import { useExperience } from "./state.ts";
@@ -22,7 +23,7 @@ export function Experience3D({ run }: { run: SimRun }) {
     plan = run.plan,
     alarm = run.result.events.find((e) => e.type === "alarm")?.t;
   const scene = useSceneLoading(run.result.tracks);
-  const clock = usePlayClock(run.result.durationS, run.result.tracks, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  const clock = useRunPlayback(run, 1);
   const time = useRef(clock.t);
   time.current = clock.t;
   const [floor, setFloor] = useState(plan.levels[0].id),
@@ -45,9 +46,6 @@ export function Experience3D({ run }: { run: SimRun }) {
     return () => o.disconnect();
   }, []);
   useEffect(() => {
-    clock.setSpeed(1);
-  }, [run.result.tracks]);
-  useEffect(() => {
     if (!ux.focus) return;
     clock.setT(ux.focus.t);
     if (clock.playing) clock.toggle();
@@ -55,7 +53,7 @@ export function Experience3D({ run }: { run: SimRun }) {
       setFloor(ux.focus.levelId);
       setWalker({ ...safeWalker(plan, ux.focus.levelId, { x: ux.focus.position.x, y: ux.focus.position.y + 2 }), pitch: -0.18 });
     }
-  }, [ux.focus?.key, run.result.tracks]);
+  }, [ux.focus?.key, playbackIdentity(run)]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest("input,textarea,select,[contenteditable=true]")) return;

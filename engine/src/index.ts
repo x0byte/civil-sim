@@ -293,6 +293,6 @@ function assumptions(scenario: Scenario): string[] {
 }
 
 export { percentile, streamUncertainty } from './uncertainty.ts';
-export type { MeasuredValue, RangeMeasurement, UncertaintyOptions, UncertaintySnapshot } from './uncertainty.ts';
+export type { RangeSample, RangeSeries, MeasuredValue, RangeMeasurement, UncertaintyOptions, UncertaintySnapshot } from './uncertainty.ts';
 export { streamDecisionResults, compareResults, decisionValues, measureDecision } from './decision-ranges.ts';
-export type { DecisionDifference, DecisionStreamOptions } from './decision-ranges.ts';
+export type { DecisionRunData, DecisionSnapshot, DecisionDifference, DecisionStreamOptions } from './decision-ranges.ts';

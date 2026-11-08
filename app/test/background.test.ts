@@ -73,11 +73,13 @@ describe("the shared background worker", () => {
     const plan = JSON.parse(readFileSync(new URL("../../samples/office-a.floorplan.json", import.meta.url), "utf8"));
     const scenario = {...JSON.parse(readFileSync(new URL("../../samples/office-day.scenario.json", import.meta.url), "utf8")),uncertainty:{runs:2}};
     const central = simulate(plan,scenario,{decision:true}), counts:number[]=[];
+    let data: import("../../engine/src/index.ts").DecisionRunData | undefined;
     const expected = [...streamDecisionResults(plan,scenario,{central})].at(-1)!.result;
     const actual = await runInBackground({kind:"ranges",plan,scenario,central},new AbortController().signal,()=>{},(decision,n)=>{
       counts.push(n);expect(decision.runs).toBe(n);expect(central.decision!.runs).toBe(1);
-    });
+    }, value => {data=value;});
     expect(counts).toEqual([1,2]);expect(actual).toEqual(expected);
+    expect(data!.series.samples).toHaveLength(2);expect(data!.representative!.total).toBe(2);
   });
   it("cancels fallback range work between streamed runs", async () => {
     vi.stubGlobal("Worker",undefined);

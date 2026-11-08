@@ -378,3 +378,10 @@ side sequentially without sensitivity. Time lost separates staff queue/lift wait
 reaction waits are excluded. Capacity uses pre-service minute arrivals. Checks use actual registry sources and user
 limits; incomplete/refuge evacuation is censored and never passed. Comparisons require disjoint intervals for a
 preference. Raw simulate remains the single-run compatibility API; streamDecisionResults is the ranged API.
+
+## 2026-11-09 · Part B re-review: paired deltas and stable playback
+Supersedes separate-interval comparison for matched draws: retain per-run headline values, exact draw identity and
+seeds in ephemeral job metadata; report quantiles of B−A, with labelled interval subtraction only as fallback.
+Representative tracks share the foreground run's playback identity and viewing horizon, preserving controls and
+valid selections. Censored evacuation carries the largest observed not-out count and reads Cannot verify; no
+contract fields are added. Evidence says waiting for ranges until its sequential sensitivity task starts.

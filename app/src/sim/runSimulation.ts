@@ -2,11 +2,16 @@ import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { SimulationResult } from "../../../contracts/results.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import { validateFloorPlan, validateScenario } from "../../../contracts/validate.ts";
-import { SimulationInputError, simulate, type SimulationOptions } from "../../../engine/src/index.ts";
+import { SimulationInputError, simulate, type SimulationOptions, type DecisionRunData } from "../../../engine/src/index.ts";
 import { type Collaboration, type OfficeProfile, defaultProfile, expandProfile } from "../population/officeProfile.ts";
 import { recastScenario } from "./comparison.ts";
 
 export interface SimRun {
+  /** Stable through range/evidence replacements; a new foreground run gets a new identity. */
+  playbackKey?: object;
+  playbackDurationS?: number;
+  /** Ephemeral worker/job metadata, outside the simulation-result contract. */
+  rangeData?: DecisionRunData;
   plan: FloorPlan;
   /** People settings used for this run, so changing them marks results as old. */
   profile?: OfficeProfile;
@@ -39,6 +44,8 @@ export function runFixedScenario(
     if (result.decision) result.decision.runs = 0;
     return {
       run: {
+        playbackKey: {},
+        playbackDurationS: result.durationS,
         plan,
         scenario,
         result,

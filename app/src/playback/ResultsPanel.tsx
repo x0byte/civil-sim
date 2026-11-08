@@ -96,7 +96,7 @@ export function ResultsPanel({ run, onRerun }: { run: SimRun; onRerun: () => voi
     );
   return (
     <DetailSections>
-        <DecisionSummary data-title="Decision metrics" run={run} />
+      <DecisionSummary data-title="Decision metrics" run={run} />
       <AccessibilityResults data-title="Access guidance" run={run} />
       {stale && (
         <div className="stale-banner">

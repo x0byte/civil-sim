@@ -1,3 +1,4 @@
+import { playbackIdentity, playbackDuration } from "./runPlayback.ts";
 import { soundWord } from "../experience/wording.ts";
 import { useExperience } from "../experience/state.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -70,15 +71,32 @@ export function useShownLevel(run: SimRun): string {
   return run.plan.levels.some((l) => l.id === level) ? level : run.plan.levels[0].id;
 }
 
+/** Clock/follow state belongs to a foreground run, not a sampled track array. */
+export function useRunPlayback(run: SimRun, initialSpeed?: number): PlayClock {
+  const alarm = run.result.events.find(e => e.type === 'alarm')?.t;
+  const identity = playbackIdentity(run);
+  const clock = usePlayClock(playbackDuration(run), identity, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  useEffect(() => { if (initialSpeed !== undefined) clock.setSpeed(initialSpeed); }, [identity]);
+  useEffect(() => {
+    const id = useExperience.getState().followId;
+    if (id && !run.result.tracks.some(track => track.personId === id)) useExperience.setState({ followId: null, camera: 'overview' });
+  }, [run.result.tracks]);
+  return clock;
+}
+export function useSelectedPerson(tracks: Track[]) {
+  const [personId, setPersonId] = useState<string | null>(null);
+  useEffect(() => setPersonId(id => id && tracks.some(track => track.personId === id) ? id : null), [tracks]);
+  return [personId, setPersonId] as const;
+}
+
 /** The single-layout simulation view. */
 export function Playback({ run }: { run: SimRun }) {
-  const alarm = run.result.events.find((e) => e.type === "alarm")?.t;
-  const clock = usePlayClock(run.result.durationS, run.result.tracks, alarm === undefined ? 0 : Math.max(0, alarm - 60));
+  const alarm = run.result.events.find(e => e.type === 'alarm')?.t;
+  const clock = useRunPlayback(run);
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
-  const [personId, setPersonId] = useState<string | null>(null);
-  useEffect(() => setPersonId(null), [run.result.tracks]);
+  const [personId, setPersonId] = useSelectedPerson(run.result.tracks);
   const track = run.result.tracks.find((tr) => tr.personId === personId);
   const ringed = useMemo(
     () => [

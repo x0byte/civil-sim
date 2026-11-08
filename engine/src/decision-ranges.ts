@@ -2,7 +2,7 @@ import type { DecisionMetrics, Ranged, SimulationResult } from '../../contracts/
 import type { FloorPlan } from '../../contracts/floorplan.ts';
 import type { Scenario } from '../../contracts/scenario.ts';
 import { ParameterValues } from './parameters.ts';
-import { streamUncertainty, type RangeMeasurement, type UncertaintyOptions, type UncertaintySnapshot } from './uncertainty.ts';
+import { percentile, streamUncertainty, type RangeSeries, type RangeMeasurement, type UncertaintyOptions, type UncertaintySnapshot } from './uncertainty.ts';
 
 /** Stable identity keys: adding a connector does not move another connector's rows. */
 export function decisionValues(decision: DecisionMetrics): Record<string, Ranged> {
@@ -49,16 +49,25 @@ function applyRanges(decision: DecisionMetrics, ranges: Record<string, Ranged>, 
   }
   return copy;
 }
+export interface DecisionRunData {
+  series: RangeSeries;
+  representative?: { index: number; total: number };
+  evacuation?: { censored: boolean; horizon: number; notOut: number };
+}
+export interface DecisionSnapshot extends UncertaintySnapshot { data: DecisionRunData }
+const runData = new WeakMap<SimulationResult, DecisionRunData>();
 export type DecisionStreamOptions = Pick<UncertaintyOptions, 'central' | 'comfortHeadline' | 'signal'>;
 /** Central decision first, then one independently cancellable range update per run. */
-export function* streamDecisionResults(plan: FloorPlan, scenario: Scenario, options: DecisionStreamOptions = {}): Generator<UncertaintySnapshot> {
+export function* streamDecisionResults(plan: FloorPlan, scenario: Scenario, options: DecisionStreamOptions = {}): Generator<DecisionSnapshot> {
   let centralEvidence: SimulationResult['evidence'];
-  let unresolvedSeen = false;
+  let unresolvedSeen = false, notOut = 0;
   const values = new ParameterValues(scenario.parameters, scenario);
   const warningThreshold = values.read('setting.decision.utilisation_warning');
   for (const snapshot of streamUncertainty(plan, scenario, {
     ...options, simulation: { decision: true }, measure: result => {
       for (const p of result.evidence?.parameters ?? []) values.read(p.key);
+      const evacuation = result.metrics.evacuation;
+      if (evacuation) notOut = Math.max(notOut, evacuation.stranded + evacuation.refuges.reduce((sum, row) => sum + row.people, 0));
       unresolvedSeen ||= !!result.decision?.checks.some(c => c.code === 'evacuation_complete' && !c.ok);
       return measureDecision(result);
     }, representativeMetric: 'timeLost.hoursPerDay',
@@ -71,30 +80,52 @@ export function* streamDecisionResults(plan: FloorPlan, scenario: Scenario, opti
       // and source labels rather than presenting sampled values as measurements.
       evidence: centralEvidence ? { parameters: values.evidence(), sensitivity: centralEvidence.sensitivity } : undefined,
     };
-    yield { ...snapshot, result };
+    const data: DecisionRunData = { series: snapshot.series,
+      ...(snapshot.representative ? { representative: { index: snapshot.representative.index, total: snapshot.total } } : {}),
+      ...(result.decision?.evacuation ? { evacuation: { censored: unresolvedSeen, horizon: values.read('evacuation.horizon'), notOut } } : {}),
+    };
+    runData.set(result, data);
+    yield { ...snapshot, result, data };
   }
 }
 
 export interface DecisionDifference {
   metric: string;
+  censored?: boolean;
+  method: 'paired' | 'interval subtraction';
   difference: Ranged;
   direction: 'lower' | 'higher' | 'context';
-  verdict: 'clearly better' | 'clearly worse' | 'within noise';
+  verdict: 'clearly better' | 'clearly worse' | 'within noise' | 'cannot verify';
 }
-/** B minus A; disjoint p10–p90 intervals are required for a directional verdict.
- * Difference bounds use interval subtraction, not an invented paired covariance.
- * Occupancy, throughput demand and dwell need context, so receive no preference.
+/** Pair only exact run/draw identities, never merely overlapping result intervals.
+ * Missing or incompatible series use explicitly labelled interval subtraction.
+ * Context-dependent measures still receive no invented direction of preference.
  */
-export function compareResults(a: SimulationResult, b: SimulationResult): DecisionDifference[] {
+export function compareResults(a: SimulationResult, b: SimulationResult,
+  data: { a?: DecisionRunData; b?: DecisionRunData } = {}): DecisionDifference[] {
   if (!a.decision || !b.decision) throw new Error('Compare results after decision measurements are available');
+  const aSeries = (data.a ?? runData.get(a))?.series, bSeries = (data.b ?? runData.get(b))?.series;
+  const paired = !!aSeries && !!bSeries && aSeries.scenarioSeed === bSeries.scenarioSeed && aSeries.total === bSeries.total &&
+    aSeries.samples.length > 0 && aSeries.samples.length === bSeries.samples.length &&
+    aSeries.samples.length === a.decision.runs && bSeries.samples.length === b.decision.runs &&
+    aSeries.samples.every((row, i) => row.index === bSeries.samples[i].index && row.seed === bSeries.samples[i].seed && row.parameterSet === bSeries.samples[i].parameterSet);
   const before = decisionValues(a.decision), after = decisionValues(b.decision);
   return Object.keys(before).filter(key => after[key] && before[key].unit === after[key].unit).sort().map(metric => {
     const x = before[metric], y = after[metric];
     const direction = metric.startsWith('retail.') && /entriesPerHour$|passersPerHour$|revenuePerYear$/.test(metric) ? 'higher' :
       metric.startsWith('spaceUse.') || metric.endsWith('.demand') || metric.endsWith('.dwellS') ? 'context' : 'lower';
-    const lower = y.high < x.low, higher = y.low > x.high;
+    const metricPaired = paired && aSeries!.samples.every((row, i) => {
+      const a = row.measurements[metric], b = bSeries!.samples[i].measurements[metric];
+      return a && b && a.unit === x.unit && b.unit === x.unit && Number.isFinite(a.value) && Number.isFinite(b.value);
+    });
+    const differences = metricPaired ? aSeries!.samples.map((row, i) => bSeries!.samples[i].measurements[metric].value - row.measurements[metric].value) : [];
+    const difference: Ranged = metricPaired ? { value: percentile(differences, .5), low: percentile(differences, .1), high: percentile(differences, .9), unit: x.unit } :
+      { value: y.value - x.value, low: y.low - x.high, high: y.high - x.low, unit: x.unit };
+    const lower = difference.high < 0, higher = difference.low > 0;
     let verdict: DecisionDifference['verdict'] = 'within noise';
     if (direction !== 'context' && (lower || higher)) verdict = (direction === 'lower' ? lower : higher) ? 'clearly better' : 'clearly worse';
-    return { metric, direction, verdict, difference: { value: y.value - x.value, low: y.low - x.high, high: y.high - x.low, unit: x.unit } };
+    const censored = metric === 'evacuation.totalS' && [a, b].some(result => result.decision!.checks.some(check => check.code === 'evacuation_complete' && !check.ok));
+    if (censored) verdict = 'cannot verify';
+    return { metric, ...(censored ? { censored: true } : {}), method: metricPaired ? 'paired' : 'interval subtraction', direction, verdict, difference };
   });
 }

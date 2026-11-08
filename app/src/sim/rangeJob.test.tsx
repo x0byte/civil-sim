@@ -92,3 +92,38 @@ describe('streamed range jobs',()=>{
     expect(html).toContain('Decision comparison');expect(html).toContain('Incomplete ranges');expect(html).not.toContain('currency_per_year');
   });
 });
+
+it('exposes a typical-run notice and retains worker metadata in the job',async()=>{
+  const pending=startRanges(run);await vi.advanceTimersByTimeAsync(1);
+  const rangeData={series:{scenarioSeed:run.scenario.seed,total:12,samples:[]},representative:{index:6,total:12}};
+  worker.onmessage?.({data:{type:'result',value:{...run.result,tracks:[...run.result.tracks]},rangeData}});await pending;
+  expect(useEditor.getState().run!.rangeData).toEqual(rangeData);
+  expect(useEditor.getState().run!.playbackKey).toBe(run.playbackKey);
+  expect(useRangeJob.getState().message).toBe('Now showing a typical run · run 7 of 12');
+});
+it('shows censored evacuation as a lower bound with a count and Cannot verify, even if representative playback cleared',()=>{
+  const d=structuredClone(run.result.decision!);
+  d.evacuation={totalS:{value:7200,low:7200,high:7200,unit:'s'},limitS:8000,pass:false};
+  d.checks.push({code:'evacuation_complete',ok:false,rule:'Everyone must be out',message:'At least one draw is unresolved',refIds:[]});
+  const censored={...run,result:{...run.result,decision:d},rangeData:{series:{scenarioSeed:42,total:12,samples:[]},evacuation:{censored:true,horizon:7200,notOut:3}}};
+  const html=renderToStaticMarkup(<DecisionSummary run={censored}/>);
+  expect(html).toContain('More than 7200 s · 3 people not out (at refuges or unresolved)');expect(html).toContain('Cannot verify');expect(html).not.toContain('No limit set');
+  const comparison={a:censored,b:censored,labels:['A','B'] as [string,string]};
+  expect(renderToStaticMarkup(<DecisionComparison comparison={comparison}/>)).toContain('Cannot verify');
+});
+it('uses kind and id for unknown capacity references instead of Door 0',()=>{
+  const d=structuredClone(run.result.decision!);d.capacity=[{refId:'removed-stair',kind:'stair',capacityPerMin:10,peakDemandPerMin:{value:1,low:1,high:1,unit:'people_per_min'},utilisation:{value:1,low:1,high:1,unit:'ratio'},worstAt:0}];
+  const html=renderToStaticMarkup(<DecisionSummary run={{...run,result:{...run.result,decision:d}}}/>);
+  expect(html).toContain('stair · removed-stair');expect(html).not.toContain('Door 0');
+});
+
+it('labels paired comparisons and uses the paired win despite overlapping option intervals',()=>{
+  const a={...run,result:structuredClone(run.result)},b={...run,result:structuredClone(run.result)};
+  a.result.decision!.runs=12;b.result.decision!.runs=12;
+  a.result.decision!.timeLost.hoursPerDay={value:100,low:75,high:125,unit:'hours_per_day'};
+  b.result.decision!.timeLost.hoursPerDay={value:80,low:60,high:100,unit:'hours_per_day'};
+  const values=[75,80,85,90,95,100,105,110,115,120,125,130];
+  for(const [target,scale] of [[a,1],[b,.8]] as const)target.rangeData={series:{scenarioSeed:42,total:12,samples:values.map((value,index)=>({index,seed:index,parameterSet:String(index),measurements:{'timeLost.hoursPerDay':{value:value*scale,unit:'hours_per_day'},'teamDistance.secondsPerPersonPerDay':{value:0,unit:'s'}}}))}};
+  const html=renderToStaticMarkup(<DecisionComparison comparison={{a,b,labels:['A','B']}}/>);
+  expect(html).toContain('Paired comparison');expect(html).toContain('clearly better');expect(html).toContain('Paired runs');
+});
