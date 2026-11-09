@@ -7,6 +7,7 @@ import { checkFloorPlan } from "../../../contracts/validate.ts";
 import { upgradePlan } from "./planOps.ts";
 import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { LayoutOption } from "../state/store.ts";
+import { type CadRecord, isCadRecord } from "../importers/cadOrigin.ts";
 
 export const PROJECT_FORMAT = "civil-sim-project";
 export const PROJECT_VERSION = 1;
@@ -19,6 +20,8 @@ export interface ProjectFile {
   options: LayoutOption[];
   /** People settings by plan id, for the plan and options in this file. */
   people: Record<string, OfficeProfile>;
+  /** Where imported AutoCAD drawings sit, by plan id, so DXF exports line up with them. Missing: none. */
+  cad?: Record<string, CadRecord>;
 }
 
 export function buildProject(
@@ -26,10 +29,20 @@ export function buildProject(
   options: LayoutOption[],
   profiles: Record<string, OfficeProfile>,
   now = new Date(),
+  cadRecords: Record<string, CadRecord> = {},
 ): ProjectFile {
   const ids = new Set([plan.id, ...options.map((o) => o.plan.id)]);
   const people = Object.fromEntries(Object.entries(profiles).filter(([id]) => ids.has(id)));
-  return { format: PROJECT_FORMAT, version: PROJECT_VERSION, savedAt: now.toISOString(), plan, options, people };
+  const cad = Object.fromEntries(Object.entries(cadRecords).filter(([id]) => ids.has(id)));
+  return {
+    format: PROJECT_FORMAT,
+    version: PROJECT_VERSION,
+    savedAt: now.toISOString(),
+    plan,
+    options,
+    people,
+    ...(Object.keys(cad).length ? { cad } : {}),
+  };
 }
 
 export const projectFileName = (plan: FloorPlan) =>
@@ -67,7 +80,9 @@ export function parseProjectOrPlan(text: string): Opened {
     const dropped = (Array.isArray(p.options) ? p.options.length : 0) - options.length;
     if (dropped) warnings.push(`${dropped} saved option(s) were damaged and left out.`);
     if (Object.keys(okPeople).length < Object.keys(people).length) warnings.push("Some People settings were damaged and left out.");
-    return { kind: "project", project: { ...p, plan, options, people: okPeople }, warnings };
+    const { cad: rawCad, ...rest } = p;
+    const cad = rawCad && typeof rawCad === "object" ? Object.fromEntries(Object.entries(rawCad).filter(([, r]) => isCadRecord(r))) : {};
+    return { kind: "project", project: { ...rest, plan, options, people: okPeople, ...(Object.keys(cad).length ? { cad } : {}) }, warnings };
   }
   if (isPlan(obj)) {
     const plan = upgradePlan(obj);

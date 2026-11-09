@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import { blankPlan } from "../model/planOps.ts";
 import { buildProject, projectFileName } from "../model/projectFile.ts";
 import { DxfImportDialog } from "../importers/DxfImportDialog.tsx";
+import { DxfExportDialog } from "../exporters/DxfExportDialog.tsx";
 import { type DxfDrawing } from "../importers/dxf.ts";
+import { useCad } from "../importers/cadOrigin.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { CompareDialog } from "../playback/Compare.tsx";
 import { useEditor } from "../state/store.ts";
@@ -50,6 +52,7 @@ export function TopBar() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [dxf, setDxf] = useState<{ drawing: DxfDrawing; name: string } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     const bring = (e: Event) => {
@@ -65,7 +68,7 @@ export function TopBar() {
     fileTask.run(async (signal, report) => {
       const { plan, options, profiles } = useEditor.getState();
       report({ message: "Preparing the project file…" });
-      const text = await runInBackground({ kind: "serialize", value: buildProject(plan, options, profiles) }, signal, report);
+      const text = await runInBackground({ kind: "serialize", value: buildProject(plan, options, profiles, new Date(), useCad.getState().records) }, signal, report);
       signal.throwIfAborted();
       const blob = new Blob([text], { type: "application/json" });
       const a = document.createElement("a");
@@ -96,6 +99,7 @@ export function TopBar() {
       report({ message: "Opening the building and saved settings…" });
       if (opened.kind === "project") {
         useEditor.getState().openProject(opened.project);
+        if (opened.project.cad) useCad.getState().merge(opened.project.cad);
         notify([`Opened ${opened.project.plan.name}.`, ...opened.warnings].join(" "));
       } else {
         load(opened.plan);
@@ -131,6 +135,7 @@ export function TopBar() {
     "separator",
     { label: "Trace a plan image…", onSelect: () => imageRef.current?.click() },
     { label: "Import an AutoCAD drawing (DXF)…", onSelect: () => importRef.current?.click() },
+    { label: "Export to AutoCAD (DXF)…", onSelect: () => setExportOpen(true) },
     "separator",
     { heading: "Samples" },
     ...SAMPLE_PLANS.map((sample) => ({
@@ -245,6 +250,7 @@ export function TopBar() {
         <LoadingState task={fileTask} onCancel={() => fileTask.cancel()} onRetry={fileTask.retry} onDismiss={fileTask.clear} />
       </div>
       {compareOpen && <CompareDialog onClose={() => setCompareOpen(false)} />}
+      {exportOpen && <DxfExportDialog onClose={() => setExportOpen(false)} />}
       {dxf && <DxfImportDialog drawing={dxf.drawing} fileName={dxf.name} onClose={() => setDxf(null)} />}
       {saveOpen && (
         <SaveOptionDialog
