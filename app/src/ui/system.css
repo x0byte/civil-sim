@@ -970,3 +970,28 @@ html:root[data-theme="dark"] .segmented button.active {
   box-shadow: var(--pop-shadow, 0 6px 24px #0003);
   font-size: var(--text-small);
 }
+
+/* People · behaviour rules (v1.1) */
+.rule-card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: var(--space-2);
+}
+.rule-card.off { opacity: 0.62; }
+.rule-card.editing { border-color: var(--accent); gap: var(--space-2); }
+.rule-card p { margin: 0; }
+.rule-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rule-card .row2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  gap: var(--space-2);
+}
+.rule-card .row2 > *,
+.rule-card .field,
+.rule-card input,
+.rule-card select { min-width: 0; }
+.rule-card .input-unit { min-width: 0; flex-wrap: wrap; }
+.rule-strength { display: grid; gap: var(--space-1); }

@@ -81,6 +81,8 @@ export function compactPlan({ plan, profile }: StateContext["draft"]) {
     people: {
       relationships: profile.relationships?.slice(0, 10),
       goals: profile.goals?.slice(0, 10),
+      // Behaviour rules (v1.1), compact: id, on/off and strength; the format itself is in the cached knowledge.
+      behaviours: profile.behaviours?.map((r) => ({ id: r.id, name: r.name, on: r.enabled, strength: [r.strength.value, r.strength.low, r.strength.high], basis: r.strength.basis })),
 
       workday: profile.workday,
       attendance: profile.attendance,

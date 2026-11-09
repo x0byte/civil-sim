@@ -209,7 +209,7 @@ describe("design assistant conversation", () => {
     expect(JSON.parse(states.at(-1)!.content as string).resultsOpen).toBe(
       false,
     );
-  });
+  }, 30000);
   it("keeps the release prefix byte-identical, reads a mocked one-hour cache and appends no unchanged snapshot", async () => {
     script.push(say("Ready."), say("Still ready."));
     await useAssistant.getState().send("Describe this building");

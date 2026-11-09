@@ -1,3 +1,4 @@
+import { behaviourSummary } from "../results/BehaviourResults.tsx";
 import { hasTeamRelationships, progressText } from "../results/model.ts";
 import { EvidenceLink } from "../results/values.tsx";
 import {
@@ -245,6 +246,7 @@ export function DecisionSummary({
             </dd>
           </div>
         </dl>
+        {behaviourSummary(run) && <p className="muted">{behaviourSummary(run)}</p>}
         <details>
           <summary>Delay causes and rules</summary>
           <ul>

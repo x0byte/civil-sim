@@ -454,6 +454,7 @@ export function errorText(e: unknown): string {
 const TOOL_ACTIVITY: Record<string, string> = {
   set_relationship: "Recording team interactions",
   set_goal: "Recording the goal",
+  set_behaviour: "Updating how people react",
   propose_layout: "Checking team placements",
   explain: "Reading the Evidence",
   get_parameter: "Reading parameter evidence",

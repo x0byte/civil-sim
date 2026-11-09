@@ -107,6 +107,13 @@ export function EvidenceTab({
           onChange={(e) => setQuery(e.target.value)}
         />
       </label>
+      {run.result.evidence?.parameters.some((p) => p.key.startsWith("behaviour.")) && (
+        <div className="room-chips">
+          <button className={query === "behaviour." ? "chip active" : "chip"} onClick={() => setQuery(query === "behaviour." ? "" : "behaviour.")}>
+            Behaviour rules
+          </button>
+        </div>
+      )}
       <div className="results-table-wrap">
         <table className="table">
           <thead>
