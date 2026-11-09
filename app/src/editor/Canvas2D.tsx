@@ -22,8 +22,10 @@ import {
   updateItem,
 } from "../model/planOps.ts";
 import { type Tool, useEditor } from "../state/store.ts";
+import type { ItemRef } from "../model/planOps.ts";
+import { type Clip, GROUP_KINDS, clipBounds, clipSize, copyItems, deleteItems, groupable, itemsInBox, moveItems, pasteClip } from "../model/groupOps.ts";
 import { PlanDrawing } from "./PlanDrawing.tsx";
-import { type SnapKind, snapPoint } from "./snap.ts";
+import { type SnapKind, snapPoint, typedPoint } from "./snap.ts";
 import { type Camera, useCamera } from "./useCamera.ts";
 import { useImageSize } from "./useImageSize.ts";
 import { useDeskColors } from "../population/PeoplePanel.tsx";
@@ -36,12 +38,20 @@ type Drag =
   | { type: "north"; rotate: boolean; grab: Vec2; started: boolean }
   | { type: "fixture"; id: string; grab: Vec2; started: boolean }
   | { type: "opening"; id: string; started: boolean }
-  | { type: "room"; start: Vec2; moved: boolean };
+  | { type: "room"; start: Vec2; moved: boolean }
+  | { type: "box"; start: Vec2; add: boolean; moved: boolean; click?: ItemRef }
+  | { type: "group"; refs: ItemRef[]; grab: Vec2; applied: Vec2; started: boolean };
+
+/** What Copy put away, shared by every canvas (and kept across floors). */
+let clipboard: Clip | null = null;
+const MOVABLE = new Set<string>(["wall", "space", "zone", "connector"]);
+const sameRef = (a: ItemRef, b: ItemRef) => a.kind === b.kind && a.id === b.id;
 
 const HINTS: Record<Tool, string> = {
-  select: "Click to select. Drag corners, doors and furniture to move them. Delete removes. Drag empty space to pan.",
+  select:
+    "Click to select, Shift-click to add. Drag a box to select several (left to right: wholly inside; right to left: anything it touches). Drag a selected item to move it; arrows nudge. ⌘C ⌘V ⌘D copy, paste, duplicate. Space-drag pans.",
   pan: "Drag to move around. Scroll to zoom.",
-  wall: "Click to start a wall, then click each corner. Click the first point to close the shape. Esc or double-click to stop. Shift = straight.",
+  wall: "Click to start a wall, then click each corner, or type a length (4.2), length<angle (4.2<30) or offset (@3,1.5) and press Enter. Click the first point to close. Esc or double-click to stop. Shift = straight.",
   door: "Click on a wall to add a door. Doors on the outside walls are marked as entrances.",
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
@@ -56,15 +66,21 @@ const HINTS: Record<Tool, string> = {
 
 const SNAP_COLORS: Record<SnapKind, string> = {
   corner: "var(--accent)",
+  intersection: "var(--accent)",
+  midpoint: "var(--accent)",
+  perpendicular: "var(--accent)",
   wall: "var(--exterior)",
+  angle: "var(--exterior)",
   grid: "var(--ink-3)",
   free: "var(--ink-3)",
 };
+const SNAP_LABEL: Partial<Record<SnapKind, string>> = { corner: "End", intersection: "Crossing", midpoint: "Middle", perpendicular: "Square" };
 
 export function Canvas2D() {
   const plan = useEditor((s) => s.plan);
   const tool = useEditor((s) => s.tool);
   const selection = useEditor((s) => s.selection);
+  const group = useEditor((s) => s.group);
   const snapToGrid = useEditor((s) => s.snapToGrid);
   const gridSize = useEditor((s) => s.gridSize);
   const fixtureType = useEditor((s) => s.fixtureType);
@@ -76,12 +92,14 @@ export function Canvas2D() {
     const i = plan.levels.findIndex((l) => l.id === level);
     return i > 0 ? plan.walls.filter((w) => w.levelId === plan.levels[i - 1].id) : [];
   }, [plan, level]);
-  const { commit, beginDrag, drag: dragPlan, select, notify, setTool } = useEditor.getState();
+  const { commit, beginDrag, drag: dragPlan, select, setGroup, notify, setTool } = useEditor.getState();
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const { cam, setCam, fit, zoomBy, toPlan } = useCamera(wrapRef, svgRef, plan, { top: 80, right: 48, bottom: 48, left: 48 });
-  const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean } | null>(null);
+  const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean; angle?: number } | null>(null);
+  const [typed, setTyped] = useState("");
+  const [box, setBox] = useState<{ a: Vec2; b: Vec2 } | null>(null);
   const [northPosition, setNorthAt] = useState<Vec2 | null>(null);
   const northAt = northPosition ?? { x: plan.bounds.width - 80 / cam.s, y: -36 / cam.s };
   useEffect(() => setNorthAt(null), [plan.id]);
@@ -104,7 +122,11 @@ export function Canvas2D() {
     setDraft([]);
     setRect(null);
     setCalib(null);
+    setTyped("");
   }, [tool, plan.id, level]);
+
+  /** Everything selected: the group, or the single selection. */
+  const picked = (): ItemRef[] => (group.length ? group : selection ? [selection] : []);
 
   const snap = (raw: Vec2, shift: boolean, opts: { walls?: boolean; ignore?: Set<string> } = {}) => {
     if (tool === "neighbour") return { point: { x: snapToGrid ? Math.round(raw.x / gridSize) * gridSize : raw.x, y: snapToGrid ? Math.round(raw.y / gridSize) * gridSize : raw.y }, kind: snapToGrid ? "grid" as const : "free" as const };
@@ -174,6 +196,17 @@ export function Canvas2D() {
 
     switch (tool) {
       case "select": {
+        const hit = kind && id && (GROUP_KINDS as readonly string[]).includes(kind) ? ({ kind, id } as ItemRef) : null;
+        const current = picked();
+        if (e.shiftKey && hit) {
+          const on = current.some((r) => sameRef(r, hit));
+          setGroup(on ? current.filter((r) => !sameRef(r, hit)) : [...current, hit]);
+          return;
+        }
+        if (hit && current.some((r) => sameRef(r, hit)) && (current.length > 1 || MOVABLE.has(hit.kind))) {
+          dragRef.current = { type: "group", refs: groupable(current), grab: raw, applied: { x: 0, y: 0 }, started: false };
+          return;
+        }
         if (kind === "north" || kind === "north-rotate") {
           dragRef.current = { type: "north", rotate: kind === "north-rotate", grab: { x: raw.x - northAt.x, y: raw.y - northAt.y }, started: false };
         } else if (kind === "noise") {
@@ -191,11 +224,13 @@ export function Canvas2D() {
         } else if (kind === "opening") {
           select({ kind: "opening", id });
           dragRef.current = { type: "opening", id, started: false };
-        } else if (kind === "wall" || kind === "space" || kind === "zone" || kind === "connector" || kind === "neighbour" || kind === "road") {
+        } else if (kind === "space" || kind === "zone" || kind === "connector") {
+          // Rooms cover most of a plan: a click selects the room, a drag from it draws a selection box.
+          dragRef.current = { type: "box", start: raw, add: e.shiftKey, moved: false, click: { kind, id } };
+        } else if (kind === "wall" || kind === "neighbour" || kind === "road") {
           select({ kind, id });
         } else {
-          select(null);
-          startPan();
+          dragRef.current = { type: "box", start: raw, add: e.shiftKey, moved: false };
         }
         return;
       }
@@ -265,7 +300,7 @@ export function Canvas2D() {
     const d = dragRef.current;
     const ignore = d?.type === "corner" ? d.ignore : undefined;
     const s = snap(raw, e.shiftKey, { ignore, walls: tool !== "fixture" && d?.type !== "fixture" });
-    setCursor({ raw, point: s.point, kind: s.kind, shift: e.shiftKey });
+    setCursor({ raw, point: s.point, kind: s.kind, shift: e.shiftKey, angle: s.angle });
     if (!d) return;
 
     switch (d.type) {
@@ -330,12 +365,39 @@ export function Canvas2D() {
         if (dist(d.start, s.point) > 0.3) d.moved = true;
         if (d.moved) setRect({ a: d.start, b: s.point });
         return;
+      case "box":
+        if (dist(d.start, raw) > 4 / cam.s) d.moved = true;
+        if (d.moved) setBox({ a: d.start, b: raw });
+        return;
+      case "group": {
+        const step = snapToGrid ? gridSize : 0.01;
+        let delta = { x: Math.round((raw.x - d.grab.x) / step) * step, y: Math.round((raw.y - d.grab.y) / step) * step };
+        if (e.shiftKey) delta = Math.abs(delta.x) >= Math.abs(delta.y) ? { x: delta.x, y: 0 } : { x: 0, y: delta.y };
+        const by = { x: delta.x - d.applied.x, y: delta.y - d.applied.y };
+        if (!by.x && !by.y) return;
+        if (!d.started) {
+          beginDrag();
+          d.started = true;
+        }
+        dragPlan((p) => moveItems(p, d.refs, by));
+        d.applied = delta;
+        return;
+      }
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = dragRef.current;
     dragRef.current = null;
+    if (d?.type === "box") {
+      setBox(null);
+      if (!d.moved) return d.click ? select(d.click) : d.add ? undefined : select(null);
+      const end = toPlan(e);
+      const found = itemsInBox(plan, level, d.start, end, end.x < d.start.x);
+      const base = d.add ? picked() : [];
+      setGroup([...base, ...found.filter((r) => !base.some((b) => sameRef(b, r)))]);
+      return;
+    }
     if (d?.type !== "room") return;
     if (d.moved && rect) {
       const { a, b } = rect;
@@ -353,15 +415,115 @@ export function Canvas2D() {
     if ((tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
   };
 
+  /** Places the next point from what was typed: a length, length<angle or @x,y offset. */
+  const applyTyped = () => {
+    const anchorPt = draft[draft.length - 1];
+    const text = typed;
+    setTyped("");
+    if (!anchorPt) return;
+    const raw = typedPoint(text, anchorPt, cursor?.point ?? anchorPt);
+    if (!raw) return notify("Type a length like 4.2, a length and angle like 4.2<30 (degrees from east), or an offset like @3,1.5, then Enter.");
+    const p = { x: Math.min(plan.bounds.width, Math.max(0, raw.x)), y: Math.min(plan.bounds.height, Math.max(0, raw.y)) };
+    if (samePoint(p, anchorPt, 1e-4)) return;
+    if (tool === "wall") {
+      commit((pl) => addWall(pl, anchorPt, p, level).plan);
+      if (draft.length >= 3 && samePoint(p, draft[0], 1e-3)) return finishChain();
+      setDraft([...draft, p]);
+    } else if (draft.length >= 3 && samePoint(p, draft[0], 1e-3)) closeRoom(draft);
+    else setDraft([...draft, p]);
+  };
+
+  const pasteAt = (clip: Clip, centre: Vec2 | null) => {
+    const b = clipBounds(clip);
+    if (!b) return;
+    const off = centre
+      ? { x: centre.x - (b.lo.x + b.hi.x) / 2, y: centre.y - (b.lo.y + b.hi.y) / 2 }
+      : { x: 1, y: 1 };
+    let refs: ItemRef[] = [];
+    let skipped = 0;
+    commit((p) => {
+      const out = pasteClip(p, clip, off, level);
+      refs = out.refs;
+      skipped = out.skipped;
+      return out.plan;
+    });
+    setGroup(refs);
+    notify(`Pasted ${refs.length} item${refs.length === 1 ? "" : "s"}.${skipped ? ` ${skipped} stairs or lifts left out: they belong to the floors they join.` : ""}`);
+  };
+
   useEffect(() => {
     const typing = (e: KeyboardEvent) => (e.target as HTMLElement | null)?.closest?.("input, select, textarea");
     const down = (e: KeyboardEvent) => {
       if (typing(e)) return;
+      const anchorPt = draft[draft.length - 1];
+      const entering = !!anchorPt && (tool === "wall" || tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour");
+      const mod = e.metaKey || e.ctrlKey;
+      if (entering && !mod && /^[0-9.@<,\-]$/.test(e.key)) {
+        e.preventDefault();
+        setTyped((t) => t + e.key);
+        return;
+      }
+      if (typed && e.key === "Backspace") {
+        e.preventDefault();
+        setTyped((t) => t.slice(0, -1));
+        return;
+      }
+      if (typed && e.key === "Enter") {
+        e.preventDefault();
+        applyTyped();
+        return;
+      }
+      if (typed && e.key === "Escape") {
+        setTyped("");
+        return;
+      }
+      const sel = groupable(picked());
+      if (mod && tool === "select") {
+        const k = e.key.toLowerCase();
+        if (k === "a") {
+          e.preventDefault();
+          setGroup(itemsInBox(plan, level, { x: -1e9, y: -1e9 }, { x: 1e9, y: 1e9 }, false));
+          return;
+        }
+        if ((k === "c" || k === "x" || k === "d") && sel.length) {
+          e.preventDefault();
+          const clip = copyItems(plan, sel, level);
+          if (k === "d") return pasteAt(clip, null);
+          clipboard = clip;
+          if (k === "x") {
+            commit((p) => deleteItems(p, sel));
+            select(null);
+          }
+          notify(`${k === "x" ? "Cut" : "Copied"} ${clipSize(clip)} item${clipSize(clip) === 1 ? "" : "s"}. ⌘V pastes at the cursor.`);
+          return;
+        }
+        if (k === "v" && clipboard) {
+          e.preventDefault();
+          pasteAt(clipboard, cursor?.point ?? null);
+          return;
+        }
+      }
+      if (tool === "select" && sel.length && e.key.startsWith("Arrow")) {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : snapToGrid ? gridSize : 0.05;
+        const d = { x: e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, y: e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0 };
+        commit((p) => moveItems(p, sel, d));
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && group.length) {
+        e.preventDefault();
+        const refs = group;
+        commit((p) => deleteItems(p, refs));
+        select(null);
+        return;
+      }
       if (e.key === " ") {
         spaceHeld.current = true;
         e.preventDefault();
       } else if (e.key === "Escape") {
-        if (draft.length || rect || calib) {
+        if (group.length) {
+          select(null);
+        } else if (draft.length || rect || calib) {
           setDraft([]);
           setRect(null);
           setCalib(null);
@@ -447,6 +609,7 @@ export function Canvas2D() {
             level={level}
             below={below}
             zoneTeams={zoneTeams}
+            group={group}
           />
 
           <g transform={`translate(${northAt.x} ${northAt.y}) rotate(${plan.site?.northDeg ?? 0})`}>
@@ -498,6 +661,20 @@ export function Canvas2D() {
             </>
           )}
           {calib && <PreviewSegment a={calib.a} b={calib.b} scale={cam.s} dashed />}
+          {box && (
+            <rect
+              x={Math.min(box.a.x, box.b.x)}
+              y={Math.min(box.a.y, box.b.y)}
+              width={Math.abs(box.b.x - box.a.x)}
+              height={Math.abs(box.b.y - box.a.y)}
+              fill="var(--accent)"
+              fillOpacity={0.08}
+              stroke="var(--accent)"
+              strokeWidth={sx(1.25)}
+              strokeDasharray={box.b.x < box.a.x ? `${sx(5)} ${sx(4)}` : undefined}
+              style={{ pointerEvents: "none" }}
+            />
+          )}
           {draft.map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r={sx(i === 0 ? 5 : 3.5)} fill="var(--accent)" />
           ))}
@@ -535,6 +712,19 @@ export function Canvas2D() {
                 strokeWidth={sx(1.5)}
               />
               <circle cx={cursor.point.x} cy={cursor.point.y} r={sx(1.5)} fill={SNAP_COLORS[cursor.kind]} />
+              {(SNAP_LABEL[cursor.kind] || cursor.kind === "angle") && (
+                <text x={cursor.point.x + sx(10)} y={cursor.point.y - sx(10)} fontSize={sx(11)} className="measure" fill={SNAP_COLORS[cursor.kind]}>
+                  {cursor.kind === "angle" ? `${cursor.angle}°` : SNAP_LABEL[cursor.kind]}
+                </text>
+              )}
+            </g>
+          )}
+          {typed && cursor && (
+            <g style={{ pointerEvents: "none" }}>
+              <rect x={cursor.raw.x + sx(14)} y={cursor.raw.y + sx(10)} width={sx(Math.max(60, typed.length * 8 + 46))} height={sx(22)} rx={sx(4)} fill="var(--paper)" stroke="var(--accent)" strokeWidth={sx(1.25)} />
+              <text x={cursor.raw.x + sx(22)} y={cursor.raw.y + sx(25)} fontSize={sx(12)} fill="var(--ink)">
+                {typed}▏ ↵
+              </text>
             </g>
           )}
         </g>

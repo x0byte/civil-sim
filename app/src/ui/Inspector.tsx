@@ -31,6 +31,7 @@ import { DEFAULT_SITE } from "../model/comfortDefaults.ts";
 import { WindowGlass, RoomFinish, NoiseFields } from "./ComfortFields.tsx";
 import { FindWalls } from "../importers/FindWalls.tsx";
 import { useEditor } from "../state/store.ts";
+import { copyItems, deleteItems, pasteClip } from "../model/groupOps.ts";
 import { NumField, SelectField, TextField } from "./fields.tsx";
 
 const PRIVACY: { value: Privacy; label: string }[] = [
@@ -49,6 +50,7 @@ function defaultCapacity(type: SpaceType, current: number | undefined): number |
 export function Inspector() {
   const plan = useEditor((s) => s.plan);
   const selection = useEditor((s) => s.selection);
+  const group = useEditor((s) => s.group);
   const { commit, select, notify } = useEditor.getState();
 
   const remove = () => {
@@ -58,6 +60,7 @@ export function Inspector() {
     select(null);
   };
 
+  if (group.length) return <GroupPanel />;
   if (!selection) return <><PlanPanel /><SitePanel /></>;
 
   if (selection.kind === "wall") {
@@ -616,6 +619,51 @@ export function ZoneInspector({ id, onDelete }: { id: string; onDelete: () => vo
         </>
       )}
       <p className="muted">A zone has no walls: people walk through it freely. It labels where a team sits or what an area is for.</p>
+    </Panel>
+  );
+}
+
+const GROUP_NAMES: Record<string, [string, string]> = {
+  wall: ["wall", "walls"],
+  space: ["room", "rooms"],
+  zone: ["zone", "zones"],
+  fixture: ["piece of furniture", "pieces of furniture"],
+  connector: ["stairs or lift", "stairs and lifts"],
+  noise: ["noise source", "noise sources"],
+};
+
+/** Several items selected: what's in the selection and what you can do with it. */
+export function GroupPanel() {
+  const group = useEditor((s) => s.group);
+  const level = useEditor((s) => s.level);
+  const { commit, select, setGroup, notify } = useEditor.getState();
+  const counts = new Map<string, number>();
+  for (const r of group) counts.set(r.kind, (counts.get(r.kind) ?? 0) + 1);
+  const summary = [...counts].map(([k, n]) => `${n} ${GROUP_NAMES[k]?.[n === 1 ? 0 : 1] ?? k}`).join(", ");
+  const duplicate = () => {
+    let refs: typeof group = [];
+    commit((p) => {
+      const out = pasteClip(p, copyItems(p, group, level), { x: 1, y: 1 }, level);
+      refs = out.refs;
+      return out.plan;
+    });
+    setGroup(refs);
+    notify(`Duplicated ${refs.length} items, 1 m across and down. Drag them into place.`);
+  };
+  return (
+    <Panel
+      title={`${group.length} items selected`}
+      sub={summary}
+      onDelete={() => {
+        commit((p) => deleteItems(p, group));
+        select(null);
+      }}
+    >
+      <p className="muted">Drag any of them to move them together. Arrow keys nudge (Shift: 1 m). ⌘C copies, ⌘V pastes at the cursor, ⌘D duplicates. Shift-click adds or removes one.</p>
+      <div className="dialog-actions">
+        <button onClick={duplicate}>Duplicate</button>
+        <button onClick={() => select(null)}>Clear selection</button>
+      </div>
     </Panel>
   );
 }

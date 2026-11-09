@@ -433,3 +433,15 @@ private offices. A department's `zoneId` is app-profile data that seats its peop
 becomes `Team.zoneId` in the scenario. "How closely teams work" is a click grid using the contract's scale (closely 4,
 sometimes 1, rarely 0.2 per person per day) and becomes `relationships` with `from: "user"`. Desk generation is a plan
 edit, so it lives in the app; the engine side of Part D (Codex) is using zones in team metrics and allocation.
+
+## 2026-11-09 · CAD-style editing, batch 1
+Snapping now follows CAD priority: wall end, crossing, midpoint, square onto a wall from the previous point, along a
+wall, a 15° angle lock from the previous point (within 3°, length on the grid), then the grid; the snap is named next
+to the cursor. While drawing walls or outlines, typing places the next point: `4.2` (towards the cursor), `4.2<30`
+(degrees anticlockwise from east) or `@3,1.5` (offset, y up as in CAD), then Enter. Select tool: Shift-click adds,
+a box selects several (left to right takes only what's wholly inside, right to left anything touched), and a drag
+that starts on a room draws a box while a click still selects it. Empty-space drag no longer pans: pan with
+Space-drag, the middle button or the Pan tool. A group (store `group`, two or more items) drags, nudges with arrows
+(Shift: 1 m), copies, cuts, pastes at the cursor, duplicates (+1 m) and deletes together; doors ride on their walls,
+pastes get fresh ids and stay inside the plan, and stairs and lifts paste only onto the floor they came from.
+Batch 2: offset, trim/extend/join, rotate/mirror, measure, layers.
