@@ -434,6 +434,9 @@ becomes `Team.zoneId` in the scenario. "How closely teams work" is a click grid 
 sometimes 1, rarely 0.2 per person per day) and becomes `relationships` with `from: "user"`. Desk generation is a plan
 edit, so it lives in the app; the engine side of Part D (Codex) is using zones in team metrics and allocation.
 
+## 2026-11-09 · Existing-zone placement and paired confirmation (v1.0 D engine / E)
+Team zones are authoritative centroids; headcounts expand onto existing zone desks only when a team has no explicit people. The optimiser edits Department.zoneId/roomIds and profile goals/relationships, reserves payroll capacity, and keeps exact desks for locked teams. Seeded greedy restarts and swaps rank placements; shared-cache, full-population twelve-draw paired confirmations of current and the best two decide whether to propose. Require a clear decision/route-goal improvement, a non-increasing staff-delay median and no clearly worse staff delay; within noise is not proven non-inferiority. All sampled max-walk limits and evacuation limits must pass. Goal penalties are internal job metadata, not new contract fields. Worker outcomes restore equal references; Apply checks both plan and People inputs, publishes the verified comparison and is one undoable profile edit. Proposal Evidence is read-only and scoped to its own confirmed run; changing inputs or starting a new run cancels confirmation. Static sorted tool schemas and registry remain in the frozen knowledge prefix.
+
 ## 2026-11-09 · CAD-style editing, batch 1
 Snapping now follows CAD priority: wall end, crossing, midpoint, square onto a wall from the previous point, along a
 wall, a 15° angle lock from the previous point (within 3°, length on the grid), then the grid; the snap is named next
@@ -457,3 +460,9 @@ and mirror about its centre; furniture turns with it, doors ride on their walls,
 plan is refused with a reason. Two selected walls can be joined: in line they merge (up to a 2 m gap), at an angle they
 are trimmed or extended to a clean corner. A Layers menu hides room colours, zones, furniture, noise, the traced image
 or the floor below; hidden layers can't be clicked and are remembered in this browser.
+
+## 2026-11-09 · Part E finished by Claude
+Codex ran out of usage with Part E built but not validated. At the product owner's request Claude finished it on
+`codex/v1-optimiser`: Ella's `set_goal` schema now lists every field (unused ones null) like the other tools, three
+cancellation tests compare against the loaded plan, and two whole-mall-day app tests have a 30-second limit for a
+heavier parallel suite. No engine source was changed. Details and results are in `docs/engine-v1-optimiser-report.md`.

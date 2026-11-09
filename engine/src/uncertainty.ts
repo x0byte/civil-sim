@@ -13,6 +13,8 @@ export type RangeMeasurement = Record<string, MeasuredValue>;
 export interface UncertaintyOptions {
   /** Part B2 supplies decision measurements. No proxy is silently called time lost. */
   measure: (result: SimulationResult, effectiveScenario: Scenario) => RangeMeasurement;
+  /** Shared cache owner for a serial multi-option confirmation batch. */
+  navigationCache?:ReturnType<typeof createNavigationCache>;
   /** Part B2 passes timeLost.hoursPerDay. Must be one of measure's keys. */
   representativeMetric: string;
   /** If a comfort metric is a headline, retain its grids in range runs. */
@@ -88,7 +90,7 @@ export function* streamUncertainty(inputPlan: FloorPlan, inputScenario: Scenario
   const total = scenario.uncertainty?.runs ?? parameterDefault('setting.uncertainty.runs');
   if (!Number.isInteger(total) || total < 1) throw new Error('Uncertainty needs a positive integer run count');
   options.signal?.throwIfAborted();
-  const cache = createNavigationCache();
+  const cache = options.navigationCache ?? createNavigationCache();
   const start = performance.now();
   const central = options.central ?? simulate(plan, scenario, options.simulation);
   if (central.floorPlanId !== plan.id || central.scenarioId !== scenario.id || central.seed !== scenario.seed) {

@@ -59,6 +59,8 @@ export interface OfficeProfile {
   collaborations: Collaboration[];
   /** How closely departments work together, entered in People or told to Ella. Missing: none. */
   relationships?: TeamRelationship[];
+  /** User constraints, persisted alongside the People relationship grid. */
+  goals?: import("../../../contracts/scenario.ts").Goal[];
   rates: { toiletVisitsPerDay: number; pantryVisitsPerDay: number };
   /** Lunch break. Missing means none (older saved profiles). */
   lunch?: LunchSettings;
@@ -298,6 +300,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       workday: profile.workday,
       teams: profile.departments.map((d) => ({ id: d.id, name: d.name, ...(d.zoneId && teamZones.has(d.zoneId) ? { zoneId: d.zoneId } : {}) })),
       ...(relationships.length ? { relationships } : {}),
+      ...(profile.goals?.length ? {goals:structuredClone(profile.goals)} : {}),
       people,
       meetings,
       rates: profile.rates,

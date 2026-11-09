@@ -1,3 +1,4 @@
+import { INTENT_TOOLS, runIntentTool } from "./intent.ts";
 // What the assistant can do: edits to a draft copy of the plan and the people settings.
 // Nothing here touches the editor; the user sees the draft and decides whether to apply it.
 // Every tool reuses the editor's own operations, so the assistant can't build anything the
@@ -59,6 +60,7 @@ export interface ToolOutcome {
   result: string;
   error?: boolean;
   change?: Change;
+  optimisation?: import("./optimise.ts").OptimisationProposal;
 }
 
 const point = {
@@ -492,7 +494,7 @@ export const MAX_STRICT_TOOLS = 20;
 export const MAX_STRICT_UNIONS = 16;
 
 /** Tool definitions, in a fixed order so the request prefix stays cacheable. */
-export const TOOLS: Anthropic.Tool[] = TOOL_DEFS.map((t) => ({
+export const TOOLS: Anthropic.Tool[] = [...TOOL_DEFS, ...INTENT_TOOLS].map((t) => ({
   ...t,
   strict: STRICT_TOOLS.has(t.name),
   input_schema: nullableAsAnyOf(t.input_schema) as Anthropic.Tool["input_schema"],
@@ -531,6 +533,8 @@ const pts = (v: unknown) => (v as Vec2[]).map((p) => ({ x: p.x, y: p.y }));
 /** Runs one tool call against the draft. Unknown ids and impossible edits come back as errors for the model to correct. */
 export function runTool(name: string, input: Input, draft: Draft): ToolOutcome {
   try {
+    if (name === "set_relationship" || name === "set_goal")
+      return runIntentTool(name, input, draft);
     return runToolUnchecked(name, input, draft);
   } catch (e) {
     // Tools without strict mode can get malformed input; tell the model rather than stop the request.

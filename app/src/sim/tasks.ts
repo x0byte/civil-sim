@@ -1,3 +1,4 @@
+import { optimiseDraft } from "../assistant/optimise.ts";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import type { Scenario } from "../../../contracts/scenario.ts";
 import type { DecisionMetrics, Evidence, SimulationResult } from "../../../contracts/results.ts";
@@ -15,6 +16,7 @@ import { runTool, type Draft } from "../assistant/tools.ts";
 import type { ReportProgress } from "../loading/progress.ts";
 
 export type BackgroundTask =
+  | { kind: "optimise"; draft: Draft; scope: unknown }
   | { kind: "ranges"; plan: FloorPlan; scenario: Scenario; central: SimulationResult }
   | { kind: "sensitivity"; plan: FloorPlan; scenario: Scenario; evidence: Evidence }
   | { kind: "fixed"; plan: FloorPlan; scenario: Scenario }
@@ -29,6 +31,7 @@ export type BackgroundTask =
   | { kind: "assistantTool"; name: string; input: Record<string, unknown>; draft: Draft }
   | { kind: "serialize"; value: unknown };
 export interface TaskResults {
+  optimise: ReturnType<typeof optimiseDraft>;
   ranges: SimulationResult;
   sensitivity: Evidence["sensitivity"];
   fixed: SimulationResult;
@@ -71,6 +74,8 @@ function engineProgress(start: string, report: ReportProgress) {
 export function executeTask<T extends BackgroundTask>(task: T, report: ReportProgress = () => {}, publish: (decision: DecisionMetrics, completed: number, total: number, data?: DecisionRunData) => void = () => {}, finish: (data: DecisionRunData) => void = () => {}): TaskResults[T["kind"]] {
   const execute = (): unknown => {
     switch (task.kind) {
+      case "optimise":
+        return optimiseDraft(task.draft, task.scope, report);
       case "ranges": {
         let result = task.central;
         for (const snapshot of streamDecisionResults(task.plan, task.scenario, { central: task.central })) {

@@ -39,6 +39,19 @@ export function runInBackground<T extends BackgroundTask>(
               signal.throwIfAborted();
             }
             value = result as TaskResults[T["kind"]];
+          } else if (task.kind === "optimise") {
+            const { optimiseDraftSteps } = await import("../assistant/optimise.ts");
+            const steps = optimiseDraftSteps(task.draft, task.scope);
+            while (true) {
+              signal.throwIfAborted();
+              const next = steps.next();
+              if (next.done) {
+                value = next.value as TaskResults[T["kind"]];
+                break;
+              }
+              report(next.value);
+              await new Promise<void>(resolve => setTimeout(resolve, 0));
+            }
           } else value = executeTask(task, report);
           signal.throwIfAborted();
           resolve(value);

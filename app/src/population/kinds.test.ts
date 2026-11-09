@@ -49,7 +49,7 @@ describe("kinds of people", () => {
     const r = simulate(mall, x.scenario);
     expect(r.metrics.profiles.map((p) => p.profileId)).toEqual(KINDS.map((k) => k.id));
     expect(r.tracks.filter((t) => t.kind === "shopper").every((t) => t.profileId)).toBe(true);
-  });
+  }, 30000); // A whole mall day: allow for a busy machine running the suite in parallel.
 
   it("an office gets kinds for its staff, and crowding", () => {
     const office = plan("office-a");

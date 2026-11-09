@@ -81,6 +81,13 @@ export interface Comparison {
   a: SimRun;
   b: SimRun;
   labels: [string, string];
+  /** Verified job metadata for route goals, outside the locked result contract. */
+  additionalDifferences?: import("../../../engine/src/index.ts").DecisionDifference[];
+  additionalMetrics?: {
+    metric: string;
+    before: import("../../../contracts/results.ts").Ranged;
+    after: import("../../../contracts/results.ts").Ranged;
+  }[];
 }
 
 /** Runs the same people through two layouts. People come from layout A's population profile. */

@@ -56,7 +56,7 @@ export interface DecisionRunData {
 }
 export interface DecisionSnapshot extends UncertaintySnapshot { data: DecisionRunData }
 const runData = new WeakMap<SimulationResult, DecisionRunData>();
-export type DecisionStreamOptions = Pick<UncertaintyOptions, 'central' | 'comfortHeadline' | 'signal'>;
+export type DecisionStreamOptions = Pick<UncertaintyOptions, 'central' | 'comfortHeadline' | 'signal' | 'navigationCache'>;
 /** Central decision first, then one independently cancellable range update per run. */
 export function* streamDecisionResults(plan: FloorPlan, scenario: Scenario, options: DecisionStreamOptions = {}): Generator<DecisionSnapshot> {
   let centralEvidence: SimulationResult['evidence'];

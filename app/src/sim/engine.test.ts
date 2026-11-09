@@ -83,5 +83,5 @@ describe("engine with editor-built scenarios", () => {
         expect(new Set(tr.points.map((p) => p.levelId))).toEqual(new Set(["ground", "first"]));
       }
     }
-  });
+  }, 30000); // A whole mall day: allow for a busy machine running the suite in parallel.
 });

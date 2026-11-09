@@ -1,0 +1,51 @@
+.layout-proposal {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.layout-proposal > .canvas-wrap {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.optimiser-review {
+  flex: none;
+  width: 420px;
+  max-width: 45vw;
+  box-sizing: border-box;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
+.optimiser-review .decision-cards {
+  grid-template-columns: 1fr;
+}
+.optimiser-review h3 {
+  margin-top: 24px;
+}
+.optimiser-review .table {
+  width: 100%;
+  font-size: 12px;
+}
+@media (max-width: 950px) {
+  .layout-proposal:has(.optimiser-review) {
+    flex-direction: column;
+    overflow: auto;
+  }
+  .layout-proposal:has(.optimiser-review) > .canvas-wrap {
+    flex: none;
+    height: 55vh;
+    min-height: 360px;
+  }
+  .optimiser-review {
+    width: 100%;
+    max-width: none;
+    max-height: 60vh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}

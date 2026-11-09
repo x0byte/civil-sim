@@ -1,3 +1,4 @@
+import { allocateTeamHeadcounts } from "./team-allocation.ts";
 import { withDecisionCapture } from "./modules/decision-capture.ts";
 import { decisionMetrics } from "./decision.ts";
 export { parameterQuantile, sampleParameters } from "./sampling.ts";
@@ -70,6 +71,8 @@ function floorPlanErrors(plan: FloorPlan): string[] {
 
 /** Pure, synchronous, browser-compatible simulation. Neither input is mutated. */
 export function simulate(plan: FloorPlan, scenario: Scenario, options: SimulationOptions = {}): SimulationResult {
+  try { scenario = allocateTeamHeadcounts(plan,scenario); }
+  catch(error){throw new SimulationInputError([error instanceof Error?error.message:String(error)]);}
   let values: ParameterValues;
   try { values = new ParameterValues(scenario.parameters, scenario); }
   catch (error) { throw new SimulationInputError([error instanceof Error ? error.message : String(error)]); }
@@ -298,3 +301,7 @@ export { streamDecisionResults, compareResults, decisionValues, measureDecision 
 export type { DecisionRunData, DecisionSnapshot, DecisionDifference, DecisionStreamOptions } from './decision-ranges.ts';
 
 export { peakWindow, servicedRoomWindow, roomQueueObservations } from './decision.ts';
+
+export { allocateTeamHeadcounts, teamCentre } from "./team-allocation.ts";
+export { searchLayouts, optimiseLayout } from './optimiser.ts';
+export type { TeamRequirement, TeamMove, LayoutCandidate, LayoutSearch, ConfirmedLayout, OptimiserOptions, OptimiserProgress, OptimiserReport } from './optimiser.ts';

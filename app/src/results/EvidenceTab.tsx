@@ -39,10 +39,12 @@ export function EvidenceTab({
   run,
   label,
   comparison = false,
+  readOnly = false,
 }: {
   run: SimRun;
   label?: string;
   comparison?: boolean;
+  readOnly?: boolean;
 }) {
   const target = useResults((s) => s.parameter),
     sensitivity = useEvidenceJob(),
@@ -92,8 +94,10 @@ export function EvidenceTab({
       <p role="status">{status}</p>
       <p>
         Behaviour bounds describe measured envelopes or labelled assumptions.
-        Settings stay fixed. Changing a value records its source and marks
-        results as old; rerun to calculate its effect.
+        Settings stay fixed.{" "}
+        {readOnly
+          ? "This proposal’s saved Evidence is read-only."
+          : "Changing a value records its source and marks results as old; rerun to calculate its effect."}
       </p>
       <label className="field">
         Find a parameter
@@ -142,16 +146,18 @@ export function EvidenceTab({
                 </td>
                 <td>
                   {p.overridden ? "Yes · " : ""}
-                  <button
-                    onClick={() => {
-                      setEdit(p.key);
-                      setValue(String(p.value));
-                      setSource("");
-                      setError("");
-                    }}
-                  >
-                    Change this value
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => {
+                        setEdit(p.key);
+                        setValue(String(p.value));
+                        setSource("");
+                        setError("");
+                      }}
+                    >
+                      Change this value
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

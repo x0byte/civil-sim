@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { decisionValues } from "../../../engine/src/index.ts";
 import type { Ranged } from "../../../contracts/results.ts";
 import type { SimRun } from "../sim/runSimulation.ts";
@@ -5,6 +6,10 @@ import { evidenceKeys, progressText } from "./model.ts";
 import { useResults } from "./state.ts";
 export const formatNumber = (n: number) =>
   n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+/** Proposal reviews can inspect their own saved run without replacing editor results. */
+export const EvidenceNavigation = createContext<
+  ((run: SimRun, key?: string) => void) | undefined
+>(undefined);
 export function EvidenceLink({
   run,
   groups,
@@ -18,6 +23,7 @@ export function EvidenceLink({
   value?: Ranged;
   metric?: string;
 }) {
+  const navigate = useContext(EvidenceNavigation);
   const metricKey =
     metric ??
     (value && run.result.decision
@@ -33,7 +39,8 @@ export function EvidenceLink({
       href={`#results/evidence${key ? "?parameter=" + encodeURIComponent(key) : ""}`}
       onClick={(e) => {
         e.preventDefault();
-        useResults.getState().choose("evidence", key);
+        if (navigate) navigate(run, key);
+        else useResults.getState().choose("evidence", key);
       }}
     >
       {children ?? "Evidence ↗"}

@@ -14,7 +14,8 @@
     "benchmark:evidence": "node scripts/benchmark-evidence.ts",
     "benchmark:site": "node scripts/benchmark-site.ts",
     "benchmark:comfort": "node --expose-gc scripts/benchmark-comfort.ts",
-    "benchmark:ranges": "node scripts/benchmark-ranges.ts"
+    "benchmark:ranges": "node scripts/benchmark-ranges.ts",
+    "benchmark:optimiser": "node scripts/benchmark-optimiser.ts"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
