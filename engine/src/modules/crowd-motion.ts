@@ -144,7 +144,7 @@ export class CrowdMotion {
     while (motion.segment + 1 < motion.path.length && motion.cumulative[motion.segment + 1] <= motion.at + 1e-9) motion.segment++;
     const next = Math.min(motion.path.length - 1, motion.segment + 1); const target = motion.path[next];
     const dx = target.x - track.position.x; const dy = target.y - track.position.y;
-    const speed = densitySpeed(track.speed, this.field.ahead(this.body(track), dx, dy));
+    const speed = densitySpeed(track.speed, this.field.ahead(this.body(track), dx, dy)) * ((target as { speedFactor?: number }).speedFactor ?? 1);
     const at = Math.min(motion.at + speed * 4, motion.cumulative[next], stop);
     const point = this.point(motion, at); const d = Math.max(0, at - motion.at);
     if (d < 1e-10) { motion.at = Math.min(motion.total, motion.at + 1e-8); this.schedule(track.t, () => this.step(motion)); return; }

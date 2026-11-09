@@ -1,3 +1,4 @@
+import { levelOf } from "./levels.ts";
 import { parameter } from "../parameters.ts";
 import { crowdReserve } from "./profiles.ts";
 import { doorGates } from "./flow.ts";
@@ -156,10 +157,13 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       const destinations = available.get(visit.activity)!;
       if (!destinations.length) { if (personTraits) { const target = plan.spaces.find((s) => s.type === visit.activity); if (target) events.push({ t: visit.t, personId: person.id, type: "blocked", spaceId: target.id }); } continue; }
       const destination = destinations[Math.floor(visit.choice * destinations.length)];
+      // Behaviour rules (v1.1) can make someone stay longer or shorter where a condition holds.
+      const end = destination.path.at(-1)!;
+      const stay = visit.duration * (personTraits?.people.behaviours?.dwellFactor(personTraits, end, levelOf(end, navigation.first), visit.t, visit.duration) ?? 1);
       const travel = travelBudget(destination.path);
-      if (visit.t + 2 * travel + visit.duration > until) continue;
+      if (visit.t + 2 * travel + stay > until) continue;
       track.t = visit.t;
-      walkDeadline = until - visit.duration - travel;
+      walkDeadline = until - stay - travel;
       const space = plan.spaces.find((s) => s.id === destination.spaceId)!;
       if (space.capacity !== undefined && !movement.hasLease(space.id)) {
         const trip = roomTrip(space, destination.path, navigation);
@@ -169,18 +173,18 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
         }
         const insideS = travelBudget(trip.inside);
         const outsideS = travelBudget(trip.outside);
-        if (visit.t + outsideS * 2 + insideS * 2 + visit.duration > until) continue;
-        walkDeadline = until - outsideS - insideS * 2 - visit.duration;
+        if (visit.t + outsideS * 2 + insideS * 2 + stay > until) continue;
+        walkDeadline = until - outsideS - insideS * 2 - stay;
         yield* walk(trip.outside, "walking");
         const admission = yield { personId: person.id, spaceId: space.id, track, gate: trip.gate, approach: trip.approach,
-          deadline: until - outsideS - insideS * 2 - visit.duration };
+          deadline: until - outsideS - insideS * 2 - stay };
         if (admission.admitted) movement.adoptLease(space.id, admission.release);
-        walkDeadline = until - outsideS - insideS - visit.duration;
+        walkDeadline = until - outsideS - insideS - stay;
         yield* walk(admission.toGate, "walking", space.id);
         if (admission.admitted) {
           yield* walk(trip.inside, visit.activity, space.id);
           events.push({ t: track.t, personId: person.id, type: visit.activity === "toilet" ? "toilet_visit" : "pantry_visit", spaceId: space.id });
-          track.t += visit.duration;
+          track.t += stay;
           walkDeadline = until - outsideS;
           yield* walk(back(trip.inside), "walking", space.id);
           admission.release(track.t);
@@ -191,7 +195,7 @@ export function* schedulePerson(plan: FloorPlan, scenario: Scenario, person: Per
       }
       yield* walk(destination.path, visit.activity);
       events.push({ t: track.t, personId: person.id, type: visit.activity === "toilet" ? "toilet_visit" : "pantry_visit", spaceId: destination.spaceId });
-      track.t += visit.duration;
+      track.t += stay;
       walkDeadline = until;
       yield* walk(back(destination.path), "at_desk");
     }

@@ -20,6 +20,15 @@ export function pathLength(path: Vec2[]): number {
 
 /** Stairs/lifts keep fixed durations; ramps scale with the person's walking speed. */
 export function travelTime(path: Vec2[], speed: number): number {
+  const slowed = path.some((p) => (p as { speedFactor?: number }).speedFactor !== undefined);
+  if (slowed) {
+    let seconds = 0;
+    for (let i = 1; i < path.length; i++) {
+      const fixed = connectorTime(path[i - 1], path[i]); const factor = (path[i] as { speedFactor?: number }).speedFactor ?? 1;
+      seconds += fixed === undefined ? distance(path[i - 1], path[i]) / (speed * factor) : fixed * ((path[i] as {rampWalk?:boolean}).rampWalk ? parameter("walk.speed.adult")/speed : 1);
+    }
+    return seconds;
+  }
   if (speed === parameter("walk.speed.adult")) return pathLength(path) / parameter("walk.speed.adult");
   let seconds = 0;
   for (let i = 1; i < path.length; i++) { const fixed=connectorTime(path[i - 1], path[i]); seconds += fixed === undefined ? distance(path[i - 1], path[i]) / speed : fixed * ((path[i] as {rampWalk?:boolean}).rampWalk ? parameter("walk.speed.adult")/speed : 1); }

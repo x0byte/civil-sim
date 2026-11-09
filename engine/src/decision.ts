@@ -600,5 +600,14 @@ export function decisionMetrics(
         refIds: critical ? [critical.openingId] : [],
       });
   }
+  // v1.1: what each enabled behaviour rule did in this run.
+  const rules = people.behaviours?.results() ?? [];
+  if (rules.length)
+    decision.behaviours = rules.map((r) => ({
+      ruleId: r.ruleId,
+      peopleAffected: scalar(r.people, "people"),
+      extraSecondsPerPerson: scalar(r.extraS, "s"),
+      blockedTrips: scalar(r.blocked, "count"),
+    }));
   return decision;
 }

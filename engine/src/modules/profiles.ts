@@ -33,7 +33,9 @@ export class People {
   readonly enabled: boolean;
   private loadTimes?: number[];
   private loadValues?: number[];
-  constructor(scenario: Scenario) { this.scenario = scenario; this.enabled = !!(scenario.profiles || scenario.crowding); }
+  /** Behaviour rules for this run (contract v1.1), set by the simulation. */
+  behaviours?: import("./behaviours.ts").Behaviours;
+  constructor(scenario: Scenario) { this.scenario = scenario; this.enabled = !!(scenario.profiles || scenario.crowding || scenario.behaviours?.some((r) => r.enabled)); }
   add(id: string, kind: Track["kind"], explicit?: string, arrival = 0, stayS = Infinity): Traveller | undefined {
     if (!this.enabled) return undefined;
     if (this.people.has(id)) return this.people.get(id)!;

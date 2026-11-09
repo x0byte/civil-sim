@@ -477,3 +477,11 @@ with range and basis). A scenario without rules behaves exactly as 1.0, and the 
 (without rules), so saved work and capture hashes don't change. The validator flags an enabled glare, light or noise
 rule while comfort is off, because it would never apply. Results gain `decision.behaviours`. Approved by the product
 owner; the engine and app work follows `docs/codex-brief-v1.1-behaviours.md`.
+
+## 2026-11-09 · Engine applies behaviour rules (v1.1 Part A)
+Rules act at the point a walking stretch is finalised, after the existing wayfinding detour: a weighted grid search
+for avoid/prefer/can't-use (never into a capacity-limited room, never making someone late), speed factors and pauses
+for slow/hesitate, and a dwell factor on staff facility visits; connector rules filter or weight route options.
+Light and glare use the comfort model's 15-minute slots; noise uses fixed sources only. Crowd density is not applied
+yet and is left out of the default rules. Strengths are parameters `behaviour.<id>.strength`. Built by Claude with the
+product owner's go-ahead while Codex was out of usage; see `docs/engine-v1.1-behaviours-report.md`.
