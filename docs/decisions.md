@@ -412,3 +412,12 @@ tail caching uses the same TTL. Append a current-state system message after a us
 plan, people, run, comparison or visible workspace/tab changes. Preserve all earlier messages and thinking blocks.
 Use six pure lookup tools for details, and label current draft versus saved/stale observations. Question-set evidence
 contracts run in the app suite; they are distinct from live language-quality grading or production cache-hit proof.
+
+## 2026-11-09 · DXF export lines up with the source drawing (v1.0 Part F)
+File → Export to AutoCAD writes one floor as an R12 ASCII DXF on `NA-` layers (walls as both faces broken at openings,
+doors with swings, windows, rooms with names, dashed zones, connectors, fixture blocks, a note). A plan imported from a
+DXF exports in the **source drawing's units and coordinates**, not metres, so it overlays the original exactly (tested:
+every wall face within 1 mm of a source line, and a re-import gives the same walls). The import transform is kept as a
+`CadRecord` per plan id in the project file and browser storage, because the floor-plan contract has no place for it;
+saved options keep the plan id, so they share it. Changes are marked against the imported drawing or a saved option:
+added or changed items go on `NA-CHANGES`, removed items and the old position of anything moved go dashed on `NA-REMOVED`.

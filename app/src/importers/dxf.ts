@@ -5,6 +5,7 @@
 import type { FloorPlan, Vec2, Wall } from "../../../contracts/floorplan.ts";
 import { blankPlan } from "../model/planOps.ts";
 import { type Segment, mergeDoubleLines } from "./walls.ts";
+import { type CadOrigin, cadToPlan } from "./cadOrigin.ts";
 
 /** Metres per drawing unit, from the DXF $INSUNITS header value. */
 const INSUNITS_TO_M: Record<number, { m: number; label: string }> = {
@@ -130,7 +131,7 @@ export interface DxfImportOptions {
 }
 
 /** Turns the chosen layers into a new floor plan with walls only. */
-export function dxfToPlan(drawing: DxfDrawing, opts: DxfImportOptions): { plan: FloorPlan; walls: number; merged: number } {
+export function dxfToPlan(drawing: DxfDrawing, opts: DxfImportOptions): { plan: FloorPlan; walls: number; merged: number; origin: CadOrigin } {
   const MARGIN = 1;
   const segs = opts.layers.flatMap((l) => drawing.layers.get(l) ?? []);
   if (!segs.length) throw new Error("the chosen layers have no straight lines");
@@ -138,7 +139,9 @@ export function dxfToPlan(drawing: DxfDrawing, opts: DxfImportOptions): { plan: 
   const minX = Math.min(...segs.flatMap((s) => [s.a.x, s.b.x]));
   const maxY = Math.max(...segs.flatMap((s) => [s.a.y, s.b.y]));
   // CAD y points up; plans point down. Shift so the drawing starts MARGIN m from the top-left.
-  const toPlan = (p: Vec2): Vec2 => ({ x: (p.x - minX) * k + MARGIN, y: (maxY - p.y) * k + MARGIN });
+  // The origin is kept so an exported DXF lands back on the source drawing.
+  const origin: CadOrigin = { minX, maxY, metresPerUnit: k, margin: MARGIN };
+  const toPlan = (p: Vec2): Vec2 => cadToPlan(p, origin);
   const metric = segs.map((s) => ({ a: toPlan(s.a), b: toPlan(s.b) })).filter((s) => Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y) >= 0.1);
 
   const lines = opts.mergeDoubles ? mergeDoubleLines(metric) : metric.map((s) => ({ ...s, thickness: 0.15 }));
@@ -158,5 +161,5 @@ export function dxfToPlan(drawing: DxfDrawing, opts: DxfImportOptions): { plan: 
     thickness: round(Math.max(0.05, l.thickness)),
     height: 3,
   }));
-  return { plan: { ...plan, walls }, walls: walls.length, merged: metric.length - lines.length };
+  return { plan: { ...plan, walls }, walls: walls.length, merged: metric.length - lines.length, origin };
 }

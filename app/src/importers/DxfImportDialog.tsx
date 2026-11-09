@@ -6,6 +6,7 @@ import { stoppedError } from "../loading/progress.ts";
 import { useState } from "react";
 import { useEditor } from "../state/store.ts";
 import { type DxfDrawing, UNIT_CHOICES, looksLikeWalls } from "./dxf.ts";
+import { useCad } from "./cadOrigin.ts";
 
 /** Pick which layers hold the walls and what units the drawing is in, then build a plan. */
 export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDrawing; fileName: string; onClose: () => void }) {
@@ -28,6 +29,7 @@ export function DxfImportDialog({ drawing, fileName, onClose }: { drawing: DxfDr
       signal.throwIfAborted();
       if (useEditor.getState().plan !== before) throw stoppedError("The plan changed, so importing the drawing was stopped.");
       load(out.plan);
+      useCad.getState().remember(out.plan.id, { origin: out.origin, source: fileName, baseline: out.plan });
       useExperience.getState().newBuilding();
       setTool("door");
       notify(
