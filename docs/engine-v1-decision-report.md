@@ -28,9 +28,10 @@ Contracts are unchanged. Part B remains on its own branch for Claude's review.
 - Evidence retains the central parameter values/envelopes and the union of keys
   used across draws. Internal sampled values are not mislabelled user overrides
   or site measurements. The scenario seed and sampler reproduce those draws.
-- The static registry now has **137 entries: 9 source-backed behaviours, 96
-  assumed-range behaviours, 32 settings**. The new settings are the fixed default
-  run budget, contract annualisation default and owner's capacity warning policy.
+- The static registry now has **138 entries: 9 source-backed behaviours, 96
+  assumed-range behaviours, 33 settings**. The new settings are the fixed default
+  run budget, contract annualisation default, owner's capacity warning policy and the
+  Part C review’s fixed 15-minute serviced-room demand window.
 
 ## Measurement definitions
 
@@ -65,7 +66,8 @@ Flow gates record **arrival demand before service**, including people who wait
 or give up. Lift calls and all serviced-room admissions are recorded too. Future
 normal-day observations beyond an alarm are discarded. With crowding off, normal
 unthrottled door/connector crossings are arrivals. The peak is the greatest count
-in any half-open rolling `[t,t+60)` window; `worstAt` is its start.
+in a half-open rolling `[t,t+windowS)` window, normalized per minute. Flow elements use 60 s;
+serviced rooms use the longer service window defined below. `worstAt` is its start.
 
 Capacities, per minute:
 - Door: clear width × `capacity.door.specific_flow` × 60.
@@ -79,8 +81,23 @@ Capacities, per minute:
   The engine has no separate checkout/check-in server model, so it does not invent
   capacity numbers for one.
 
-Utilisation = peak arrivals / modeled capacity. The owner's 0.85 threshold is a
+Part C review correction: flow elements (doors, stairs, ramps, escalators and lifts) keep a rolling half-open
+60-second arrival window. Serviced rooms use a rolling window of
+`max(setting.decision.room_window_s, service.facility.minimum + service.facility.spread)` seconds;
+`setting.decision.room_window_s` is fixed at 900 s (15 minutes). The upper service duration protects long-service
+overrides and sampled draws. Peak arrivals in that window are normalized to people per minute before division.
+This measures sustained room demand rather than treating a brief two-person arrival burst as sustained overload.
+`worstAt` starts the selected rolling window (the locked contract comment still says “minute”).
+
+Utilisation = normalized peak arrivals per minute / modeled capacity per minute. App displays it as a percentage. The owner's 0.85 threshold is a
 screening policy, not a country's code. Ensemble checks use p90 utilisation.
+P90 queue wait is a separate **representative-run observation** from queue-start/end events, linearly
+interpolated across waiting episodes, including waits that end in give-up. Episodes that never queued are not
+included. No waits means zero episodes and zero wait. An unfinished episode contributes its observed wait to the
+simulation horizon and marks the observation as a lower bound. This is a within-run percentile, not the p90 of
+uncertainty runs; it has no invented ensemble interval. `roomQueueObservations` exposes it outside the locked
+contract. It appears beside room utilisation in Capacity and the Summary bottleneck card.
+
 `capacityPerMin` and `worstAt` describe the representative run, as non-ranged
 contract fields; utilisation itself is computed separately for each draw before
 quantiles, not by dividing separately aggregated medians.

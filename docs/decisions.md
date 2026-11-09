@@ -385,3 +385,30 @@ seeds in ephemeral job metadata; report quantiles of B−A, with labelled interv
 Representative tracks share the foreground run's playback identity and viewing horizon, preserving controls and
 valid selections. Censored evacuation carries the largest observed not-out count and reads Cannot verify; no
 contract fields are added. Evidence says waiting for ranges until its sequential sensitivity task starts.
+
+
+## 2026-11-09 · Part C results workspace and evidence editing
+Results tabs reuse DecisionSummary/DecisionComparison and keep the map mounted across tabs so playback controls
+survive navigation. The hash stores the tab and optional evidence key. Sourced parameter edits are undoable profile
+changes, persist in project files, and require a rerun; displayed evidence continues to describe the saved result.
+Exports load PDF code on demand, reuse the scorecards/detail readers, and always include parameter sources.
+Supporting observations without stored ensemble intervals are labelled as representative detail rather than given
+invented bounds; comfort remains outside the range-run budget.
+
+
+## 2026-11-09 · Part C review: bounded context, sustained capacity, inline progress
+Ella’s automatic results digest is request-local and only attached while Results is visible; it is never retained
+in conversation history. Full parameter evidence is an explicit read-only lookup tool. Room demand uses a fixed
+15-minute rolling window extended to the longest modeled service duration, normalized per minute; flow elements
+stay at 60 seconds. Waiting-episode p90 is representative detail outside the locked result contract, with unfinished
+waits labelled lower bounded. Progress reserves shell space; the typical-run notice expires after six seconds and
+remains in tab progress. Empty team relationships are described as missing inputs, not zero measured travel.
+
+
+## 2026-11-09 · Part C updated review: three-layer Ella context
+Supersedes the request-local digest design: freeze ordered tool schemas, system guidance, measurement knowledge
+and the complete default registry as one release prefix with an explicit one-hour final-block breakpoint; automatic
+tail caching uses the same TTL. Append a current-state system message after a user/tool-result turn only when
+plan, people, run, comparison or visible workspace/tab changes. Preserve all earlier messages and thinking blocks.
+Use six pure lookup tools for details, and label current draft versus saved/stale observations. Question-set evidence
+contracts run in the app suite; they are distinct from live language-quality grading or production cache-hit proof.

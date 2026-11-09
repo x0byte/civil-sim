@@ -658,3 +658,11 @@ Toilet trips by `step_free` people go only to `accessible` toilets (or are `bloc
 3. **Lifts stop in an alarm** unless marked as evacuation lifts; escalators are used as stairs. Recommended.
 4. **Refuges are counted, not emptied:** we report who waits where and from when, without simulating rescue. Recommended.
 5. **Accessibility checks are common guidance, not certification**, and say so. Recommended.
+
+
+## 2026-11-09 · Part C review: capacity documentation follow-up
+Product-owner review requests rolling 15-minute serviced-room demand (extended to maximum service duration),
+while physical flow elements remain on 60 seconds. Codex implements this authorized definition without editing
+contracts. Please update the `DecisionMetrics.capacity` and `worstAt` comments that currently say “one-minute”
+and “worst minute” for all kinds. P90 waiting-episode observations currently use an engine reader outside the
+result contract; a future serialized field would need owner approval. No field change is required by this revision.

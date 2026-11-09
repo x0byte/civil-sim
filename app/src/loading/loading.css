@@ -129,8 +129,56 @@
   box-shadow: 0 2px 12px #0001;
   font-size: var(--text-small);
 }
-.evidence-progress progress { width: 64px; }
+.evidence-progress progress {
+  width: 64px;
+}
 
-.range-progress { bottom: 100px; }
+.range-progress {
+  bottom: 100px;
+}
 
-.typical-run-progress { bottom: 100px; }
+.typical-run-progress {
+  bottom: 100px;
+}
+
+/* Reserve space above the workspace instead of covering a table or playback bar. */
+.job-status-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+  max-height: 24vh;
+  overflow: auto;
+  padding: 6px 12px;
+  background: var(--surface);
+}
+.job-status-stack:empty {
+  display: none;
+}
+.job-status-stack .evidence-progress,
+.job-status-stack .app-work-status {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  box-shadow: none;
+  padding: 6px 10px;
+}
+.typical-run-progress {
+  animation: typical-run-fade 6s forwards;
+}
+@keyframes typical-run-fade {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typical-run-progress {
+    animation: none;
+  }
+}

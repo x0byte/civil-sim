@@ -1,7 +1,7 @@
 import { playbackIdentity, playbackDuration } from "./runPlayback.ts";
 import { soundWord } from "../experience/wording.ts";
 import { useExperience } from "../experience/state.ts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Vec2 } from "../../../contracts/floorplan.ts";
 import type { Activity, SimulationResult, Track } from "../../../contracts/results.ts";
 import { PlanDrawing } from "../editor/PlanDrawing.tsx";
@@ -90,9 +90,10 @@ export function useSelectedPerson(tracks: Track[]) {
 }
 
 /** The single-layout simulation view. */
-export function Playback({ run }: { run: SimRun }) {
+export function Playback({ run, overlay, focus }: { run: SimRun; overlay?: (level: string, scale: number) => ReactNode; focus?: {t?:number;sequence:number} }) {
   const alarm = run.result.events.find(e => e.type === 'alarm')?.t;
   const clock = useRunPlayback(run);
+  useEffect(() => { if (focus?.t !== undefined) { clock.setT(Math.min(clock.durationS, Math.max(0,focus.t))); if (clock.playing) clock.toggle(); } }, [focus?.sequence]);
   const savedHeat = useEditor((s) => s.heat);
   const heat = ["noise", "light", "glare"].includes(savedHeat) && !run.result.metrics.comfort ? "off" : savedHeat;
   const setHeat = useEditor((s) => s.setHeat);
@@ -114,6 +115,7 @@ export function Playback({ run }: { run: SimRun }) {
     <div className="canvas-wrap">
       <PlanPlayer
         run={run}
+        overlay={overlay}
         ringDesks={ringed}
         t={clock.t}
         heat={heat}
@@ -292,6 +294,7 @@ export function PlanPlayer({
   legend,
   title,
   ringDesks,
+  overlay,
   selectedPerson,
   onPickPerson,
 }: {
@@ -304,6 +307,7 @@ export function PlanPlayer({
   title?: string;
   /** Desks to circle, e.g. the most disturbed ones. */
   ringDesks?: string[];
+  overlay?: (level: string, scale: number) => ReactNode;
   selectedPerson?: string | null;
   onPickPerson?: (id: string | null) => void;
 }) {
@@ -451,6 +455,7 @@ export function PlanPlayer({
               )
             }
           />
+          {overlay?.(level, cam.s)}
           {ringDesks?.map((id) => {
             const f = view.fixtures.find((x) => x.id === id);
             return f ? (
