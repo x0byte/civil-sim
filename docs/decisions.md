@@ -470,3 +470,10 @@ heavier parallel suite. No engine source was changed. Details and results are in
 ## 2026-11-09 · Default behaviour rules are on
 Product owner: in new projects the starting behaviour rules (v1.1 draft) are switched on, each labelled "assumed, not
 measured", and the user or Ella can turn them off or change them. Projects saved without rules keep today's results.
+
+## 2026-11-09 · Contracts v1.1: behaviour rules (approved)
+Scenario and results move to 1.1; floor plan stays 0.7. Scenarios gain `behaviours` (who × when × effect × strength
+with range and basis). A scenario without rules behaves exactly as 1.0, and the validator still accepts version "1.0"
+(without rules), so saved work and capture hashes don't change. The validator flags an enabled glare, light or noise
+rule while comfort is off, because it would never apply. Results gain `decision.behaviours`. Approved by the product
+owner; the engine and app work follows `docs/codex-brief-v1.1-behaviours.md`.

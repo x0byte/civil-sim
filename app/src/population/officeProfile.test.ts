@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateScenario } from "../../../contracts/validate.ts";
+import { SCENARIO_VERSION } from "../../../contracts/scenario.ts";
 import { simulate } from "../../../engine/src/index.ts";
 import { SAMPLE_PLANS } from "../model/samples.ts";
 import { type OfficeProfile, defaultProfile, expandProfile } from "./officeProfile.ts";
@@ -86,7 +87,7 @@ describe("lunch and visitors", () => {
 
   it("adds a lunch break and seats visitors in meetings, then the manager's office", () => {
     const x = expandProfile(withExtras, officeA);
-    expect(x.scenario.version).toBe("1.0");
+    expect(x.scenario.version).toBe(SCENARIO_VERSION);
     expect(x.scenario.queueing).toEqual({ maxWaitMin: 10 });
     expect(x.scenario.lunch).toMatchObject({ windowStart: "12:00", pantryShare: 0.5, outShare: 0.2 });
     const visitors = x.scenario.visitors!;
