@@ -92,4 +92,4 @@ The cost is about +35% run time on a busy mall (offices barely change: 0.17 → 
 against the live crowd. Over the 12 range runs that's roughly 18 → 25 s for this sample.
 
 Tests: 5 new engine tests (live measure, avoid, live slow and hesitate, no effect without crowding, a deterministic
-mall day) and an app pause test. Engine 362 of 362, app 326 of 326, contracts 11 of 11.
+mall day) and an app pause test. Engine 362 of 362, app 325 of 325, contracts 11 of 11.
