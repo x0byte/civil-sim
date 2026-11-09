@@ -24,6 +24,8 @@ interface Props {
   level?: string;
   /** Walls of the floor below, drawn faintly to line the floors up. */
   below?: Wall[];
+  /** Several items selected at once, all highlighted. */
+  group?: ItemRef[];
   /** Who sits in each zone (team names), shown under the zone's name. */
   zoneTeams?: Map<string, string>;
 }
@@ -35,9 +37,9 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below, zoneTeams }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below, group, zoneTeams }: Props) {
   const px = (n: number) => n / scale;
-  const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
+  const isSel = (kind: ItemRef["kind"], id: string) => (selection?.kind === kind && selection.id === id) || !!group?.some((g) => g.kind === kind && g.id === id);
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
   const { width, height } = plan.bounds;
 
