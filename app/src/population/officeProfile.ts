@@ -6,6 +6,7 @@
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
 import { pointInPolygon } from "../model/geometry.ts";
+import { DEFAULT_RULES } from "../../../engine/src/index.ts";
 import { SCENARIO_VERSION, type Comfort, type Weather, type Meeting, type Person, type Scenario, type Visitor } from "../../../contracts/scenario.ts";
 import { type KindsSettings, kindsFromPreset, expandKinds } from "./kinds.ts";
 import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
@@ -48,6 +49,11 @@ export interface Collaboration {
 }
 
 export interface OfficeProfile {
+  /**
+   * Behaviour rules (contract v1.1): who reacts to what, and how strongly. New profiles start from the
+   * engine's default rules, switched on and labelled as assumptions. Missing (older saved profiles): no rules.
+   */
+  behaviours?: import("../../../contracts/scenario.ts").BehaviourRule[];
   /** Sourced scenario overrides entered in the Results Evidence tab. */
   parameters?: import("../../../contracts/scenario.ts").ParameterOverride[];
   version: 1;
@@ -188,6 +194,7 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
   const shops = hasShops(plan);
   return {
     version: 1,
+    behaviours: structuredClone([...DEFAULT_RULES]),
     workday: shops ? MALL_HOURS : { start: "08:30", end: "17:30" },
     attendance: 1,
     departments,
@@ -201,6 +208,27 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
     comfort: { ...DEFAULT_COMFORT, enabled: true },
     seed: 42,
   };
+}
+
+/** Measures only worked out with sound and light on. */
+export const COMFORT_MEASURES = new Set(["glare", "light_lux", "noise_dba"]);
+/** True when a rule reacts to glare, light or noise but sound and light checking is off, so it can't apply. */
+export const rulePaused = (profile: OfficeProfile, rule: import("../../../contracts/scenario.ts").BehaviourRule) =>
+  rule.enabled && !profile.comfort?.enabled && rule.when.kind === "measure" && COMFORT_MEASURES.has(rule.when.measure);
+/**
+ * The profile's rules for the engine. Paused rules go in switched off, so the scenario says honestly what applies;
+ * kinds of person not in today's mix are dropped from a rule (and a rule left with none is switched off).
+ */
+function scenarioRules(profile: OfficeProfile, kinds: { id: string }[] | undefined) {
+  const present = new Set((kinds ?? []).map((k) => k.id));
+  return structuredClone(profile.behaviours ?? []).map((rule) => {
+    if (rule.who.kind === "profiles") {
+      const ids = rule.who.profileIds.filter((id) => present.has(id));
+      rule = { ...rule, who: { kind: "profiles", profileIds: ids.length ? ids : rule.who.profileIds }, ...(ids.length ? {} : { enabled: false }) };
+      if (!ids.length) return { ...rule, who: { kind: "everyone" as const } };
+    }
+    return rulePaused(profile, rule) ? { ...rule, enabled: false } : rule;
+  });
 }
 
 /** Turns the profile into individual people at desks and a meeting timetable. Deterministic for a given seed. */
@@ -294,6 +322,7 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     scenario: {
       version: SCENARIO_VERSION,
       ...(profile.parameters?.length ? { parameters: structuredClone(profile.parameters) } : {}),
+      ...(profile.behaviours ? { behaviours: scenarioRules(profile, profiles?.list) } : {}),
       id: scenarioId,
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,

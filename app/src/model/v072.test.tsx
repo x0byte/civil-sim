@@ -55,9 +55,10 @@ describe("v0.7.2 review regressions", () => {
     };
     const darkResult = simulate(dark, scenario);
     expect(darkResult.tracks.some((t) => t.discomfort!.some((span) => span.cause === "dim"))).toBe(true);
-    const { comfort: _, ...off } = scenario;
+    // Measuring comfort alone moves nobody; only behaviour rules (v1.1) react to it, so compare without them.
+    const { comfort: _, behaviours: __, ...off } = scenario;
     const movement = (r: typeof result) => ({ tracks: r.tracks.map(({ discomfort: _, ...t }) => t), events: r.events });
-    expect(movement(result)).toEqual(movement(simulate(office, off)));
+    expect(movement(simulate(office, { ...scenario, behaviours: undefined }))).toEqual(movement(simulate(office, off)));
     expect(renderToStaticMarkup(<ComfortSection profile={profile} setProfile={() => {}} />)).toContain(
       "Eating, lunch, pantry visits and waiting need half as much; walking needs a quarter",
     );

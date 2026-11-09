@@ -42,6 +42,7 @@ export function useDeskColors(): Map<string, string> | undefined {
 }
 
 import { PasteTeams } from "./PasteTeams.tsx";
+import { BehavioursSection } from "./BehavioursSection.tsx";
 import { Relationships } from "./Relationships.tsx";
 import { zoneSeats } from "./teamList.ts";
 
@@ -163,6 +164,7 @@ export function PeoplePanel() {
         ]}
       />
       <ComfortSection data-title="Sound and light" profile={profile} setProfile={setProfile} />
+      <BehavioursSection data-title="How people react" profile={profile} setProfile={setProfile} />
       <CrowdingSection data-title="Crowding" profile={profile} setProfile={setProfile} />
       <section className="panel">
         <header>

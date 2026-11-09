@@ -1,3 +1,4 @@
+import { BehaviourResults } from "./BehaviourResults.tsx";
 import {
   roomQueueObservations,
   PARAMETERS,
@@ -422,6 +423,7 @@ function Access({ run }: { run: SimRun }) {
         </span>{" "}
         · <EvidenceLink run={run} groups={["access."]} />
       </p>
+      <BehaviourResults run={run} />
       {run.result.decision && (
         <p>
           Staff delay context{" "}
@@ -628,6 +630,7 @@ function Comfort({ run }: { run: SimRun }) {
         intervals were computed. Hovered observations must not be read as
         confidence bounds.
       </p>
+      <BehaviourResults run={run} />
       <EvidenceLink run={run} groups={["comfort.", "scenario.profiles."]} />
       <div title="Representative-run supporting detail; comfort grids have no sampled ensemble interval.">
         {run.result.metrics.comfort ? (

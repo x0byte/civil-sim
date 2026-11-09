@@ -53,3 +53,16 @@ Fixture setup for a live pass: `office` uses the supplied Office A/day pair; `un
 cross-team meetings; `mall` uses mall-2f/mall-weekend; `comfort` uses office-a-comfort/office-day-comfort;
 `censored` blocks all exterior exits in the evacuation sample; `comparison` is a two-draw paired Office A=A control.
 The reference catalog (`get_element("plan")`) supplies exact IDs if a UI-created project differs from those fixtures.
+
+## Behaviour rules (v1.1) · five more questions for a live pass
+
+These use the `comfort` fixture with the default rules on. They are a manual live-language check; the deterministic
+`set_behaviour` behaviour is covered by `app/src/population/behaviours.test.tsx`.
+
+| # | Ask | A good answer must |
+|---|---|---|
+| 26 | "Light-sensitive people here really mind glare." | Call `set_behaviour` change on `glare-avoid` with a higher strength *and a range around it*, basis user, source quoting the sentence; say it's a proposal and that the number is their setting, not research. |
+| 27 | "Our staff don't mind noise." | Propose `noise-avoid` off (or limited to visitors/shoppers), not delete it; mention it can be switched back on in People → How people react. |
+| 28 | "What did the glare rule change?" | Quote `decision.behaviours` for `glare-avoid`: people affected and extra seconds with their ranges and run count; say the strength is assumed (or the user's), and that desk glare isn't changed by routing. |
+| 29 | "Wheelchair users never use the ramp by the café." | Explain that step-free access already decides ramps by gradient; if the user insists, propose a `cannot_use` rule on ramps for that kind, and say it applies to every ramp (rules can't single out one connector yet). |
+| 30 | "Make people avoid crowds." | Say crowd-density rules aren't applied yet in this version and propose nothing that would silently do nothing; offer a place-based rule instead (for example avoiding the food court) if that fits. |

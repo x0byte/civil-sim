@@ -485,3 +485,13 @@ for slow/hesitate, and a dwell factor on staff facility visits; connector rules 
 Light and glare use the comfort model's 15-minute slots; noise uses fixed sources only. Crowd density is not applied
 yet and is left out of the default rules. Strengths are parameters `behaviour.<id>.strength`. Built by Claude with the
 product owner's go-ahead while Codex was out of usage; see `docs/engine-v1.1-behaviours-report.md`.
+
+## 2026-11-09 · Behaviour rules in the app (v1.1 Part B)
+Rules live in the People profile (`behaviours`); new profiles start from the engine's `DEFAULT_RULES`, and older saved
+profiles have none until the user starts from the defaults. Glare, light and noise rules are **paused** (sent to the
+engine switched off) while sound and light is off, because the validator rightly refuses a rule that can never apply;
+the panel says so with a button to turn comfort on. Kinds of person not in today's mix are dropped from a rule.
+Editing a default changes its basis to "user". Ella's `set_behaviour` edits the same rules as a proposal, takes a new
+rule as JSON text (strict-schema rules forbid an open object), and records the user's sentence as the source. Results
+show a table per rule in Comfort and Access, a Summary line when rules clearly add time, and a Behaviour-rules filter
+in Evidence.
