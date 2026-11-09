@@ -159,9 +159,8 @@ behaviour is visible and editable in one list. That's out of scope here to keep 
 
 ## Questions for the product owner
 
-1. **Should the default rules be on or off in new projects?** Recommended: **on**, each labelled "assumed, not
-   measured", because users expect light-sensitive people to behave differently. Old projects without `behaviours`
-   keep today's results either way.
+1. ~~Should the default rules be on or off in new projects?~~ **Decided 2026-11-09: on**, each labelled "assumed, not
+   measured". Old projects without `behaviours` keep today's results.
 2. **Are the starting strengths and ranges acceptable?** They're listed in the brief's default rule table, all
    labelled as assumptions.
 3. **Should v1.2 move the built-in behaviours into rules?** Recommended: yes, as a separate step.

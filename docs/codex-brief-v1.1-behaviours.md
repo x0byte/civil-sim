@@ -110,7 +110,7 @@ are chosen to pick out the sensitive kinds the app already ships (for example "S
   Editing a default changes its basis to "user" and asks for an optional note.
 - **Add a rule** from the same pieces, with a live preview sentence, and **Reset to defaults**.
 - A warning on any glare, light or noise rule while "Check comfort · sound and light" is off, with a button to turn it on.
-- New projects start from `DEFAULT_RULES` (pending the owner's answer on defaults on or off). Projects saved before
+- New projects start from `DEFAULT_RULES`, all **on** and labelled "assumed" (product owner, 2026-11-09). Projects saved before
   v1.1 have none, and show a "Start from the default behaviours" button.
 
 ### B2. Ella
