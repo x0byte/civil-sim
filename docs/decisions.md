@@ -460,3 +460,9 @@ and mirror about its centre; furniture turns with it, doors ride on their walls,
 plan is refused with a reason. Two selected walls can be joined: in line they merge (up to a 2 m gap), at an angle they
 are trimmed or extended to a clean corner. A Layers menu hides room colours, zones, furniture, noise, the traced image
 or the floor below; hidden layers can't be clicked and are remembered in this browser.
+
+## 2026-11-09 · Part E finished by Claude
+Codex ran out of usage with Part E built but not validated. At the product owner's request Claude finished it on
+`codex/v1-optimiser`: Ella's `set_goal` schema now lists every field (unused ones null) like the other tools, three
+cancellation tests compare against the loaded plan, and two whole-mall-day app tests have a 30-second limit for a
+heavier parallel suite. No engine source was changed. Details and results are in `docs/engine-v1-optimiser-report.md`.

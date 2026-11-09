@@ -70,6 +70,31 @@ These are wall-clock observations, not a portable speed guarantee. Retail sample
 
 The reproducible command is `npm run benchmark:optimiser` in `engine/`; it streams progress and emits JSON benchmark records for the acceptance fixture and every standard sample pair. Samples without feasible team zones still confirm their baseline and propose no placement; their timings measure that path, not a successful retail redesign.
 
-## Validation
+## Validation (finished by Claude, 2026-11-09)
 
-Pending final sequential suites. Focused coverage also includes explicit-vs-headcount allocation, occupied-zone capacity, shortages, deterministic search and input immutability, payroll capacity, private-office/keep constraints, multiple managers, satisfied and violated max-walk with mixed goals, no candidates, cancellation, real worker clone/progress handling, pending proposal staleness, prefix stability, proposal UI/Evidence and Apply/Undo. A local browser inspection confirmed separate map/review panels, accent destinations, readable small deltas and read-only proposal Evidence. Temporary preview files/server were removed/stopped before timing tests.
+Codex ran out of usage before the final suites. Claude saved its work as-is (`2abb6ec`), merged master (the CAD
+editing work; only `docs/decisions.md` needed a manual merge), and finished:
+
+- **Four app tests fixed.**
+  - `set_goal`'s schema left goal fields optional, which broke the rule every Ella tool follows (all fields listed,
+    unused ones null). The fields are now `X or null`; `readGoal` already ignores fields a goal kind doesn't use.
+  - Three cancellation tests compared the editor plan with the object passed to `load()`, which always normalises into
+    a new object. They now compare with the plan as loaded, which is what must survive a cancelled optimisation.
+- **Two slow mall-day app tests** (`engine.test.ts`, `kinds.test.ts`) timed out once with the heavier suite running in
+  parallel and pass alone. They now have a 30-second limit.
+
+Results, run one after the other:
+
+| Check | Result |
+|---|---|
+| `npm run check:contracts` | 11 of 11 |
+| App and engine type checks | clean |
+| Full app suite | **309 of 309** |
+| Full engine suite | **342 of 343**; the one miss is the `v05` shopper speed test (3.09 s against 3 s while the app suite ran alongside), which passes alone (22 of 22 in that file) |
+| Acceptance case, run directly | Operations and Sales swap zones, the manager stays, 6 assignments scored, 3.4 s in total |
+
+Browser check: the acceptance proposal, produced by the real optimiser and placed into Ella's proposal view, shows
+"Verified team placement", team travel −14.62 s/person/day (−17.07 to −12.61) clearly better, staff time lost within
+noise, the walking trade-off, and accent "→ here" markers on the destination zones. Not checked: a live Ella
+conversation (no API key in this environment). Known nit: the "→ here" labels can overlap a room name or run past the
+zone edge.

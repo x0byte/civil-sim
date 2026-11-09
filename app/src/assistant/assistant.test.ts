@@ -128,6 +128,8 @@ describe("design assistant conversation", () => {
       const draft = optimiserFixture();
       useEditor.getState().load(draft.plan);
       useEditor.getState().setProfile(draft.plan.id, draft.profile);
+      // Loading tidies the plan into a new object; that loaded plan is what must survive untouched.
+      const loaded = useEditor.getState().plan;
       const { useSimulationJob } = await import("../sim/jobs.tsx");
       script.push(toolUse("search", "propose_layout", { scope: "teams" }));
       let changed = false;
@@ -146,7 +148,7 @@ describe("design assistant conversation", () => {
         await useAssistant.getState().send("Find a better team placement");
         expect(changed).toBe(true);
         expect(useAssistant.getState().proposal).toBeNull();
-        expect(useEditor.getState().plan).toBe(draft.plan);
+        expect(useEditor.getState().plan).toBe(loaded);
       } finally {
         off();
         useSimulationJob.getState().cancel();

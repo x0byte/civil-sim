@@ -13,6 +13,8 @@ const team = {
   type: "string",
   description: "Exact department id or unique name from People.",
 };
+/** "Not used for this kind of goal" is null, so every field is listed, as in the other tools. */
+const orNull = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 const goalProperties = {
   kind: {
     type: "string",
@@ -25,12 +27,12 @@ const goalProperties = {
       "evacuation_limit",
     ],
   },
-  teamId: team,
-  teamA: team,
-  teamB: team,
-  spaceType: { type: "string" },
-  weight: { type: "number" },
-  seconds: { type: "number" },
+  teamId: orNull(team),
+  teamA: orNull(team),
+  teamB: orNull(team),
+  spaceType: orNull({ type: "string" }),
+  weight: orNull({ type: "number" }),
+  seconds: orNull({ type: "number" }),
 };
 export const INTENT_TOOLS: Anthropic.Tool[] = [
   {
@@ -61,7 +63,7 @@ export const INTENT_TOOLS: Anthropic.Tool[] = [
         goal: {
           type: "object",
           properties: goalProperties,
-          required: ["kind"],
+          required: Object.keys(goalProperties),
           additionalProperties: false,
         },
       },
