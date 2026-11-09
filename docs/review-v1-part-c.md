@@ -118,3 +118,36 @@ report and the honesty rules all work. Four changes are needed first. Two are th
 - No engine source or contracts changed in this branch, so engine tests match master (330 of 330 at `260b879`).
 - Browser (Office A, one run): the Summary, Capacity and map behaviour described above. I didn't test a comparison, a
   mall or the PDF download in the browser.
+
+---
+
+# Re-review: revisions `51bdce9` and `13b28e2` (2026-11-09)
+
+**Verdict: Part C approved for merge.** All four required changes are done, and most of the smaller notes too.
+
+1. **Ella's three layers.**
+   - **Frozen prefix:** system prompt, the measurement guide, the full sorted registry and tools in a fixed order, with
+     an explicit one-hour cache breakpoint. It's about 19,000 tokens and holds no plan or request data.
+   - **Current state:** a mid-conversation system message, appended after the user or tool-result turn only when the
+     plan, people, run, comparison or tab changes. The worst case on mall and comparison is about 2,650 tokens. History
+     is append-only.
+   - **Lookups:** six read-only tools that return the same numbers as the tabs.
+   - **Question set:** 25 questions with what a good answer must cite (`docs/ella-question-set.md`).
+   - **Not tested yet:** live answer quality and real cache hits, because there was no API key in the test
+     environment. Check them once with a real key.
+2. **Capacity chart:** utilisation in %, worst first, with p10–p90 whiskers and 85% and 100% lines; absolute values
+   stay in the table. Checked in the browser.
+3. **Rooms use a 15-minute window** (or the longest service time, if that's longer), as a registry setting; doors and
+   connectors stay at 60 s. Office A's toilet now reads 60% (45–76%) instead of 375%. p90 queue wait is labelled
+   typical-run detail. The contract comments still say "one-minute"; Codex logged a change request rather than
+   editing them, which is correct.
+4. **Progress notes** sit in their own row and never cover content. The "typical run" note fades after 6 s. Checked in
+   the browser.
+
+Also fixed: scorecard cards; "No team relationships set · add them in People" instead of 0; code formatted.
+
+**Small things for later:** the "4 of 5 passed" card ends with a stray "·". The team-relationships message wraps
+awkwardly at headline size; a smaller font would fix it.
+
+**Checked:** app 266 of 266, engine 334 of 334 (one file at a time), contracts 11 of 11, both type checks clean. In
+the browser on Office A: Summary cards, the 60% toilet, the Capacity chart, and the progress row fading.
