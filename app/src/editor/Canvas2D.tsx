@@ -12,6 +12,7 @@ import {
   addOpening,
   addSpace,
   addWall,
+  addZone,
   contentExtent,
   fitOpening,
   getItem,
@@ -44,6 +45,7 @@ const HINTS: Record<Tool, string> = {
   door: "Click on a wall to add a door. Doors on the outside walls are marked as entrances.",
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
+  zone: "Draw an area inside a room with no walls: a team's part of an open office, a quiet corner. Drag a rectangle or click its corners.",
   neighbour: "Draw a neighbouring building outside the plan: drag a rectangle or click its corners. Edit its height on the right.",
   noise: "Click to place a noise source. Edit its name, loudness and hours on the right.",
   fixture: "Click to place. Pick the type in the toolbar.",
@@ -91,6 +93,12 @@ export function Canvas2D() {
   const underlaySize = useImageSize(plan.underlay?.image);
   const deskColors = useDeskColors();
   const suggestions = useEditor((s) => s.wallSuggestions);
+  const profile = useEditor((s) => s.profiles[s.plan.id]);
+  const zoneTeams = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const d of profile?.departments ?? []) if (d.zoneId) out.set(d.zoneId, [out.get(d.zoneId), `${d.name} · ${d.headcount}`].filter(Boolean).join(", "));
+    return out;
+  }, [profile]);
 
   useEffect(() => {
     setDraft([]);
@@ -134,6 +142,14 @@ export function Canvas2D() {
     if (clean.length < 3) return;
     const connector = tool === "connector";
     let id = "";
+    if (tool === "zone") {
+      const out = addZone(plan, clean, level);
+      setDraft([]);
+      if ("error" in out) return notify(out.error);
+      commit(() => out.plan);
+      select({ kind: "zone", id: out.id });
+      return notify("Zone added. Name it and set how many desks it holds on the right, then fill it with desks.");
+    }
     commit((p) => {
       const r = tool === "neighbour" ? addNeighbour(p, clean) : connector ? addConnector(p, clean, connectorKind, level) : addSpace(p, clean, "other", level);
       id = r.id;
@@ -175,7 +191,7 @@ export function Canvas2D() {
         } else if (kind === "opening") {
           select({ kind: "opening", id });
           dragRef.current = { type: "opening", id, started: false };
-        } else if (kind === "wall" || kind === "space" || kind === "connector" || kind === "neighbour" || kind === "road") {
+        } else if (kind === "wall" || kind === "space" || kind === "zone" || kind === "connector" || kind === "neighbour" || kind === "road") {
           select({ kind, id });
         } else {
           select(null);
@@ -208,6 +224,7 @@ export function Canvas2D() {
         return;
       }
       case "room":
+      case "zone":
       case "neighbour":
       case "connector": {
         const p = snap(raw, e.shiftKey).point;
@@ -333,7 +350,7 @@ export function Canvas2D() {
 
   const onDoubleClick = () => {
     if (tool === "wall") finishChain();
-    if ((tool === "room" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
+    if ((tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
   };
 
   useEffect(() => {
@@ -353,7 +370,7 @@ export function Canvas2D() {
           setTool("select");
         }
       } else if (e.key === "Enter") {
-        if ((tool === "room" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
+        if ((tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour") && draft.length >= 3) closeRoom(draft);
         else if (tool === "wall") finishChain();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selection) {
         e.preventDefault();
@@ -398,7 +415,7 @@ export function Canvas2D() {
 
   const sx = (n: number) => n / cam.s;
   const anchor = draft[draft.length - 1];
-  const outlining = tool === "room" || tool === "connector" || tool === "neighbour";
+  const outlining = tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour";
   const drawing = tool === "wall" || outlining || tool === "calibrate";
   const cursorStyle =
     tool === "pan" || dragRef.current?.type === "pan" ? "grabbing" : tool === "select" ? "default" : "crosshair";
@@ -429,6 +446,7 @@ export function Canvas2D() {
             suggestions={suggestions}
             level={level}
             below={below}
+            zoneTeams={zoneTeams}
           />
 
           <g transform={`translate(${northAt.x} ${northAt.y}) rotate(${plan.site?.northDeg ?? 0})`}>

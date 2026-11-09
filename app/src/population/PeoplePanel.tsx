@@ -1,5 +1,5 @@
 import { AdvancedSections } from "../experience/common.tsx";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useEditor } from "../state/store.ts";
 import { NumField, SelectField, TextField } from "../ui/fields.tsx";
 import {
@@ -41,6 +41,10 @@ export function useDeskColors(): Map<string, string> | undefined {
   }, [tab, plan, profile]);
 }
 
+import { PasteTeams } from "./PasteTeams.tsx";
+import { Relationships } from "./Relationships.tsx";
+import { zoneSeats } from "./teamList.ts";
+
 export function PeoplePanel() {
   const plan = useEditor((s) => s.plan);
   const [profile, setProfile, isDefault] = useProfile();
@@ -52,6 +56,8 @@ export function PeoplePanel() {
   const updDept = (id: string, patch: Partial<Department>) =>
     upd({ departments: profile.departments.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
   const deskRooms = plan.spaces.filter((s) => plan.fixtures.some((f) => f.type === "desk" && f.spaceId === s.id));
+  const teamZones = (plan.zones ?? []).filter((z) => z.use === "team");
+  const [pasting, setPasting] = useState(false);
 
   const addDept = () => {
     let n = profile.departments.length + 1;
@@ -79,11 +85,16 @@ export function PeoplePanel() {
             <h2>People</h2>
             <span className="muted">{isDefault ? "Default: one person per desk" : "Your settings for this plan"}</span>
           </div>
-          {!isDefault && (
-            <button onClick={() => useEditor.getState().setProfile(plan.id, null)} title="Go back to one person per desk">
-              Reset
+          <div className="dialog-actions">
+            <button className="primary" onClick={() => setPasting(true)} title="Type or paste your teams and headcounts">
+              Paste your teams
             </button>
-          )}
+            {!isDefault && (
+              <button onClick={() => useEditor.getState().setProfile(plan.id, null)} title="Go back to one person per desk">
+                Reset
+              </button>
+            )}
+          </div>
         </header>
         <div className="panel-body">
           <div className="tiles">
@@ -159,7 +170,10 @@ export function PeoplePanel() {
             <h2>Departments</h2>
             <span className="muted">Desks are coloured by department on the plan</span>
           </div>
-          <button onClick={addDept}>+ Add</button>
+          <div className="dialog-actions">
+            <button onClick={() => setPasting(true)}>Paste your teams</button>
+            <button onClick={addDept}>+ Add</button>
+          </div>
         </header>
         <div className="panel-body">
           {profile.departments.map((d, i) => {
@@ -177,6 +191,7 @@ export function PeoplePanel() {
                       upd({
                         departments: profile.departments.filter((q) => q.id !== d.id),
                         collaborations: profile.collaborations.filter((c) => c.a !== d.id && c.b !== d.id),
+                        relationships: profile.relationships?.filter((r) => r.a !== d.id && r.b !== d.id),
                       })
                     }
                   >
@@ -210,8 +225,25 @@ export function PeoplePanel() {
                   value={d.teamMeetingsPerDay}
                   onCommit={(v) => updDept(d.id, { teamMeetingsPerDay: Math.round(v) })}
                 />
+                {teamZones.length > 0 && (
+                  <SelectField
+                    label="Team zone"
+                    value={d.zoneId && teamZones.some((z) => z.id === d.zoneId) ? d.zoneId : ""}
+                    options={[
+                      { value: "", label: "None (use the rooms below)" },
+                      ...teamZones.map((z) => {
+                        const taken = profile.departments.find((q) => q.id !== d.id && q.zoneId === z.id);
+                        return { value: z.id, label: `${z.name} · ${zoneSeats(plan, z)} desks${taken ? ` · shared with ${taken.name}` : ""}` };
+                      }),
+                    ]}
+                    onChange={(zoneId) => {
+                      const { zoneId: _, ...rest } = d;
+                      upd({ departments: profile.departments.map((q) => (q.id === d.id ? (zoneId ? { ...rest, zoneId } : rest) : q)) });
+                    }}
+                  />
+                )}
                 <div className="field">
-                  <span>Sits in</span>
+                  <span>{d.zoneId ? "Also sits in" : "Sits in"}</span>
                   <div className="room-chips">
                     {deskRooms.map((r) => {
                       const on = d.roomIds.includes(r.id);
@@ -240,7 +272,9 @@ export function PeoplePanel() {
         </div>
       </section>
 
-      <WorksWith data-title="Teams working together" profile={profile} setProfile={setProfile} />
+      <Relationships data-title="How closely teams work" profile={profile} setProfile={setProfile} />
+      <WorksWith data-title="Joint meetings" profile={profile} setProfile={setProfile} />
+      {pasting && <PasteTeams profile={profile} setProfile={setProfile} onClose={() => setPasting(false)} />}
 
       <section className="panel">
         <header>

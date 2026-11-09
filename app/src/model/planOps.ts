@@ -18,7 +18,10 @@ import type {
   SpaceType,
   Vec2,
   Wall,
+  Zone,
+  ZoneUse,
 } from "../../../contracts/floorplan.ts";
+import { checkFloorPlan } from "../../../contracts/validate.ts";
 import { FLOORPLAN_VERSION } from "../../../contracts/floorplan.ts";
 import { reprojectSite, validLocation } from "../site/coordinates.ts";
 import { DEFAULT_SITE, DEFAULT_GLASS, NOISE_PRESETS } from "./comfortDefaults.ts";
@@ -33,7 +36,7 @@ import {
   wallLength,
 } from "./geometry.ts";
 
-export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector" | "noise" | "neighbour" | "road";
+export type ItemKind = "wall" | "opening" | "space" | "fixture" | "connector" | "noise" | "neighbour" | "road" | "zone";
 export interface ItemRef {
   kind: ItemKind;
   id: string;
@@ -128,6 +131,7 @@ function allIds(plan: FloorPlan): Set<string> {
       ...plan.fixtures,
       ...plan.connectors,
       ...(plan.noiseSources ?? []),
+      ...(plan.zones ?? []),
       ...(plan.site?.neighbours ?? []),
       ...(plan.site?.roads ?? []),
     ].map((x) => x.id),
@@ -211,6 +215,7 @@ export function onLevel(plan: FloorPlan, levelId: string): FloorPlan {
     fixtures: plan.fixtures.filter((f) => f.levelId === levelId),
     connectors: plan.connectors.filter((c) => c.levelIds.includes(levelId)),
     noiseSources: plan.noiseSources?.filter((n) => n.levelId === levelId),
+    zones: plan.zones?.filter((z) => z.levelId === levelId),
   };
 }
 
@@ -419,6 +424,8 @@ export function removeItem(plan: FloorPlan, ref: ItemRef): FloorPlan {
       return { ...plan, noiseSources: plan.noiseSources?.filter((n) => n.id !== ref.id) };
     case "connector":
       return { ...plan, connectors: plan.connectors.filter((c) => c.id !== ref.id) };
+    case "zone":
+      return { ...plan, zones: plan.zones?.filter((z) => z.id !== ref.id) };
   }
 }
 
@@ -432,7 +439,9 @@ type ItemOf<K extends ItemKind> = K extends "neighbour" ? Neighbour : K extends 
         ? Connector
         : K extends "noise"
           ? NoiseSource
-          : FloorPlan["fixtures"][number];
+          : K extends "zone"
+            ? Zone
+            : FloorPlan["fixtures"][number];
 
 const listKey = {
   wall: "walls",
@@ -441,6 +450,7 @@ const listKey = {
   fixture: "fixtures",
   connector: "connectors",
   noise: "noiseSources",
+  zone: "zones",
 } as const;
 
 export function getItem<K extends ItemKind>(plan: FloorPlan, kind: K, id: string): ItemOf<K> | undefined {
@@ -633,4 +643,83 @@ export function setSafetyFlag(plan:FloorPlan, kind:"opening"|"space"|"connector"
  if(kind==="opening") { const o=getItem(plan,kind,id); if(!o||flag!=="fireExit"||o.kind!=="door"||!o.exterior)return plan;return updateItem(plan,kind,id,o=>{const {arrivalShare:_,...rest}=o;return {...rest,fireExit:value};}); }
  if(kind==="space") { const room=getItem(plan,kind,id);if(!room||(flag!=="refuge"&&(flag!=="accessible"||room.type!=="toilet")))return plan;return updateItem(plan,kind,id,r=>({...r,[flag]:value})); }
  const c=getItem(plan,kind,id);return c&&c.kind==="lift"&&flag==="evacuationLift"?updateItem(plan,kind,id,c=>({...c,evacuationLift:value})):plan;
+}
+
+export const ZONE_USES: { use: ZoneUse; label: string }[] = [
+  { use: "team", label: "Team area" },
+  { use: "quiet", label: "Quiet area" },
+  { use: "collaboration", label: "Collaboration area" },
+  { use: "seating", label: "Café seating" },
+  { use: "service", label: "Service point" },
+];
+
+/** What's wrong with a zone in this plan, in plain words (the contract's own checks), or null. */
+export function zoneProblem(plan: FloorPlan, id: string): string | null {
+  const mine = checkFloorPlan(plan).filter((i) => i.code === "zone" || i.code === "outside_bounds").find((i) => new RegExp(`\\b${id}\\b`).test(i.message));
+  if (!mine) return null;
+  if (/inside one space/.test(mine.message)) return "A zone has to sit inside one room. Draw the room first (or make the zone smaller), then draw the zone inside it.";
+  if (/overlap/.test(mine.message)) return "Zones can't overlap. Draw it next to the other zone instead.";
+  if (/outside bounds/.test(mine.message)) return "That zone goes outside the plan.";
+  return mine.message;
+}
+
+/** Adds an invisible area (a team's part of an open office) inside a room. Returns an error message if it doesn't fit. */
+export function addZone(plan: FloorPlan, polygon: Vec2[], levelId: string, use: ZoneUse = "team"): { plan: FloorPlan; id: string } | { error: string } {
+  const id = nextId(plan, "zone");
+  const zone: Zone = { id, levelId, name: `${use === "team" ? "Team area" : ZONE_USES.find((u) => u.use === use)!.label} ${(plan.zones?.length ?? 0) + 1}`, polygon: polygon.map((p) => clampToBounds(plan, p)), use };
+  const next = { ...plan, zones: [...(plan.zones ?? []), zone] };
+  const problem = zoneProblem(next, id);
+  return problem ? { error: problem } : { plan: next, id };
+}
+
+/** The room a zone sits in. */
+export function zoneSpace(plan: FloorPlan, zone: Zone): Space | undefined {
+  return plan.spaces.find((s) => s.levelId === zone.levelId && zone.polygon.every((p) => pointInPolygon(p, s.polygon) || distToPolygonEdge(p, s.polygon) < 1e-6));
+}
+
+/** Desk spacing: a desk and its chair take about 1.6 m along a row, rows about 2.4 m apart (aisle included). */
+export const DESK_PITCH = { along: 1.6, across: 2.4 };
+const ZONE_EDGE_CLEARANCE = 0.6;
+
+/** Desks already inside a zone. */
+export const desksInZone = (plan: FloorPlan, zone: Zone) =>
+  plan.fixtures.filter((f) => f.type === "desk" && f.levelId === zone.levelId && pointInPolygon(f.position, zone.polygon));
+
+/**
+ * Fills a zone with rows of desks on a regular grid, keeping clear of its edges and of any
+ * desks already there. Stops at `target` desks in the zone (its capacity if set).
+ */
+export function fillZoneWithDesks(plan: FloorPlan, zoneId: string, target?: number): { plan: FloorPlan; added: number } {
+  const zone = plan.zones?.find((z) => z.id === zoneId);
+  if (!zone) return { plan, added: 0 };
+  const space = zoneSpace(plan, zone);
+  const existing = desksInZone(plan, zone);
+  const want = Math.max(0, (target ?? zone.capacity ?? Infinity) - existing.length);
+  const xs = zone.polygon.map((p) => p.x);
+  const ys = zone.polygon.map((p) => p.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  // Rows run along the zone's longer side.
+  const wide = x1 - x0 >= y1 - y0;
+  const [a0, a1, c0, c1] = wide ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
+  const rows = Math.max(0, Math.floor((c1 - c0 - 2 * ZONE_EDGE_CLEARANCE) / DESK_PITCH.across) + 1);
+  const cols = Math.max(0, Math.floor((a1 - a0 - 2 * ZONE_EDGE_CLEARANCE) / DESK_PITCH.along) + 1);
+  const offA = (a1 - a0 - (cols - 1) * DESK_PITCH.along) / 2;
+  const offC = (c1 - c0 - (rows - 1) * DESK_PITCH.across) / 2;
+  let next = plan;
+  let added = 0;
+  for (let r = 0; r < rows && added < want; r++) {
+    for (let c = 0; c < cols && added < want; c++) {
+      const along = a0 + offA + c * DESK_PITCH.along;
+      const across = c0 + offC + r * DESK_PITCH.across;
+      const p = wide ? { x: along, y: across } : { x: across, y: along };
+      const clear = pointInPolygon(p, zone.polygon) && distToPolygonEdge(p, zone.polygon) >= ZONE_EDGE_CLEARANCE - 1e-6;
+      const free = !next.fixtures.some((f) => f.levelId === zone.levelId && Math.hypot(f.position.x - p.x, f.position.y - p.y) < 1);
+      if (!clear || !free || (space && !pointInPolygon(p, space.polygon))) continue;
+      const out = addFixture(next, "desk", p, zone.levelId);
+      // Alternate rows face each other.
+      next = updateItem(out.plan, "fixture", out.id, (f) => ({ ...f, rotation: wide ? (r % 2 ? 270 : 90) : r % 2 ? 180 : 0 }));
+      added++;
+    }
+  }
+  return { plan: next, added };
 }

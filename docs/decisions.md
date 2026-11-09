@@ -421,3 +421,15 @@ every wall face within 1 mm of a source line, and a re-import gives the same wal
 `CadRecord` per plan id in the project file and browser storage, because the floor-plan contract has no place for it;
 saved options keep the plan id, so they share it. Changes are marked against the imported drawing or a saved option:
 added or changed items go on `NA-CHANGES`, removed items and the old position of anything moved go dashed on `NA-REMOVED`.
+
+## 2026-11-09 · Zones and one-step office setup, app side (v1.0 Part D)
+A Zone tool (Z) draws an invisible area inside one room: dashed outline, name and team on the plan, edited in the side
+panel (shown straight away in the simple view). The contract's own floor-plan check decides whether a zone fits (inside
+one room, no overlaps), so the editor and validator never disagree. "Fill with desks" lays rows at 1.6 m along and
+2.4 m across, 0.6 m clear of the edges and 1 m from other furniture: a planning rule of thumb, not a sourced value.
+"Paste your teams" reads one team per line (or two spreadsheet columns, "(office)", "(2 managers)") and places each
+team in a zone whose name mentions it, then the smallest free zone that fits, biggest teams first; office people go to
+private offices. A department's `zoneId` is app-profile data that seats its people at desks in that zone first and
+becomes `Team.zoneId` in the scenario. "How closely teams work" is a click grid using the contract's scale (closely 4,
+sometimes 1, rarely 0.2 per person per day) and becomes `relationships` with `from: "user"`. Desk generation is a plan
+edit, so it lives in the app; the engine side of Part D (Codex) is using zones in team metrics and allocation.

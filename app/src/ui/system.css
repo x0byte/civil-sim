@@ -900,3 +900,55 @@ html:root[data-theme="dark"] .segmented button.active {
 .walk-status span:empty {
   display: none;
 }
+
+/* People · paste your teams and the relationship grid (v1.0 Part D) */
+.paste-teams { width: min(560px, calc(100vw - 32px)); }
+.paste-teams textarea {
+  width: 100%;
+  min-height: 9rem;
+  font: inherit;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--text-small);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  resize: vertical;
+}
+.paste-teams .table { margin: var(--space-2) 0; }
+.relationship-grid { display: grid; gap: 2px; overflow-x: auto; padding-bottom: var(--space-1); }
+.relationship-row { display: flex; align-items: center; gap: 2px; }
+.relationship-name {
+  flex: 0 0 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-small);
+  padding-right: var(--space-2);
+}
+.relationship-cell {
+  flex: 0 0 2rem;
+  height: 2rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  letter-spacing: -1px;
+  color: var(--ink-3);
+}
+.relationship-cell.level-closely { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.relationship-cell.level-sometimes { background: color-mix(in srgb, var(--accent) 45%, var(--paper)); color: var(--ink); }
+.relationship-cell.level-rarely { background: color-mix(in srgb, var(--accent) 15%, var(--paper)); color: var(--ink); }
+.relationship-cols { align-items: flex-start; }
+.relationship-col {
+  flex: 0 0 2rem;
+  height: 5.5rem;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-small);
+  color: var(--ink-3);
+}

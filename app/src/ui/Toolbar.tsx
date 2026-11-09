@@ -30,6 +30,7 @@ export const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactN
   { tool: "door", label: "Door", key: "D", icon: I("M4 20h16M6 20V6M6 6a12 12 0 0 1 12 12") },
   { tool: "window", label: "Window", key: "N", icon: I("M3 9h18M3 12h18M3 15h18") },
   { tool: "room", label: "Room", key: "R", icon: I("M4 4h16v16H4zM4 4l16 16") },
+  { tool: "zone", label: "Zone", key: "Z", icon: I("M4 4h3M10 4h4M17 4h3v3M20 10v4M20 17v3h-3M14 20h-4M7 20H4v-3M4 14v-4M4 7V4") },
   { tool: "fixture", label: "Furniture", key: "F", icon: I("M4 9h16v4H4zM6 13v6M18 13v6") },
   { tool: "neighbour", label: "Neighbour", key: "B", icon: I("M4 20V6h16v14M8 9h2M14 9h2M8 13h2M14 13h2") },
   { tool: "noise", label: "Noise", key: "Q", icon: I("M4 9h4l6-5v16l-6-5H4zM17 8q6 4 0 8") },
