@@ -466,3 +466,7 @@ Codex ran out of usage with Part E built but not validated. At the product owner
 `codex/v1-optimiser`: Ella's `set_goal` schema now lists every field (unused ones null) like the other tools, three
 cancellation tests compare against the loaded plan, and two whole-mall-day app tests have a 30-second limit for a
 heavier parallel suite. No engine source was changed. Details and results are in `docs/engine-v1-optimiser-report.md`.
+
+## 2026-11-09 · Default behaviour rules are on
+Product owner: in new projects the starting behaviour rules (v1.1 draft) are switched on, each labelled "assumed, not
+measured", and the user or Ella can turn them off or change them. Projects saved without rules keep today's results.
