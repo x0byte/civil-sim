@@ -29,7 +29,7 @@ export class TrackBuilder {
   walk(path: Vec2[], activity: Activity): void {
     this.mark("walking");
     for (let i = 1; i < path.length; i++) {
-      this.t += distance(path[i - 1], path[i]) / this.speed;
+      this.t += distance(path[i - 1], path[i]) / (this.speed * ((path[i] as { speedFactor?: number }).speedFactor ?? 1));
       this.position = { x: path[i].x, y: path[i].y, levelId: levelOf(path[i], this.position.levelId) };
       this.mark(i === path.length - 1 ? activity : "walking");
       const pause = (path[i] as LevelPoint).hesitateS ?? 0;

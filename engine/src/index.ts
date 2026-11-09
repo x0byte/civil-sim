@@ -34,6 +34,8 @@ import { SITE_ASSUMPTIONS, siteWeather } from "./modules/site.ts";
 import { ACCESSIBILITY_NOTE, accessibilityChecks } from "./modules/accessibility.ts";
 import { actualConnectorMetrics, evacuate, EVACUATION_ASSUMPTIONS } from "./modules/evacuation.ts";
 import { COMFORT_ASSUMPTIONS } from "./modules/comfort.ts";
+import { Behaviours } from "./modules/behaviours.ts";
+export { DEFAULT_RULES } from "./modules/behaviours.ts";
 
 export class SimulationInputError extends Error {
   readonly errors: string[];
@@ -147,6 +149,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
   const requests = shopperRequests(scenario);
   options.onProgress?.({ stage: "seating", people: scenario.people.length + (scenario.visitors?.length ?? 0) + requests.length });
   const people = new People(scenario);
+  people.behaviours = new Behaviours(plan, scenario, warn);
   for (const person of scenario.people) people.add(person.id, "staff", person.profileId);
   for (const visitor of scenario.visitors ?? []) people.add(visitor.id, "visitor", visitor.profileId);
   for (const request of requests) people.add(request.id, "shopper", undefined, request.arrival, request.type.maxStayMin * 60);

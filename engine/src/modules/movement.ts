@@ -187,6 +187,13 @@ export class RoomMovement {
         const pause = detour.reduce((n, p) => n + ((p as LevelPoint).hesitateS ?? 0), 0);
         if (this.track.t + travelTime(detour, this.track.speed) + pause <= deadline + 1e-6) path = detour;
       }
+      const behaviours = this.track.person?.people.behaviours;
+      if (behaviours?.active) {
+        // Like a detour, a rule never makes someone miss their next activity; then they take the plain route.
+        path = behaviours.adjust(path, this.track.person, this.track.t, this.navigation.grids, this.navigation.first, this.track.speed,
+          (candidate) => !this.firstRoom(candidate, skipSpaceId),
+          (candidate) => this.track.t + travelTime(candidate, this.track.speed) + candidate.reduce((n, p) => n + ((p as LevelPoint).hesitateS ?? 0), 0) <= deadline + 1e-6);
+      }
       if (this.track.person && this.track.t + travelTime(path, this.track.speed) > deadline + 1e-6) throw new RoomMovementDenied(this, "", "No time remains for this route before the next activity.");
       trip.actual += horizontalLength(path, this.navigation.first);
       if (this.track.person?.people.scenario.crowding) {

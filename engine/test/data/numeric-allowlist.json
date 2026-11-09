@@ -127,22 +127,27 @@
     }
   },
   "engine/src/modules/access-routes.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: default liking 1 for people without a profile, and 0 as the log-weight identity.",
     "expressions": {
       "1 in -1": 1,
       "1 in i - 1": 1,
       "512 in floor.retainTrees(512)": 1,
       "1 in options.length === 1": 1,
       "0 in options[0]": 1,
-      "0 in kind === \"ramp\" ? 0 : Math.log(person.profile!.prefers[kind])": 1,
-      "0 in connectorKinds(path, this.plan).reduce((n, kind) => n + (kind === \"ramp\" ? 0 : Math.log(person.profile!.prefers[kind])), 0)": 1,
       "0 in Number.isFinite(highest) ? Math.exp(weight - highest) : 0": 1,
       "0 in weights.reduce((a, b) => a + b, 0)": 1,
       "0 in sum > 0": 1,
       "0 in i = 0": 1,
       "0 in weights[i] > 0": 1,
       "0 in at <= 0": 1,
-      "0 in i === j ? 0 : path ? pathLength(path) : null": 1
+      "0 in i === j ? 0 : path ? pathLength(path) : null": 1,
+      "1 in stairs: 1": 1,
+      "1 in escalator: 1": 1,
+      "1 in lift: 1": 1,
+      "0 in all[0]": 1,
+      "0 in kind === \"ramp\" ? 0 : Math.log(prefers[kind])": 1,
+      "0 in connectorRules ? Math.log(rules!.connectorWeight(person, kind)) : 0": 1,
+      "0 in connectorKinds(path, this.plan).reduce((n, kind) => n + liking(kind), 0)": 1
     }
   },
   "engine/src/modules/accessibility.ts": {
@@ -188,6 +193,113 @@
       "0 in originY: 0": 1,
       "0 in perPerson.length ? totalDistance / perPerson.length : 0": 1,
       "0 in perPerson.length ? totalTime / perPerson.length : 0": 1
+    }
+  },
+  "engine/src/modules/behaviours.ts": {
+    "reason": "Behaviour rules (contract v1.1). Maths: indices, 0/1 identities, averaging midpoints (0.5) and float tolerances. Sampling steps match the comfort model exactly: 0.5 m light/glare cells, 900 s (15-minute) light slots and 60 s noise minutes. DEFAULT_RULES are scenario data labelled \"assumed, not measured\" (product owner, 2026-11-09): their strengths become registered parameters (behaviour.<id>.strength) as soon as a scenario uses them; their thresholds (glare 0.3, noise 65 dB(A), task light 400 lux, contrast 30) pick out the sensitive kinds the app ships and are user-editable.",
+    "expressions": {
+      "1 in i + 1": 1,
+      "0 in poly.reduce((n, p, i) => { const q = poly[(i + 1) % poly.length]; return n + p.x * q.y - q.x * p.y; }, 0)": 1,
+      "2 in Math.abs(poly.reduce((n, p, i) => { const q = poly[(i + 1) % poly.length]; return n + p.x * q.y - q.x * p.y; }, 0)) / 2": 1,
+      "900 in SLOT_S = 900": 1,
+      "0.3 in below: 0.3": 1,
+      "2 in assumed(2, 1.2, 4)": 1,
+      "1.2 in assumed(2, 1.2, 4)": 1,
+      "4 in assumed(2, 1.2, 4)": 1,
+      "65 in below: 65": 1,
+      "1.5 in assumed(1.5, 1.1, 3)": 1,
+      "1.1 in assumed(1.5, 1.1, 3)": 1,
+      "3 in assumed(1.5, 1.1, 3)": 1,
+      "400 in above: 400": 2,
+      "0.85 in assumed(0.85, 0.6, 1)": 1,
+      "0.6 in assumed(0.85, 0.6, 1)": 1,
+      "1 in assumed(0.85, 0.6, 1)": 1,
+      "30 in value: 30": 1,
+      "0.8 in assumed(0.8, 0.6, 0.95)": 1,
+      "0.6 in assumed(0.8, 0.6, 0.95)": 1,
+      "0.95 in assumed(0.8, 0.6, 0.95)": 1,
+      "0 in extraS: 0": 1,
+      "0 in blocked: 0": 1,
+      "0 in this.rules.length > 0": 1,
+      "0 in Math.max(0, Math.min(Math.floor(this.duration / SLOT_S), Math.floor(t / SLOT_S)))": 1,
+      "0.5 in this.plan.bounds.width / 0.5": 1,
+      "0.5 in this.plan.bounds.height / 0.5": 1,
+      "1 in cols - 1": 1,
+      "0 in Math.max(0, Math.floor(p.x / 0.5))": 1,
+      "0.5 in p.x / 0.5": 1,
+      "1 in rows - 1": 1,
+      "0 in Math.max(0, Math.floor(p.y / 0.5))": 1,
+      "0.5 in p.y / 0.5": 1,
+      "0.5 in col + 0.5": 1,
+      "0.5 in (col + 0.5) * 0.5": 1,
+      "0.5 in row + 0.5": 1,
+      "0.5 in (row + 0.5) * 0.5": 1,
+      "0 in return 0;": 1,
+      "0 in Math.max(0, Math.min(floor.minutes.length - 1, Math.floor(t / 60)))": 1,
+      "1 in floor.minutes.length - 1": 1,
+      "60 in t / 60": 1,
+      "0 in floor.minutes[minute]?.[this.sound.index(p)] ?? 0": 1,
+      "1 in weight = 1": 1,
+      "1 in m = 1": 1,
+      "1 in acting.reduce((n, r) => n * this.strength(r), 1)": 1,
+      "1 in f - 1": 1,
+      "2 in path.length < 2": 1,
+      "0 in path[0]": 4,
+      "1 in p.slice(1)": 1,
+      "1 in (q as BehaviourPoint).speedFactor ?? 1": 1,
+      "0 in (q as LevelPoint).hesitateS ?? 0": 1,
+      "0 in p.slice(1).reduce((s, q, i) => s + distance(p[i], q) / (speed * ((q as BehaviourPoint).speedFactor ?? 1)) + ((q as LevelPoint).hesitateS ?? 0), 0)": 1,
+      "1 in -1": 5,
+      "0 in this.note(r, person, 0)": 3,
+      "0 in result[0]": 1,
+      "1 in i = 1": 3,
+      "1 in i - 1": 7,
+      "1 in Math.max(1, Math.ceil(d / grid.cellSize))": 1,
+      "1 in slow.length ? Math.max(1, Math.ceil(d / grid.cellSize)) : 1": 1,
+      "1 in k = 1": 2,
+      "0.5 in k - 0.5": 2,
+      "1 in factor = 1": 1,
+      "1 in factor !== 1": 1,
+      "1 in result.length - 1": 1,
+      "0 in last.hesitateS ?? 0": 1,
+      "0 in Math.max(0, timeOf(result) - baseS)": 1,
+      "0 in t?.people.size ?? 0": 1,
+      "0 in t && t.people.size ? t.extraS / t.people.size : 0": 1,
+      "0 in t?.blocked ?? 0": 1,
+      "1 in Math.max(1, Math.ceil(distance(path[i - 1], path[i]) / step))": 1,
+      "1e-9 in Math.abs(p.x - b[i].x) < 1e-9": 1,
+      "1e-9 in Math.abs(p.y - b[i].y) < 1e-9": 1,
+      "0 in points[0]": 2,
+      "1 in out.length > 1": 1,
+      "2 in out.length - 2": 1,
+      "1e-9 in Math.abs((prev.x - before.x) * (p.y - prev.y) - (prev.y - before.y) * (p.x - prev.x)) < 1e-9": 1,
+      "1 in prev.speedFactor ?? 1": 1,
+      "1 in p.speedFactor ?? 1": 1,
+      "1 in out.length - 1": 1,
+      "1 in this.items.length - 1": 1,
+      "0 in i > 0": 1,
+      "1 in (i - 1) >> 1": 1,
+      "0 in this.items[0]": 1,
+      "0 in i = 0": 1,
+      "2 in 2 * i": 1,
+      "1 in 2 * i + 1": 1,
+      "1 in l + 1": 1,
+      "0 in start < 0": 1,
+      "0 in goal < 0": 1,
+      "0 in best[start] = 0": 1,
+      "0 in heap.push(start, 0)": 1,
+      "1 in Number.isFinite(m(i)) ? m(i) : 1": 1,
+      "1 in Number.isFinite(mj) ? mj : 1": 1,
+      "2 in distance(grid.point(i), grid.point(j)) * ((Number.isFinite(m(i)) ? m(i) : 1) + (Number.isFinite(mj) ? mj : 1)) / 2": 1,
+      "1e-12 in best[j] - 1e-12": 1,
+      "0 in i >= 0": 1,
+      "1 in cells.slice(1, -1)": 1,
+      "0 in w = 0": 1,
+      "0 in anchor = 0": 1,
+      "1 in points.length - 1": 2,
+      "1 in anchor + 1": 2,
+      "2 in grid.cellSize / 2": 1,
+      "1e-12 in allowed + 1e-12": 1
     }
   },
   "engine/src/modules/building-paths.ts": {
@@ -322,7 +434,7 @@
     }
   },
   "engine/src/modules/crowd-motion.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: 1 is the no-slowing speed factor identity, 0 the no-pause identity, and the same 1e-6 deadline tolerance as the detour check.",
     "expressions": {
       "1e-3 in EPS = 1e-3": 1,
       "0 in Math.max(0,g.next-t)": 1,
@@ -381,7 +493,8 @@
       "1e-8 in Math.abs(at - motion.cumulative[next]) < 1e-8": 1,
       "0 in (motion.path[next] as LevelPoint).hesitateS ?? 0": 1,
       "0 in pause > 0": 1,
-      "1 in key.indexOf(\":\") + 1": 1
+      "1 in key.indexOf(\":\") + 1": 1,
+      "1 in (target as { speedFactor?: number }).speedFactor ?? 1": 1
     }
   },
   "engine/src/modules/density.ts": {
@@ -793,7 +906,7 @@
     }
   },
   "engine/src/modules/movement.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: 1 is the no-slowing speed factor identity, 0 the no-pause identity, and the same 1e-6 deadline tolerance as the detour check.",
     "expressions": {
       "0 in candidates[0]": 1,
       "0 in interiorIntervals(point, point, space.polygon).length > 0": 1,
@@ -817,9 +930,10 @@
       "1 in (path[i] as LevelPoint).rampWalk ? parameter(\"walk.speed.adult\")/this.track.speed : 1": 1,
       "0 in path.slice(0, i)": 1,
       "1e-6 in connectorDeadline + 1e-6": 2,
-      "0 in (p as LevelPoint).hesitateS ?? 0": 1,
+      "0 in (p as LevelPoint).hesitateS ?? 0": 2,
       "0 in detour.reduce((n, p) => n + ((p as LevelPoint).hesitateS ?? 0), 0)": 1,
-      "1e-6 in deadline + 1e-6": 2
+      "1e-6 in deadline + 1e-6": 3,
+      "0 in candidate.reduce((n, p) => n + ((p as LevelPoint).hesitateS ?? 0), 0)": 1
     }
   },
   "engine/src/modules/navigation.ts": {
@@ -873,13 +987,13 @@
     }
   },
   "engine/src/modules/pathfinding.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: 1 is the no-slowing speed factor identity, 0 the no-pause identity, and the same 1e-6 deadline tolerance as the detour check.",
     "expressions": {
       "0 in length = 0": 1,
-      "1 in i = 1": 2,
-      "1 in i - 1": 4,
-      "0 in seconds = 0": 1,
-      "1 in (path[i] as {rampWalk?:boolean}).rampWalk ? parameter(\"walk.speed.adult\")/speed : 1": 1,
+      "1 in i = 1": 3,
+      "1 in i - 1": 6,
+      "0 in seconds = 0": 2,
+      "1 in (path[i] as {rampWalk?:boolean}).rampWalk ? parameter(\"walk.speed.adult\")/speed : 1": 2,
       "64 in private treeLimit = 64;": 1,
       "0 in index >= 0": 1,
       "0 in this.grid.components[index] >= 0": 1,
@@ -927,7 +1041,8 @@
       "0 in cell >= 0 ? visibility[cell] : 0": 1,
       "2 in this.grid.canWalk(raw[anchor], raw[next]) ? 2 : 1": 1,
       "1 in this.grid.canWalk(raw[anchor], raw[next]) ? 2 : 1": 1,
-      "2 in value === 2": 1
+      "2 in value === 2": 1,
+      "1 in (path[i] as { speedFactor?: number }).speedFactor ?? 1": 1
     }
   },
   "engine/src/modules/profiles.ts": {
@@ -1118,7 +1233,7 @@
     }
   },
   "engine/src/modules/schedule.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: 1 is the no-dwell-rule identity and -1 the last path point.",
     "expressions": {
       "0 in time.slice(0, 2)": 1,
       "2 in time.slice(0, 2)": 1,
@@ -1130,7 +1245,7 @@
       "60 in rule.durationMin * 60": 1,
       "0 in path[0]": 2,
       "0 in entrancePaths[0]": 1,
-      "1 in -1": 3,
+      "1 in -1": 4,
       "1 in plan.levels.length === 1": 5,
       "0 in personTraits!.people.activeSize(0)": 1,
       "0 in doorGates(plan, path).reduce((wait, door) => wait + size / door.rate, 0)": 1,
@@ -1146,7 +1261,8 @@
       "0 in visitIndex = 0": 1,
       "2 in 2 * travel": 1,
       "2 in outsideS * 2": 1,
-      "2 in insideS * 2": 4
+      "2 in insideS * 2": 4,
+      "1 in personTraits?.people.behaviours?.dwellFactor(personTraits, end, levelOf(end, navigation.first), visit.t, visit.duration) ?? 1": 1
     }
   },
   "engine/src/modules/shopper-world.ts": {
@@ -1356,7 +1472,7 @@
     }
   },
   "engine/src/modules/track.ts": {
-    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities.",
+    "reason": "Geometry, indexing, unit conversion, numerical tolerances, algorithm ordering and arithmetic identities. v1.1 behaviour rules: 1 is the no-slowing speed factor identity, 0 the no-pause identity, and the same 1e-6 deadline tolerance as the detour check.",
     "expressions": {
       "0 in t = 0;": 1,
       "0 in t: 0": 2,
@@ -1370,7 +1486,8 @@
       "1 in path.length === 1": 1,
       "0 in safeIndex < 0": 1,
       "0 in x: 0": 1,
-      "0 in y: 0": 1
+      "0 in y: 0": 1,
+      "1 in (path[i] as { speedFactor?: number }).speedFactor ?? 1": 1
     }
   },
   "engine/src/modules/visitors.ts": {

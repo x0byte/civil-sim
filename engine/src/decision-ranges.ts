@@ -19,6 +19,11 @@ export function decisionValues(decision: DecisionMetrics): Record<string, Ranged
     values[`spaceUse.${JSON.stringify(row.spaceId)}.peak`] = row.peakOccupancy;
     values[`spaceUse.${JSON.stringify(row.spaceId)}.occupiedShare`] = row.occupiedShare;
   }
+  for (const row of decision.behaviours ?? []) {
+    values[`behaviours.${JSON.stringify(row.ruleId)}.peopleAffected`] = row.peopleAffected;
+    values[`behaviours.${JSON.stringify(row.ruleId)}.extraSecondsPerPerson`] = row.extraSecondsPerPerson;
+    values[`behaviours.${JSON.stringify(row.ruleId)}.blockedTrips`] = row.blockedTrips;
+  }
   for (const row of decision.retail ?? []) for (const key of ['passersPerHour', 'entriesPerHour', 'dwellS', 'revenuePerYear'] as const) {
     if (row[key]) values[`retail.${JSON.stringify(row.spaceId)}.${key}`] = row[key]!;
   }
@@ -113,7 +118,7 @@ export function compareResults(a: SimulationResult, b: SimulationResult,
   return Object.keys(before).filter(key => after[key] && before[key].unit === after[key].unit).sort().map(metric => {
     const x = before[metric], y = after[metric];
     const direction = metric.startsWith('retail.') && /entriesPerHour$|passersPerHour$|revenuePerYear$/.test(metric) ? 'higher' :
-      metric.startsWith('spaceUse.') || metric.endsWith('.demand') || metric.endsWith('.dwellS') ? 'context' : 'lower';
+      metric.startsWith('spaceUse.') || metric.endsWith('.demand') || metric.endsWith('.dwellS') || metric.endsWith('.peopleAffected') ? 'context' : 'lower';
     const metricPaired = paired && aSeries!.samples.every((row, i) => {
       const a = row.measurements[metric], b = bSeries!.samples[i].measurements[metric];
       return a && b && a.unit === x.unit && b.unit === x.unit && Number.isFinite(a.value) && Number.isFinite(b.value);

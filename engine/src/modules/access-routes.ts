@@ -86,19 +86,26 @@ export class AccessRoutes {
   personal(person: Traveller): Navigation {
     const access = person.profile?.access ?? "any";
     const policy = this.policy(access);
-    if (!person.profile) { person.navigation = policy; return policy; }
+    const rules = person.people.behaviours;
+    const connectorRules = !!rules?.rulesFor(person).some((r) => r.when.kind === "connector");
+    if (!person.profile && !connectorRules) { person.navigation = policy; return policy; }
+    const prefers = person.profile?.prefers ?? { stairs: 1, escalator: 1, lift: 1 };
     for (const floor of policy.paths.floors.values()) floor.retainTrees(512);
     const cache = new Map<string, Vec2[] | null>();
     const paths: PathRoutes = { grid: policy.grid, floors: policy.paths.floors,
       route: (a, b) => {
         const key = `${levelOf(a, policy.first)}:${a.x},${a.y}>${levelOf(b, policy.first)}:${b.x},${b.y}`;
         if (cache.has(key)) return cache.get(key)!;
-        const options = this.options(a, b, access);
+        // Behaviour rules can rule out a kind of connector, or make it more or less liked.
+        const all = this.options(a, b, access);
+        const options = connectorRules ? all.filter((path) => !connectorKinds(path, this.plan).some((kind) => rules!.connectorBlocked(person, kind))) : all;
+        if (connectorRules && all.length && !options.length) rules!.connectorTripBlocked(person, connectorKinds(all[0], this.plan));
         let result: Vec2[] | null = null;
         if (options.length === 1) result = options[0];
         else if (options.length) {
           const times = options.map((path) => travelTime(path, person.speed)); const best = Math.min(...times);
-          const logs = options.map((path, i) => connectorKinds(path, this.plan).reduce((n, kind) => n + (kind === "ramp" ? 0 : Math.log(person.profile!.prefers[kind])), 0) - (times[i] - best) / parameter("wayfinding.connector.time_scale"));
+          const liking = (kind: ReturnType<typeof connectorKinds>[number]) => (kind === "ramp" ? 0 : Math.log(prefers[kind])) + (connectorRules ? Math.log(rules!.connectorWeight(person, kind)) : 0);
+          const logs = options.map((path, i) => connectorKinds(path, this.plan).reduce((n, kind) => n + liking(kind), 0) - (times[i] - best) / parameter("wayfinding.connector.time_scale"));
           const highest = Math.max(...logs);
           const weights = logs.map((weight) => Number.isFinite(highest) ? Math.exp(weight - highest) : 0);
           const sum = weights.reduce((a, b) => a + b, 0);

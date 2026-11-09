@@ -1455,6 +1455,10 @@ export function parameterDefault(key: string): number {
 /** Synchronous, stack-scoped execution. Never hold a scope across an await. Each
  * worker has its own module state; nested simulations restore their caller's scope.
  */
+/** What a behaviour rule's strength means, by effect (contract v1.1), and its allowed range. */
+const STRENGTH_UNIT: Record<string, string> = { avoid: '× route cost', prefer: '× route cost', slow: '× walking speed', hesitate: 's pause', dwell: '× time spent', cannot_use: 'fixed' };
+const STRENGTH_BOUNDS: Record<string, [number, number]> = { avoid: [1, 10], prefer: [0.1, 1], slow: [0.1, 1], hesitate: [0, 120], dwell: [0.2, 5], cannot_use: [1, 1] };
+
 export class ParameterValues {
   private readonly definitions = new Map(registry);
   private readonly overrides = new Map<string, ParameterOverride>();
@@ -1483,12 +1487,23 @@ export class ParameterValues {
         if (scenario[name] !== undefined) Object.assign(this.scenario, { [name]: bind(scenario[name], `scenario.${name}`) });
       }
     }
+    // v1.1 behaviour rules: each strength is a value with a range, varied and ranked like any other.
+    const ruleBounds = new Map<string, [number, number]>();
+    for (const rule of scenario?.behaviours ?? []) {
+      const s = rule.strength; const key = `behaviour.${rule.id}.strength`;
+      ruleBounds.set(key, STRENGTH_BOUNDS[rule.effect.kind]);
+      this.definitions.set(key, Object.freeze({ key, kind: 'behaviour' as const, value: s.value, low: s.low, high: s.high, unit: STRENGTH_UNIT[rule.effect.kind],
+        source: s.basis === 'measured' ? s.source : s.basis === 'user' ? `User setting: ${s.source || 'set in the app'}` : `Assumption: ${s.source || 'Behaviour rule strength'} (range assumed, not measured)`,
+        note: `Behaviour rule "${rule.name}" (${rule.effect.kind}).` }));
+    }
     for (const entry of coherentBounds([...this.definitions.values()])) this.definitions.set(entry.key, entry);
     for (const override of overrides) {
       const entry = this.definitions.get(override.key);
       if (!entry) throw new Error(`Unknown parameter: ${override.key}`);
       if (this.overrides.has(override.key)) throw new Error(`Duplicate parameter: ${override.key}`);
       validateValue(entry, override);
+      const bounds = ruleBounds.get(override.key);
+      if (bounds && (override.value < bounds[0] || override.value > bounds[1])) throw new Error(`Parameter ${override.key} is outside its domain`);
       this.overrides.set(override.key, { ...override });
     }
     // A mean, min, max or spread override must leave a valid distribution.
