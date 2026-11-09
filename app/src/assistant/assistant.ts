@@ -1,3 +1,9 @@
+import { useExperience } from "../experience/state.ts";
+import { useImprovements } from "../improvements/store.ts";
+import {
+  RESULT_PARAMETER_TOOL,
+  lookupResultParameter,
+} from "../results/parameterLookup.ts";
 import { resultsContext } from "../results/model.ts";
 import { useResults } from "../results/state.ts";
 import { runInBackground } from "../sim/background.ts";
@@ -13,7 +19,13 @@ import { create } from "zustand";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { useEditor } from "../state/store.ts";
-import { type Change, type Draft, TOOLS, describe } from "./tools.ts";
+import {
+  type Change,
+  type Draft,
+  type ToolOutcome,
+  TOOLS,
+  describe,
+} from "./tools.ts";
 
 export const MODEL = "claude-opus-5-5";
 const KEY_STORAGE = "civil-sim:anthropic-key";
@@ -79,7 +91,10 @@ function storedKey(): string {
 
 function currentDraft(): Draft {
   const s = useEditor.getState();
-  return { plan: s.plan, profile: s.profiles[s.plan.id] ?? defaultProfile(s.plan) };
+  return {
+    plan: s.plan,
+    profile: s.profiles[s.plan.id] ?? defaultProfile(s.plan),
+  };
 }
 
 /** A note for the model, added to the next user message (never edited into history). */
@@ -123,10 +138,22 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     const proposal = get().proposal;
     const current = currentDraft();
     const start = proposal ?? { base: current, draft: current, changes: [] };
+    const digest = resultsContext(
+      useEditor.getState().run,
+      useEditor.getState().view === "compare"
+        ? useEditor.getState().comparison
+        : null,
+      useResults.getState().tab,
+      useExperience.getState().step === 3 &&
+        !useExperience.getState().home &&
+        !proposal &&
+        !useImprovements.getState().previewId,
+    );
     const intro = [
       `CURRENT PLAN${proposal ? " (with your waiting proposal included)" : ""}:\n${describe(start.draft)}`,
-      proposal ? `WAITING PROPOSAL, not applied yet: ${proposal.changes.map((c) => c.text).join("; ")}` : "",
-      resultsContext(useEditor.getState().run, useEditor.getState().view === "compare" ? useEditor.getState().comparison : null, useResults.getState().tab),
+      proposal
+        ? `WAITING PROPOSAL, not applied yet: ${proposal.changes.map((c) => c.text).join("; ")}`
+        : "",
       pendingNote,
     ]
       .filter(Boolean)
@@ -142,24 +169,53 @@ export const useAssistant = create<AssistantState>((set, get) => ({
         ],
       },
     ];
-    set({ busy: true, activity: ["Reading your plan"], error: null, history, lines: [...get().lines, { role: "user", text }] });
+    set({
+      busy: true,
+      activity: ["Reading your plan"],
+      error: null,
+      history,
+      lines: [...get().lines, { role: "user", text }],
+    });
 
-    const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
+    const client = new Anthropic({
+      apiKey: key,
+      dangerouslyAllowBrowser: true,
+    });
     let draft = start.draft;
     let changes = [...start.changes];
     const reply: string[] = [];
     try {
       for (let step = 0; ; step++) {
-        if (step >= MAX_STEPS) throw new Error("The assistant took too many steps on this request, so it was stopped. Try asking for less at once.");
-        set({ activity: [...get().activity, step === 0 ? "Thinking it through" : "Checking the result"] });
+        if (step >= MAX_STEPS)
+          throw new Error(
+            "The assistant took too many steps on this request, so it was stopped. Try asking for less at once.",
+          );
+        set({
+          activity: [
+            ...get().activity,
+            step === 0 ? "Thinking it through" : "Checking the result",
+          ],
+        });
         controller.signal.throwIfAborted();
         const response = await client.beta.messages.create(
           {
             model: MODEL,
             max_tokens: 16000,
             system: SYSTEM,
-            tools: TOOLS,
-            messages: get().history,
+            tools: [...TOOLS, RESULT_PARAMETER_TOOL],
+            messages: get().history.map((message, index, history) =>
+              digest && index === history.length - 1 && message.role === "user"
+                ? {
+                    ...message,
+                    content: [
+                      ...(typeof message.content === "string"
+                        ? [{ type: "text" as const, text: message.content }]
+                        : message.content),
+                      { type: "text" as const, text: digest },
+                    ],
+                  }
+                : message,
+            ),
             thinking: { type: "adaptive" },
             output_config: { effort: "medium" },
             cache_control: { type: "ephemeral" },
@@ -168,38 +224,78 @@ export const useAssistant = create<AssistantState>((set, get) => ({
           },
           { signal: controller.signal },
         );
-        set({ history: [...get().history, { role: "assistant", content: response.content }] });
-        for (const b of response.content) if (b.type === "text" && b.text.trim()) reply.push(b.text.trim());
+        set({
+          history: [
+            ...get().history,
+            { role: "assistant", content: response.content },
+          ],
+        });
+        for (const b of response.content)
+          if (b.type === "text" && b.text.trim()) reply.push(b.text.trim());
 
         if (response.stop_reason === "refusal") {
           reply.push("I can't help with that request.");
           break;
         }
-        const calls = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
-        if (response.stop_reason === "max_tokens" && calls.length) throw new Error("The reply was cut off. Try a smaller request.");
+        const calls = response.content.filter(
+          (b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use",
+        );
+        if (response.stop_reason === "max_tokens" && calls.length)
+          throw new Error("The reply was cut off. Try a smaller request.");
         if (!calls.length) break;
 
         const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
         for (const call of calls) {
-          const out = await runInBackground(
-            { kind: "assistantTool", name: call.name, input: call.input as Record<string, unknown>, draft },
-            controller.signal,
-          );
+          const out: ToolOutcome =
+            call.name === RESULT_PARAMETER_TOOL.name
+              ? {
+                  draft,
+                  result: lookupResultParameter(
+                    useEditor.getState().run,
+                    useEditor.getState().view === "compare"
+                      ? useEditor.getState().comparison
+                      : null,
+                    (call.input as Record<string, unknown>).key,
+                  ),
+                  error: false,
+                }
+              : await runInBackground(
+                  {
+                    kind: "assistantTool",
+                    name: call.name,
+                    input: call.input as Record<string, unknown>,
+                    draft,
+                  },
+                  controller.signal,
+                );
           controller.signal.throwIfAborted();
           draft = out.draft;
           if (out.change) changes.push(out.change);
-          set({ activity: [...get().activity, toolActivity(call.name, out.error)] });
-          results.push({ type: "tool_result", tool_use_id: call.id, content: out.result, ...(out.error ? { is_error: true } : {}) });
+          set({
+            activity: [...get().activity, toolActivity(call.name, out.error)],
+          });
+          results.push({
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: out.result,
+            ...(out.error ? { is_error: true } : {}),
+          });
         }
         // All results for one turn go back in a single message.
-        set({ history: [...get().history, { role: "user", content: results }] });
+        set({
+          history: [...get().history, { role: "user", content: results }],
+        });
       }
     } catch (e) {
       if (controller.signal.aborted) {
         draft = start.draft;
         changes = [...start.changes];
       }
-      set({ error: controller.signal.aborted ? "Stopped. Your building has not changed." : errorText(e) });
+      set({
+        error: controller.signal.aborted
+          ? "Stopped. Your building has not changed."
+          : errorText(e),
+      });
       // History must end on an assistant turn before the next user message; drop a dangling
       // tool-result turn by closing it with a short assistant note rather than editing history.
       const last = get().history[get().history.length - 1];
@@ -218,20 +314,35 @@ export const useAssistant = create<AssistantState>((set, get) => ({
                   is_error: true,
                 })),
               },
-              { role: "assistant", content: "The request was stopped. The building is unchanged." },
+              {
+                role: "assistant",
+                content: "The request was stopped. The building is unchanged.",
+              },
             ],
           });
       }
-      if (last?.role === "user") set({ history: [...get().history, { role: "assistant", content: "(stopped: an error interrupted this request)" }] });
+      if (last?.role === "user")
+        set({
+          history: [
+            ...get().history,
+            {
+              role: "assistant",
+              content: "(stopped: an error interrupted this request)",
+            },
+          ],
+        });
     }
 
     if (requestController === controller) requestController = undefined;
-    const changed = draft.plan !== start.base.plan || draft.profile !== start.base.profile;
+    const changed =
+      draft.plan !== start.base.plan || draft.profile !== start.base.profile;
     set({
       busy: false,
       activity: [],
       proposal: changed ? { base: start.base, draft, changes } : null,
-      lines: reply.length ? [...get().lines, { role: "assistant", text: reply.join("\n\n") }] : get().lines,
+      lines: reply.length
+        ? [...get().lines, { role: "assistant", text: reply.join("\n\n") }]
+        : get().lines,
     });
   },
 
@@ -240,21 +351,34 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     if (!p) return;
     const ed = useEditor.getState();
     if (ed.plan !== p.base.plan) {
-      set({ error: "The plan was changed by hand since this proposal was made. Discard it and ask again." });
+      set({
+        error:
+          "The plan was changed by hand since this proposal was made. Discard it and ask again.",
+      });
       return;
     }
     const plan: FloorPlan = p.draft.plan;
     ed.commit(() => plan);
-    if (p.draft.profile !== p.base.profile) ed.setProfile(plan.id, p.draft.profile);
-    ed.notify(`Applied ${p.changes.length} change${p.changes.length === 1 ? "" : "s"}. Undo reverses the plan changes.`);
+    if (p.draft.profile !== p.base.profile)
+      ed.setProfile(plan.id, p.draft.profile);
+    ed.notify(
+      `Applied ${p.changes.length} change${p.changes.length === 1 ? "" : "s"}. Undo reverses the plan changes.`,
+    );
     pendingNote = "NOTE: the user applied your last proposal.";
-    set({ proposal: null, lines: [...get().lines, { role: "note", text: "Applied." }] });
+    set({
+      proposal: null,
+      lines: [...get().lines, { role: "note", text: "Applied." }],
+    });
   },
 
   discard: () => {
     if (!get().proposal) return;
-    pendingNote = "NOTE: the user discarded your last proposal; the plan above is without it.";
-    set({ proposal: null, lines: [...get().lines, { role: "note", text: "Discarded." }] });
+    pendingNote =
+      "NOTE: the user discarded your last proposal; the plan above is without it.";
+    set({
+      proposal: null,
+      lines: [...get().lines, { role: "note", text: "Discarded." }],
+    });
   },
 
   reset: () => {
@@ -264,15 +388,21 @@ export const useAssistant = create<AssistantState>((set, get) => ({
 }));
 
 export function errorText(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return "That API key wasn't accepted. Check it and enter it again.";
-  if (e instanceof Anthropic.PermissionDeniedError) return "This API key isn't allowed to use the model.";
-  if (e instanceof Anthropic.RateLimitError) return "Too many requests right now. Wait a moment and try again.";
-  if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach the Claude API. Check your internet connection.";
-  if (e instanceof Anthropic.APIError) return `The Claude API returned an error (${e.status ?? "unknown"}): ${e.message}`;
+  if (e instanceof Anthropic.AuthenticationError)
+    return "That API key wasn't accepted. Check it and enter it again.";
+  if (e instanceof Anthropic.PermissionDeniedError)
+    return "This API key isn't allowed to use the model.";
+  if (e instanceof Anthropic.RateLimitError)
+    return "Too many requests right now. Wait a moment and try again.";
+  if (e instanceof Anthropic.APIConnectionError)
+    return "Couldn't reach the Claude API. Check your internet connection.";
+  if (e instanceof Anthropic.APIError)
+    return `The Claude API returned an error (${e.status ?? "unknown"}): ${e.message}`;
   return e instanceof Error ? e.message : String(e);
 }
 
 const TOOL_ACTIVITY: Record<string, string> = {
+  lookup_result_parameter: "Reading parameter evidence",
   add_floor: "Adding a floor",
   update_floor: "Adjusting a floor",
   add_wall: "Drawing a wall",
@@ -292,6 +422,8 @@ const TOOL_ACTIVITY: Record<string, string> = {
 
 /** A tool call as a short plain-words status line. */
 export function toolActivity(name: string, failed?: boolean): string {
-  const label = TOOL_ACTIVITY[name] ?? `Working on ${name.replace(/^(set|add|update)_/, "").replace(/_/g, " ")}`;
+  const label =
+    TOOL_ACTIVITY[name] ??
+    `Working on ${name.replace(/^(set|add|update)_/, "").replace(/_/g, " ")}`;
   return failed ? `${label} (trying again)` : label;
 }

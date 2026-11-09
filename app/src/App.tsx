@@ -4,11 +4,18 @@ import { RangeStatus } from "./sim/rangeJob.tsx";
 import { EvidenceStatus } from "./sim/evidenceJob.tsx";
 import { BackgroundStatus, useSimulationJob } from "./sim/jobs.tsx";
 import { Skeleton } from "./loading/LoadingState.tsx";
-import { Improvements, ImprovementPreview } from "./improvements/Improvements.tsx";
+import {
+  Improvements,
+  ImprovementPreview,
+} from "./improvements/Improvements.tsx";
 import { useImprovements } from "./improvements/store.ts";
 import { plainText } from "./experience/wording.ts";
 import { useEffect } from "react";
-import { SimpleBuilding, SimplePeople, RunControls } from "./experience/Flow.tsx";
+import {
+  SimpleBuilding,
+  SimplePeople,
+  RunControls,
+} from "./experience/Flow.tsx";
 import { Home } from "./experience/Home.tsx";
 import { AssistantWindow } from "./assistant/AssistantWindow.tsx";
 import { FineTune } from "./experience/common.tsx";
@@ -38,7 +45,12 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.closest?.("input, select, textarea, [role=dialog]")) return;
+      if (
+        (e.target as HTMLElement | null)?.closest?.(
+          "input, select, textarea, [role=dialog]",
+        )
+      )
+        return;
       const s = useEditor.getState();
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === "z") {
@@ -53,12 +65,18 @@ export function App() {
         return;
       }
       if (mod || e.altKey) return;
-      if (useExperience.getState().step !== 1 || useExperience.getState().home || s.view === "3d") return;
+      if (
+        useExperience.getState().step !== 1 ||
+        useExperience.getState().home ||
+        s.view === "3d"
+      )
+        return;
       const t = TOOLS.find((x) => x.key === e.key.toUpperCase());
       if (t) {
         s.setView("2d");
         s.setTool(t.tool);
-      } else if (e.key.toUpperCase() === "S" && s.plan.underlay) s.setTool("calibrate");
+      } else if (e.key.toUpperCase() === "S" && s.plan.underlay)
+        s.setTool("calibrate");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -66,8 +84,15 @@ export function App() {
 
   const improvementPreview = useImprovements((s) => s.previewId);
   return (
-    <div className={`app friendly-app ${ux.assistantOpen && ux.assistantDocked ? "assistant-is-docked" : ""}`}>
+    <div
+      className={`app friendly-app ${ux.assistantOpen && ux.assistantDocked ? "assistant-is-docked" : ""}`}
+    >
       <TopBar />
+      <div className="job-status-stack">
+        <BackgroundStatus />
+        <EvidenceStatus />
+        <RangeStatus />
+      </div>
       {ux.home ? (
         <Home />
       ) : (
@@ -79,7 +104,10 @@ export function App() {
             ) : improvementPreview && ux.step === 3 ? (
               <ImprovementPreview />
             ) : ux.step === 3 && (cmp || run) ? (
-              <ResultsWorkspace run={cmp ? cmp.a : run!} comparison={cmp || undefined} />
+              <ResultsWorkspace
+                run={cmp ? cmp.a : run!}
+                comparison={cmp || undefined}
+              />
             ) : ux.step === 1 ? (
               <BuildingWorkspace />
             ) : (
@@ -88,36 +116,46 @@ export function App() {
             {ux.step === 3 && !run && !cmp && jobStatus !== "working" && (
               <div className="run-empty">
                 <h1>Let’s see how your building feels.</h1>
-                <p>Run a typical day to see people move, where they wait and what could work better.</p>
+                <p>
+                  Run a typical day to see people move, where they wait and what
+                  could work better.
+                </p>
               </div>
             )}
           </div>
-          {!(ux.step === 3 && (run || cmp)) && <aside className="sidebar">
-            {ux.step === 1 ? (
-              <>
-                <SimpleBuilding />
-                <FineTune>
-                  <Inspector />
-                  <Problems />
-                </FineTune>
-              </>
-            ) : ux.step === 2 ? (
-              <>
-                {!ux.detailed && <SimplePeople />}
-                <PeoplePanel />
-              </>
-            ) : (
-              <>
-                <RunControls />
-                <section className="panel"><div className="panel-body">{jobStatus === 'working' ? <Skeleton label="Results will appear here when the run is ready…"/> : <p>Your results will appear here after a run.</p>}</div></section>
-              </>
-            )}
-          </aside>}
+          {!(ux.step === 3 && (run || cmp)) && (
+            <aside className="sidebar">
+              {ux.step === 1 ? (
+                <>
+                  <SimpleBuilding />
+                  <FineTune>
+                    <Inspector />
+                    <Problems />
+                  </FineTune>
+                </>
+              ) : ux.step === 2 ? (
+                <>
+                  {!ux.detailed && <SimplePeople />}
+                  <PeoplePanel />
+                </>
+              ) : (
+                <>
+                  <RunControls />
+                  <section className="panel">
+                    <div className="panel-body">
+                      {jobStatus === "working" ? (
+                        <Skeleton label="Results will appear here when the run is ready…" />
+                      ) : (
+                        <p>Your results will appear here after a run.</p>
+                      )}
+                    </div>
+                  </section>
+                </>
+              )}
+            </aside>
+          )}
         </main>
       )}
-      <BackgroundStatus />
-      <EvidenceStatus />
-      <RangeStatus />
       <AssistantWindow />
       <Improvements />
       {toast && (

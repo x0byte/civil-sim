@@ -394,3 +394,12 @@ changes, persist in project files, and require a rerun; displayed evidence conti
 Exports load PDF code on demand, reuse the scorecards/detail readers, and always include parameter sources.
 Supporting observations without stored ensemble intervals are labelled as representative detail rather than given
 invented bounds; comfort remains outside the range-run budget.
+
+
+## 2026-11-09 · Part C review: bounded context, sustained capacity, inline progress
+Ella’s automatic results digest is request-local and only attached while Results is visible; it is never retained
+in conversation history. Full parameter evidence is an explicit read-only lookup tool. Room demand uses a fixed
+15-minute rolling window extended to the longest modeled service duration, normalized per minute; flow elements
+stay at 60 seconds. Waiting-episode p90 is representative detail outside the locked result contract, with unfinished
+waits labelled lower bounded. Progress reserves shell space; the typical-run notice expires after six seconds and
+remains in tab progress. Empty team relationships are described as missing inputs, not zero measured travel.

@@ -1,3 +1,5 @@
+import { useExperience } from "../experience/state.ts";
+import { runSimulation } from "../sim/runSimulation.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FloorPlan } from "../../../contracts/floorplan.ts";
 import mallJson from "../../../samples/mall-2f.floorplan.json";
@@ -34,8 +36,16 @@ const toolUse = (id: string, name: string, input: object) => ({
   content: [{ type: "tool_use", id, name, input }],
   stop_reason: "tool_use",
 });
-const say = (text: string) => ({ content: [{ type: "text", text }], stop_reason: "end_turn" });
-const WINDOW = { wall_id: "f-w-right", kind: "window", offset: 15, width: null };
+const say = (text: string) => ({
+  content: [{ type: "text", text }],
+  stop_reason: "end_turn",
+});
+const WINDOW = {
+  wall_id: "f-w-right",
+  kind: "window",
+  offset: 15,
+  width: null,
+};
 
 describe("design assistant conversation", () => {
   beforeEach(() => {
@@ -46,38 +56,103 @@ describe("design assistant conversation", () => {
     useAssistant.getState().setKey("sk-ant-test", false);
   });
 
+  it("sends a digest only while Results is open, keeps it out of retained history, and supports full lookup", async () => {
+    const out = runSimulation(useEditor.getState().plan, undefined, undefined, {
+      decision: true,
+    });
+    if ("errors" in out) throw new Error(out.errors.join());
+    useEditor.getState().setRun(out.run);
+    useExperience.setState({ step: 3, home: false });
+    script.push(
+      toolUse("lookup", "lookup_result_parameter", { key: "walk.speed.adult" }),
+      say("Here is the evidence."),
+    );
+    await useAssistant.getState().send("Why is this high?");
+    expect(useAssistant.getState().error).toBeNull();
+    expect(JSON.stringify(requests[0].messages)).toContain(
+      "CURRENT RESULTS TAB",
+    );
+    expect(JSON.stringify(useAssistant.getState().history)).not.toContain(
+      "CURRENT RESULTS TAB",
+    );
+    expect(JSON.stringify(requests[1].messages)).toContain("walk.speed.adult");
+    expect(useAssistant.getState().proposal).toBeNull();
+    useExperience.setState({ step: 1 });
+    script.push(say("Ready to edit."));
+    await useAssistant.getState().send("Show the plan");
+    expect(JSON.stringify(requests.at(-1)!.messages)).not.toContain(
+      "CURRENT RESULTS TAB",
+    );
+  });
   it("turns a request into a proposal, and Apply makes it one undoable step", async () => {
-    script.push(toolUse("t1", "add_opening", WINDOW), say("I added a window to the right wall of the first floor."));
-    await useAssistant.getState().send("Add a window to the right wall of the first floor");
+    script.push(
+      toolUse("t1", "add_opening", WINDOW),
+      say("I added a window to the right wall of the first floor."),
+    );
+    await useAssistant
+      .getState()
+      .send("Add a window to the right wall of the first floor");
 
     const s = useAssistant.getState();
     expect(s.error).toBeNull();
     expect(s.busy).toBe(false);
     expect(s.activity).toEqual([]);
-    expect(s.proposal?.changes.map((c) => c.text)).toEqual(["Window on First floor"]);
-    expect(s.lines.at(-1)).toEqual({ role: "assistant", text: "I added a window to the right wall of the first floor." });
+    expect(s.proposal?.changes.map((c) => c.text)).toEqual([
+      "Window on First floor",
+    ]);
+    expect(s.lines.at(-1)).toEqual({
+      role: "assistant",
+      text: "I added a window to the right wall of the first floor.",
+    });
     // Not in the editor until applied.
     const before = useEditor.getState().plan;
     expect(before.openings.some((o) => o.wallId === "f-w-right")).toBe(false);
 
     // The request: the default model, the plan sent with the message, the tool results in one turn.
-    expect(requests[0]).toMatchObject({ model: "claude-opus-5-5", fallbacks: "default", thinking: { type: "adaptive" } });
+    expect(requests[0]).toMatchObject({
+      model: "claude-opus-5-5",
+      fallbacks: "default",
+      thinking: { type: "adaptive" },
+    });
     expect(JSON.stringify(requests[0].messages)).toContain("wall f-w-right");
-    expect(s.history.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant"]);
+    expect(s.history.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
 
     s.apply();
     expect(useAssistant.getState().proposal).toBeNull();
-    expect(useEditor.getState().plan.openings.some((o) => o.wallId === "f-w-right" && o.kind === "window")).toBe(true);
+    expect(
+      useEditor
+        .getState()
+        .plan.openings.some(
+          (o) => o.wallId === "f-w-right" && o.kind === "window",
+        ),
+    ).toBe(true);
     useEditor.getState().undo();
     expect(useEditor.getState().plan).toBe(before);
   });
 
   it("builds tweaks on the waiting proposal and tells the model when it's discarded", async () => {
     script.push(toolUse("t1", "add_opening", WINDOW), say("Added."));
-    await useAssistant.getState().send("Add a window on the right of the first floor");
-    const windowId = useAssistant.getState().proposal!.draft.plan.openings.at(-1)!.id;
+    await useAssistant
+      .getState()
+      .send("Add a window on the right of the first floor");
+    const windowId = useAssistant
+      .getState()
+      .proposal!.draft.plan.openings.at(-1)!.id;
 
-    script.push(toolUse("t2", "update_opening", { opening_id: windowId, width: 3, entrance: null, shopper_share: null }), say("Widened it."));
+    script.push(
+      toolUse("t2", "update_opening", {
+        opening_id: windowId,
+        width: 3,
+        entrance: null,
+        shopper_share: null,
+      }),
+      say("Widened it."),
+    );
     await useAssistant.getState().send("Make it wider");
     const p = useAssistant.getState().proposal!;
     expect(p.changes).toHaveLength(2);
@@ -87,7 +162,9 @@ describe("design assistant conversation", () => {
     useAssistant.getState().discard();
     script.push(say("OK."));
     await useAssistant.getState().send("Never mind");
-    expect(JSON.stringify(requests.at(-1)!.messages)).toContain("discarded your last proposal");
+    expect(JSON.stringify(requests.at(-1)!.messages)).toContain(
+      "discarded your last proposal",
+    );
     expect(useAssistant.getState().proposal).toBeNull();
   });
 
@@ -97,11 +174,17 @@ describe("design assistant conversation", () => {
     useEditor.getState().commit((p) => ({ ...p, name: "Edited by hand" }));
     useAssistant.getState().apply();
     expect(useAssistant.getState().error).toMatch(/changed by hand/);
-    expect(useEditor.getState().plan.openings.some((o) => o.wallId === "f-w-right")).toBe(false);
+    expect(
+      useEditor.getState().plan.openings.some((o) => o.wallId === "f-w-right"),
+    ).toBe(false);
   });
 
   it("sends tool errors back so the model can correct itself", async () => {
-    script.push(toolUse("t1", "add_opening", { ...WINDOW, wall_id: "nope" }), toolUse("t2", "add_opening", WINDOW), say("Done."));
+    script.push(
+      toolUse("t1", "add_opening", { ...WINDOW, wall_id: "nope" }),
+      toolUse("t2", "add_opening", WINDOW),
+      say("Done."),
+    );
     await useAssistant.getState().send("Add a window");
     const results = JSON.stringify(requests[1].messages);
     expect(results).toContain('"is_error":true');
@@ -110,13 +193,22 @@ describe("design assistant conversation", () => {
 
   it("shows what it's doing while it works, in plain words", async () => {
     const seen: string[][] = [];
-    const stop = useAssistant.subscribe((st) => st.busy && seen.push(st.activity));
+    const stop = useAssistant.subscribe(
+      (st) => st.busy && seen.push(st.activity),
+    );
     script.push(toolUse("t1", "add_opening", WINDOW), say("Done."));
     await useAssistant.getState().send("Add a window");
     stop();
-    expect(seen.at(-1)).toEqual(["Reading your plan", "Thinking it through", "Adding a door or window", "Checking the result"]);
+    expect(seen.at(-1)).toEqual([
+      "Reading your plan",
+      "Thinking it through",
+      "Adding a door or window",
+      "Checking the result",
+    ]);
     expect(toolActivity("set_kinds_of_people")).toBe("Choosing who comes in");
-    expect(toolActivity("add_opening", true)).toBe("Adding a door or window (trying again)");
+    expect(toolActivity("add_opening", true)).toBe(
+      "Adding a door or window (trying again)",
+    );
     expect(toolActivity("set_comfort")).toBe("Working on comfort");
   });
 

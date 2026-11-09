@@ -296,3 +296,5 @@ provenance in each result.
 | `arrival.staff.desk_margin` | setting / Setting | 1 | 1–1 | s | Legacy schedule allowance. |
 | `comfort.sound.road.start_hour` | behaviour / Assumed | 6 | 4.2–7.8 | h | Legacy default road opening hour. |
 | `comfort.sound.road.end_hour` | behaviour / Assumed | 22 | 15.4–24 | h | Legacy default road closing hour. |
+
+| `setting.decision.room_window_s` | 900 s | Setting | Rolling serviced-room demand window; extended to maximum service duration. Product-owner Part C review. |
