@@ -495,3 +495,9 @@ Editing a default changes its basis to "user". Ella's `set_behaviour` edits the 
 rule as JSON text (strict-schema rules forbid an open object), and records the user's sentence as the source. Results
 show a table per rule in Comfort and Access, a Summary line when rules clearly add time, and a Behaviour-rules filter
 in Evidence.
+
+## 2026-11-09 · Crowd density in behaviour rules
+Crowd-density conditions read the live crowd field, so they work only with crowding on (people don't interact
+otherwise). Without it the engine warns and the app pauses the rule, as with glare rules and sound-and-light. Avoid,
+prefer and can't-use read the crowd when a trip starts; slow and hesitate react each step. "People anxious in crowds
+avoid busy areas" joins the default rules. On a busy mall this adds about a third to run time; offices barely change.

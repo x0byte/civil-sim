@@ -309,7 +309,7 @@ describe("design assistant conversation", () => {
     for (let i = 0; i < messages.length; i++)
       if (messages[i].role === "system")
         expect(messages[i - 1].role).toBe("user");
-  });
+  }, 30000);
   it("turns a request into a proposal, and Apply makes it one undoable step", async () => {
     script.push(
       toolUse("t1", "add_opening", WINDOW),

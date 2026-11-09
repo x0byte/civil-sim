@@ -9,6 +9,8 @@ import type { BehaviourRule, RuleMeasure, RuleTrait, Scenario } from "../../../c
 import type { Warning } from "../../../contracts/results.ts";
 import { Environment, sunPosition } from "./environment.ts";
 import { Sound } from "./sound.ts";
+import { DENSITY_AREA } from "./density.ts";
+import type { DensityField } from "./density.ts";
 import { tolerances } from "./comfort.ts";
 import { distance, pointInPolygon } from "./geometry.ts";
 import type { WalkableGrid } from "./grid.ts";
@@ -18,21 +20,22 @@ import type { Traveller } from "./profiles.ts";
 import { personSeed } from "./random.ts";
 import { clockSeconds } from "./schedule.ts";
 
+const isCrowd = (r: BehaviourRule) => r.when.kind === "measure" && r.when.measure === CROWD;
+
 /** Shoelace area of a simple polygon. */
 const polygonArea = (poly: Vec2[]) => Math.abs(poly.reduce((n, p, i) => { const q = poly[(i + 1) % poly.length]; return n + p.x * q.y - q.x * p.y; }, 0)) / 2;
 
 /** Seconds between light and glare samples, matching the comfort heatmaps. */
 const SLOT_S = 900;
-/** Conditions not yet applied while people move. Rules using them are reported, not silently ignored. */
-const UNSUPPORTED_MEASURES = new Set<RuleMeasure>(["crowd_density"]);
+/** Crowd density is only known while the crowding step runs (scenario.crowding). */
+const CROWD = "crowd_density" satisfies RuleMeasure;
 
 const assumed = (value: number, low: number, high: number) => ({ value, low, high, basis: "assumed" as const, source: "Starting assumption (range assumed, not measured)" });
 
 /**
  * The starting rules for a new project: switched on, every strength labelled as an assumption
  * (product owner, 2026-11-09). People are picked by their own tolerances, not by kind names,
- * so the rules also cover kinds the user adds. Crowd avoidance joins once crowd density is
- * applied while people move.
+ * so the rules also cover kinds the user adds. Crowd avoidance needs crowding on.
  */
 export const DEFAULT_RULES: readonly BehaviourRule[] = Object.freeze([
   { id: "glare-avoid", name: "Light-sensitive people avoid glare", enabled: true,
@@ -42,6 +45,10 @@ export const DEFAULT_RULES: readonly BehaviourRule[] = Object.freeze([
   { id: "noise-avoid", name: "Noise-sensitive people avoid loud areas", enabled: true,
     who: { kind: "trait", trait: "noiseComfort", below: 65 },
     when: { kind: "measure", measure: "noise_dba", compare: "above", threshold: { personal: "noiseComfort" } },
+    effect: { kind: "avoid" }, strength: assumed(1.5, 1.1, 3) },
+  { id: "crowd-avoid", name: "People anxious in crowds avoid busy areas", enabled: true,
+    who: { kind: "trait", trait: "crowdComfort", below: 1 },
+    when: { kind: "measure", measure: "crowd_density", compare: "above", threshold: { personal: "crowdComfort" } },
     effect: { kind: "avoid" }, strength: assumed(1.5, 1.1, 3) },
   { id: "dim-slow", name: "People who need more light slow down where it's dim", enabled: true,
     who: { kind: "trait", trait: "taskLux", above: 400 },
@@ -68,6 +75,8 @@ export class Behaviours {
   private env?: Environment;
   private sound?: Sound;
   private readonly light = new Map<string, Float32Array>();
+  /** The live crowd field while the crowding step runs; set by the schedule runner. */
+  crowd?: DensityField;
   private readonly matched = new WeakMap<Traveller, BehaviourRule[]>();
   private readonly traitCache = new WeakMap<Traveller, Record<RuleTrait, number>>();
   readonly tally = new Map<string, Tally>();
@@ -81,8 +90,8 @@ export class Behaviours {
     this.spacesBySize = [...plan.spaces].sort((a, b) => polygonArea(a.polygon) - polygonArea(b.polygon));
     this.rules = (scenario.behaviours ?? []).filter((rule) => {
       if (!rule.enabled) return false;
-      if (rule.when.kind === "measure" && UNSUPPORTED_MEASURES.has(rule.when.measure)) {
-        warn({ code: "other", message: `Behaviour rule "${rule.name}" reacts to ${rule.when.measure.replace("_", " ")}, which this engine version doesn't apply while people move yet; it has no effect.`, refIds: [] });
+      if (rule.when.kind === "measure" && rule.when.measure === CROWD && !scenario.crowding?.enabled) {
+        warn({ code: "other", message: `Behaviour rule "${rule.name}" reacts to crowding, which is only worked out with crowding on; it has no effect in this run.`, refIds: [] });
         return false;
       }
       return true;
@@ -153,6 +162,14 @@ export class Behaviours {
       const floor = this.sound.floors.get(levelId); if (!floor) return 0;
       const minute = Math.max(0, Math.min(floor.minutes.length - 1, Math.floor(t / 60)));
       return floor.minutes[minute]?.[this.sound.index(p)] ?? 0;
+    }
+    if (measure === CROWD) {
+      // People per m² within a metre of the spot, from everyone currently placed in the crowd.
+      const values = this.crowd?.values.get(levelId);
+      if (!values || !this.crowd) return NaN;
+      const col = Math.floor(p.x / 0.5); const row = Math.floor(p.y / 0.5);
+      if (col < 0 || row < 0 || col >= this.crowd.cols || row >= this.crowd.rows) return NaN;
+      return values[row * this.crowd.cols + col] / DENSITY_AREA;
     }
     if (measure === "contrast") {
       const space = this.spaceAt(p, levelId);
@@ -269,8 +286,8 @@ export class Behaviours {
     }
 
     // 2. Slow and hesitate where the condition holds along the final route.
-    const slow = rules.filter((r) => r.effect.kind === "slow" && r.when.kind !== "connector");
-    const hesitate = rules.filter((r) => r.effect.kind === "hesitate" && r.when.kind !== "connector");
+    const slow = rules.filter((r) => r.effect.kind === "slow" && r.when.kind !== "connector" && !isCrowd(r));
+    const hesitate = rules.filter((r) => r.effect.kind === "hesitate" && r.when.kind !== "connector" && !isCrowd(r));
     if (slow.length || hesitate.length) {
       const out: BehaviourPoint[] = [{ ...result[0] }];
       for (let i = 1; i < result.length; i++) {
@@ -299,6 +316,25 @@ export class Behaviours {
     const extra = Math.max(0, timeOf(result) - baseS);
     for (const r of acted) { const tl = this.tally.get(r.id)!; tl.people.add(person.id); tl.extraS += extra / acted.length; }
     return result;
+  }
+
+  /**
+   * Crowd rules that act as people walk (slow, hesitate), checked against the crowd at their
+   * current spot each step. Returns the speed factor and any pause, and records the extra time.
+   */
+  live(person: Traveller | undefined, p: Vec2, levelId: string, distanceM: number, speed: number, atTurn: boolean): { factor: number; pauseS: number } {
+    if (!person || !this.crowd) return { factor: 1, pauseS: 0 };
+    let factor = 1; let pauseS = 0;
+    for (const r of this.rulesFor(person)) {
+      if (!isCrowd(r) || !this.holds(r, person, p, levelId, 0)) continue;
+      if (r.effect.kind === "slow") {
+        const f = this.strength(r); factor *= f;
+        this.note(r, person, speed > 0 ? distanceM / (speed * f) - distanceM / speed : 0);
+      } else if (r.effect.kind === "hesitate" && atTurn) {
+        const s = this.strength(r); pauseS += s; this.note(r, person, s);
+      }
+    }
+    return { factor, pauseS };
   }
 
   /** One row per enabled rule, for DecisionMetrics.behaviours (single-run values). */

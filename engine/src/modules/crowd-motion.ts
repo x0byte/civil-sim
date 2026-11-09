@@ -144,14 +144,17 @@ export class CrowdMotion {
     while (motion.segment + 1 < motion.path.length && motion.cumulative[motion.segment + 1] <= motion.at + 1e-9) motion.segment++;
     const next = Math.min(motion.path.length - 1, motion.segment + 1); const target = motion.path[next];
     const dx = target.x - track.position.x; const dy = target.y - track.position.y;
-    const speed = densitySpeed(track.speed, this.field.ahead(this.body(track), dx, dy)) * ((target as { speedFactor?: number }).speedFactor ?? 1);
+    const rules = track.person?.people.behaviours;
+    const live = rules?.active ? rules.live(track.person, track.position, track.position.levelId, Math.min(4 * track.speed, motion.cumulative[next] - motion.at), track.speed, false) : undefined;
+    const speed = densitySpeed(track.speed, this.field.ahead(this.body(track), dx, dy)) * ((target as { speedFactor?: number }).speedFactor ?? 1) * (live?.factor ?? 1);
     const at = Math.min(motion.at + speed * 4, motion.cumulative[next], stop);
     const point = this.point(motion, at); const d = Math.max(0, at - motion.at);
     if (d < 1e-10) { motion.at = Math.min(motion.total, motion.at + 1e-8); this.schedule(track.t, () => this.step(motion)); return; }
     if (!this.field.canPlace(this.body(track, point))) { track.mark("queuing"); track.t += 3; this.schedule(track.t, () => this.step(motion)); return; }
     track.mark("walking"); this.record(track, point, track.t + d / speed); this.field.set(this.body(track)); motion.at = at;
     if (Math.abs(at - motion.cumulative[next]) < 1e-8 && !motion.paused.has(next)) {
-      const pause = (motion.path[next] as LevelPoint).hesitateS ?? 0; motion.paused.add(next);
+      const turn = next < motion.path.length - 1 && rules?.active ? rules.live(track.person, track.position, track.position.levelId, 0, track.speed, true).pauseS : 0;
+      const pause = ((motion.path[next] as LevelPoint).hesitateS ?? 0) + turn; motion.paused.add(next);
       if (pause > 0) { track.t += pause; track.mark("walking"); }
     }
     this.schedule(track.t, () => this.step(motion));

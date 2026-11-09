@@ -194,7 +194,8 @@ function linePoint(room: Room, waiter: Waiter, rank: number, occupied: Vec2[], p
 
 /** Shared chronological capacity and FCFS scheduler; generators retain each person's behaviour. */
 export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scenario: Scenario,
-  navigation: Navigation, events: SimEvent[], warn: (warning: Warning) => void, onProgress?: (t: number) => void): Track[] {
+  navigation: Navigation, events: SimEvent[], warn: (warning: Warning) => void, onProgress?: (t: number) => void,
+  behaviours?: import("./behaviours.ts").Behaviours): Track[] {
   const capped = plan.spaces.filter((space) => (space.type === "toilet" || space.type === "pantry") && space.capacity !== undefined);
   // Queue motion itself must never use a different capacity-limited room as
   // overflow space. All rooms share one union grid for line positions/shuffling;
@@ -219,6 +220,7 @@ export function runSchedules(schedules: PersonSchedule[], plan: FloorPlan, scena
   const actions: Action[] | EventHeap<Action> = scenario.crowding ? new EventHeap(compare) : [];
   let now = 0;
   const crowd = scenario.crowding ? new CrowdMotion(plan, navigation, events, (t, run) => actions.push({ t, kind: "crowd", run })) : undefined;
+  if (behaviours && crowd) behaviours.crowd = crowd.field;
   const results: Track[] = new Array(schedules.length);
   const maxWaitS = (scenario.queueing?.maxWaitMin ?? parameter("service.queue.max_wait")) * 60;
   const restrictedLines = new WeakMap<WalkableGrid, Pathfinder>();
