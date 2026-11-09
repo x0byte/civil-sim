@@ -2,7 +2,7 @@
 // The engine writes this; the editor reads it to animate people and draw heatmaps.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-export const RESULTS_VERSION = "1.0";
+export const RESULTS_VERSION = "1.1";
 
 export interface SimulationResult {
   version: typeof RESULTS_VERSION;
@@ -79,6 +79,16 @@ export interface DecisionMetrics {
   retail?: { spaceId: string; passersPerHour: Ranged; entriesPerHour: Ranged; dwellS: Ranged; revenuePerYear?: Ranged }[];
   /** Pass/fail checks, each naming the rule (and registry parameter) it comes from. */
   checks: { code: string; ok: boolean; rule: string; message: string; refIds: string[] }[];
+  /** What each enabled behaviour rule did (v1.1). One row per enabled rule, in scenario order. Missing: no rules. */
+  behaviours?: {
+    ruleId: string;
+    /** People the rule applied to at least once. */
+    peopleAffected: Ranged;
+    /** Extra seconds per affected person per day the rule caused (detours, slowing, pauses, longer stays). */
+    extraSecondsPerPerson: Ranged;
+    /** Trips that had no route because of a "cannot_use" rule. */
+    blockedTrips: Ranged;
+  }[];
 }
 
 /** What a result rests on (v1.0). */

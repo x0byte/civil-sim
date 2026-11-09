@@ -69,7 +69,8 @@ export type IssueCode =
   | "relationship"
   | "goal"
   | "parameter"
-  | "costs";
+  | "costs"
+  | "behaviour";
 
 export interface ValidationIssue {
   code: IssueCode;
@@ -310,7 +311,8 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
   const issues: ValidationIssue[] = [];
   const err = (code: IssueCode, message: string) => issues.push({ code, message });
 
-  if (scenario.version !== SCENARIO_VERSION) err("version", `version must be "${SCENARIO_VERSION}"`);
+  if (scenario.version !== SCENARIO_VERSION && scenario.version !== "1.0") err("version", `version must be "${SCENARIO_VERSION}" (or "1.0")`);
+  if (scenario.version === "1.0" && scenario.behaviours !== undefined) err("version", 'behaviour rules need version "1.1"');
   if (!Number.isInteger(scenario.seed)) err("seed", "seed must be an integer");
   const start = parseClock(scenario.workday.start);
   const end = parseClock(scenario.workday.end);
@@ -558,6 +560,74 @@ export function checkScenario(scenario: Scenario, plan?: FloorPlan): ValidationI
   }
   if (scenario.uncertainty && !(Number.isInteger(scenario.uncertainty.runs) && scenario.uncertainty.runs >= 1 && scenario.uncertainty.runs <= 100))
     err("parameter", "uncertainty runs must be a whole number from 1 to 100");
+
+  // v1.1: behaviour rules.
+  const RULE_TRAITS = new Set(["glareComfort", "taskLux", "noiseComfort", "focusNoiseComfort", "crowdComfort", "familiarity", "speed"]);
+  const MEASURES = new Set(["glare", "light_lux", "noise_dba", "crowd_density", "contrast"]);
+  const COMFORT_MEASURES = new Set(["glare", "light_lux", "noise_dba"]);
+  const CONNECTOR_KINDS = new Set(["stairs", "escalator", "lift", "ramp"]);
+  const EFFECT_BOUNDS: Record<string, [number, number]> = {
+    avoid: [1, 10],
+    prefer: [0.1, 1],
+    slow: [0.1, 1],
+    hesitate: [0, 120],
+    dwell: [0.2, 5],
+    cannot_use: [1, 1],
+  };
+  const ruleIds = new Set<string>();
+  const kindIds = new Set((scenario.profiles?.list ?? []).map((p) => p.id));
+  for (const r of scenario.behaviours ?? []) {
+    const label = `behaviour ${r.id || "(no id)"}`;
+    if (!r.id || !/^[A-Za-z0-9-]+$/.test(r.id)) err("behaviour", `${label} needs an id of letters, digits and hyphens`);
+    else if (ruleIds.has(r.id)) err("behaviour", `${label} is listed twice`);
+    ruleIds.add(r.id);
+    if (!r.name || !r.name.trim()) err("behaviour", `${label} needs a name`);
+    if (typeof r.enabled !== "boolean") err("behaviour", `${label} enabled must be true or false`);
+    const who = r.who;
+    if (!who) err("behaviour", `${label} needs a who`);
+    else if (who.kind === "profiles") {
+      if (!who.profileIds?.length) err("behaviour", `${label} needs at least one kind of person`);
+      for (const id of who.profileIds ?? []) if (!kindIds.has(id)) err("behaviour", `${label} references unknown kind of person "${id}"`);
+    } else if (who.kind === "roles") {
+      if (!who.roles?.length || who.roles.some((x) => !["staff", "visitor", "shopper"].includes(x))) err("behaviour", `${label} roles must be staff, visitor or shopper`);
+    } else if (who.kind === "trait") {
+      if (!RULE_TRAITS.has(who.trait)) err("behaviour", `${label} has unknown trait "${who.trait}"`);
+      if (who.below === undefined && who.above === undefined) err("behaviour", `${label} trait needs below or above`);
+      if ((who.below !== undefined && !isNum(who.below)) || (who.above !== undefined && !isNum(who.above))) err("behaviour", `${label} trait bounds must be numbers`);
+    } else if (who.kind !== "everyone") err("behaviour", `${label} who must be everyone, profiles, roles or trait`);
+    const when = r.when;
+    if (!when) err("behaviour", `${label} needs a when`);
+    else if (when.kind === "measure") {
+      if (!MEASURES.has(when.measure)) err("behaviour", `${label} has unknown measure "${when.measure}"`);
+      if (when.compare !== "above" && when.compare !== "below") err("behaviour", `${label} compare must be above or below`);
+      const t = when.threshold as { value?: unknown; personal?: unknown } | undefined;
+      if (!t || (t.value === undefined) === (t.personal === undefined)) err("behaviour", `${label} threshold needs a value or a personal trait`);
+      else if (t.value !== undefined && !isNum(t.value)) err("behaviour", `${label} threshold value must be a number`);
+      else if (t.personal !== undefined && !RULE_TRAITS.has(t.personal as string)) err("behaviour", `${label} has unknown personal trait "${String(t.personal)}"`);
+      if (r.enabled && COMFORT_MEASURES.has(when.measure) && !scenario.comfort?.enabled)
+        err("behaviour", `${label} reacts to ${when.measure.replace("_", " ")}, which is only measured with comfort on: turn on sound and light, or the rule never applies`);
+    } else if (when.kind === "place") {
+      const lists = [when.spaceTypes, when.spaceIds, when.zoneIds];
+      if (!lists.some((l) => l && l.length)) err("behaviour", `${label} place needs room types, rooms or zones`);
+      for (const t of when.spaceTypes ?? []) if (!SPACE_TYPES.has(t)) err("behaviour", `${label} has unknown room type "${t}"`);
+      if (plan) {
+        for (const id of when.spaceIds ?? []) if (!plan.spaces.some((sp) => sp.id === id)) err("behaviour", `${label} references unknown room "${id}"`);
+        for (const id of when.zoneIds ?? []) if (!(plan.zones ?? []).some((z) => z.id === id)) err("behaviour", `${label} references unknown zone "${id}"`);
+      }
+    } else if (when.kind === "connector") {
+      if (!when.connectorKinds?.length || when.connectorKinds.some((k) => !CONNECTOR_KINDS.has(k))) err("behaviour", `${label} connector kinds must be stairs, escalator, lift or ramp`);
+    } else err("behaviour", `${label} when must be measure, place or connector`);
+    const bounds = r.effect && EFFECT_BOUNDS[r.effect.kind];
+    if (!bounds) err("behaviour", `${label} effect must be avoid, prefer, slow, hesitate, dwell or cannot_use`);
+    const st = r.strength;
+    if (!st || ![st.value, st.low, st.high].every(isNum)) err("behaviour", `${label} strength needs numeric value, low and high`);
+    else {
+      if (!(st.low <= st.value && st.value <= st.high)) err("behaviour", `${label} strength must have low ≤ value ≤ high`);
+      if (bounds && (st.low < bounds[0] || st.high > bounds[1])) err("behaviour", `${label} strength for ${r.effect.kind} must stay within ${bounds[0]}–${bounds[1]}`);
+      if (!["assumed", "user", "measured"].includes(st.basis)) err("behaviour", `${label} strength basis must be assumed, user or measured`);
+      if (st.basis === "measured" && !(st.source && st.source.trim())) err("behaviour", `${label} measured strength needs a source`);
+    }
+  }
 
   return issues;
 }

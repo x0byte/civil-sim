@@ -3,15 +3,16 @@
 // run on two layouts and compared.
 // LOCKED: changes need the product owner's approval. See contracts/README.md.
 
-import type { SpaceType } from "./floorplan.ts";
+import type { ConnectorKind, SpaceType } from "./floorplan.ts";
 
-export const SCENARIO_VERSION = "1.0";
+export const SCENARIO_VERSION = "1.1";
 
 /** "HH:MM", 24-hour clock. */
 export type ClockTime = string;
 
 export interface Scenario {
-  version: typeof SCENARIO_VERSION;
+  /** "1.1"; scenarios saved as "1.0" (without `behaviours`) are still accepted. */
+  version: typeof SCENARIO_VERSION | "1.0";
   id: string;
   name: string;
   /** Same seed + same plan + same scenario must give identical results. */
@@ -55,6 +56,83 @@ export interface Scenario {
   costs?: Costs;
   /** How many runs make up one result, with seeds and parameters varied within their ranges (v1.0). Missing: 12. */
   uncertainty?: { runs: number };
+  /**
+   * How people react to conditions in the building (v1.1). When present, this is the complete list: rules not
+   * listed don't apply. Missing: no rules, exactly the behaviour of scenario 1.0 (so saved results don't change).
+   * The app starts new projects from the building's default rules, switched on and labelled as assumptions.
+   */
+  behaviours?: BehaviourRule[];
+}
+
+/** One behaviour (v1.1): who, in what condition, does what, and how strongly. Nothing about it is fixed in the engine. */
+export interface BehaviourRule {
+  /** Unique within the scenario, e.g. "glare-avoid". Letters, digits and hyphens. */
+  id: string;
+  /** Plain words shown to the user, e.g. "Light-sensitive people avoid glare". */
+  name: string;
+  /** Off keeps the rule (and its settings) without applying it. */
+  enabled: boolean;
+  who: RuleWho;
+  when: RuleCondition;
+  effect: RuleEffect;
+  strength: RuleStrength;
+  /** Why the rule exists, or the sentence Ella heard. Shown in Evidence. */
+  note?: string;
+}
+
+/** Who a rule applies to. */
+export type RuleWho =
+  | { kind: "everyone" }
+  /** Kinds of person from `profiles.list`. */
+  | { kind: "profiles"; profileIds: string[] }
+  | { kind: "roles"; roles: ("staff" | "visitor" | "shopper")[] }
+  /** Anyone whose own drawn value of a trait is below or above a number (at least one given), e.g. glare tolerance below 0.3. */
+  | { kind: "trait"; trait: RuleTrait; below?: number; above?: number };
+
+/** Person traits a rule can refer to: the `PersonProfile` fields with the same names. */
+export type RuleTrait = "glareComfort" | "taskLux" | "noiseComfort" | "focusNoiseComfort" | "crowdComfort" | "familiarity" | "speed";
+
+/** Where or when a rule applies. */
+export type RuleCondition =
+  /** A measured condition at the spot, compared with a fixed number or with the person's own value of a trait. */
+  | { kind: "measure"; measure: RuleMeasure; compare: "above" | "below"; threshold: { value: number } | { personal: RuleTrait } }
+  /** Inside particular rooms, room types or zones. At least one list, non-empty. */
+  | { kind: "place"; spaceTypes?: SpaceType[]; spaceIds?: string[]; zoneIds?: string[] }
+  /** On particular kinds of stairs, escalators, lifts or ramps. */
+  | { kind: "connector"; connectorKinds: ConnectorKind[] };
+
+/**
+ * Conditions the engine measures at a spot and moment:
+ * - "glare" (0–1, the engine's glare scale) and "light_lux" (lux): need `comfort` on.
+ * - "noise_dba": dB(A), needs `comfort` on.
+ * - "crowd_density": people per m² around the person, always measured.
+ * - "contrast": floor-to-wall light reflectance difference, 0–100; spaces without LRVs never match.
+ */
+export type RuleMeasure = "glare" | "light_lux" | "noise_dba" | "crowd_density" | "contrast";
+
+/**
+ * What they do. `strength.value` means, by effect:
+ * - "avoid": route cost multiplier where the condition holds, 1–10 (2 = treat it as twice as long). Also lowers the
+ *   chance of choosing a matching optional destination (another toilet, pantry or shop) by the same factor.
+ * - "prefer": route cost multiplier 0.1–1 (0.5 = treat it as half as long).
+ * - "slow": walking speed multiplier while the condition holds, 0.1–1.
+ * - "hesitate": seconds paused at each junction or door passed while the condition holds, 0–120.
+ * - "dwell": multiplier on time spent at activities where the condition holds, 0.2–5.
+ * - "cannot_use": never goes where the condition holds (strength must be 1). A trip with no other route is
+ *   reported as blocked, as step-free access is.
+ */
+export type RuleEffect = { kind: "avoid" | "prefer" | "slow" | "hesitate" | "dwell" | "cannot_use" };
+
+/** How strong a rule's effect is, with its range and where the number came from. */
+export interface RuleStrength {
+  value: number;
+  /** Range used in the uncertainty runs and in sensitivity. low ≤ value ≤ high; equal means fixed. */
+  low: number;
+  high: number;
+  /** "assumed": a starting value nobody has measured. "user": set by the user, directly or through Ella. "measured": observed, with a source. */
+  basis: "assumed" | "user" | "measured";
+  /** Required for "measured"; for "user", e.g. "Set in People" or "Said to Ella: '…'". */
+  source: string;
 }
 
 /** How closely two teams work together (v1.0). */
