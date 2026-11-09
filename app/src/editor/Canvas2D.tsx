@@ -23,6 +23,7 @@ import {
 } from "../model/planOps.ts";
 import { type Tool, useEditor } from "../state/store.ts";
 import type { ItemRef } from "../model/planOps.ts";
+import { extendWall, offsetWall, sideDistance, trimWall } from "../model/cadOps.ts";
 import { type Clip, GROUP_KINDS, clipBounds, clipSize, copyItems, deleteItems, groupable, itemsInBox, moveItems, pasteClip } from "../model/groupOps.ts";
 import { PlanDrawing } from "./PlanDrawing.tsx";
 import { type SnapKind, snapPoint, typedPoint } from "./snap.ts";
@@ -55,6 +56,9 @@ const HINTS: Record<Tool, string> = {
   door: "Click on a wall to add a door. Doors on the outside walls are marked as entrances.",
   window: "Click on a wall to add a window.",
   room: "Drag a rectangle, or click each corner and click the first point to finish. Then name it on the right.",
+  offset: "Click a wall, then click the side to put a parallel copy on. Type a distance and press Enter for an exact offset. Esc picks another wall.",
+  trim: "Click the piece of a wall past a crossing to trim it off. Shift-click near a wall's end to extend it to the next wall.",
+  measure: "Click two points to measure between them. Snaps to wall ends, middles and crossings.",
   zone: "Draw an area inside a room with no walls: a team's part of an open office, a quiet corner. Drag a rectangle or click its corners.",
   neighbour: "Draw a neighbouring building outside the plan: drag a rectangle or click its corners. Edit its height on the right.",
   noise: "Click to place a noise source. Edit its name, loudness and hours on the right.",
@@ -100,6 +104,10 @@ export function Canvas2D() {
   const [cursor, setCursor] = useState<{ raw: Vec2; point: Vec2; kind: SnapKind; shift: boolean; angle?: number } | null>(null);
   const [typed, setTyped] = useState("");
   const [box, setBox] = useState<{ a: Vec2; b: Vec2 } | null>(null);
+  const [offsetFrom, setOffsetFrom] = useState<string | null>(null);
+  const [measure, setMeasure] = useState<{ a: Vec2; b?: Vec2 } | null>(null);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const hiddenLayers = useEditor((s) => s.hiddenLayers);
   const [northPosition, setNorthAt] = useState<Vec2 | null>(null);
   const northAt = northPosition ?? { x: plan.bounds.width - 80 / cam.s, y: -36 / cam.s };
   useEffect(() => setNorthAt(null), [plan.id]);
@@ -123,7 +131,28 @@ export function Canvas2D() {
     setRect(null);
     setCalib(null);
     setTyped("");
+    setOffsetFrom(null);
+    setMeasure(null);
   }, [tool, plan.id, level]);
+
+  /** The offset the ghost copy would use: what was typed (on the cursor's side), else the cursor's distance on the grid. */
+  const offsetDistance = (): number | null => {
+    const w = offsetFrom ? getItem(plan, "wall", offsetFrom) : undefined;
+    if (!w || !cursor) return null;
+    const side = sideDistance(w, cursor.raw);
+    const typedNum = Number(typed);
+    if (typed && typedNum > 0) return Math.sign(side || 1) * typedNum;
+    return snapToGrid ? Math.round(side / gridSize) * gridSize : Math.round(side * 100) / 100;
+  };
+  const placeOffset = () => {
+    const d = offsetDistance();
+    setTyped("");
+    if (!offsetFrom || d === null) return;
+    const out = offsetWall(plan, offsetFrom, d);
+    if ("error" in out) return notify(out.error);
+    commit(() => out.plan);
+    notify(`Offset ${Math.abs(d).toFixed(2)} m. Click again for another copy, or Esc to pick a different wall.`);
+  };
 
   /** Everything selected: the group, or the single selection. */
   const picked = (): ItemRef[] => (group.length ? group : selection ? [selection] : []);
@@ -181,8 +210,21 @@ export function Canvas2D() {
     setDraft([]);
   };
 
+  /** The wall under a click: the wall itself, the wall a clicked door or window sits in, or the nearest wall within reach. */
+  const wallAt = (kind: string | null | undefined, id: string, raw: Vec2): string | null => {
+    if (kind === "wall") return id;
+    if (kind === "opening") return plan.openings.find((o) => o.id === id)?.wallId ?? null;
+    let best: { id: string; d: number } | null = null;
+    for (const w of view.walls) {
+      const d = projectOntoSegment(raw, w.a, w.b).dist;
+      if (d < 12 / cam.s && (!best || d < best.d)) best = { id: w.id, d };
+    }
+    return best?.id ?? null;
+  };
+
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     svgRef.current!.setPointerCapture(e.pointerId);
+    setLayersOpen(false);
     const startPan = () => {
       dragRef.current = { type: "pan", startX: e.clientX, startY: e.clientY, cam };
     };
@@ -282,6 +324,31 @@ export function Canvas2D() {
           return r.plan;
         });
         select({ kind: "fixture", id: newId });
+        return;
+      }
+      case "offset": {
+        if (!offsetFrom) {
+          const wallId = wallAt(kind, id, raw);
+          if (!wallId) return notify("Click a wall to offset.");
+          setOffsetFrom(wallId);
+          return;
+        }
+        return placeOffset();
+      }
+      case "trim": {
+        const wallId = wallAt(kind, id, raw);
+        if (!wallId) return notify("Click on a wall: the piece past a crossing to trim it, or Shift-click near its end to extend it.");
+        let out = e.shiftKey ? extendWall(plan, wallId, raw) : trimWall(plan, wallId, raw);
+        if ("error" in out && !e.shiftKey && /Nothing crosses/.test(out.error)) out = extendWall(plan, wallId, raw);
+        if ("error" in out) return notify(out.error);
+        const next = out.plan;
+        commit(() => next);
+        select(null);
+        return;
+      }
+      case "measure": {
+        const p = snap(raw, e.shiftKey).point;
+        setMeasure(!measure || measure.b ? { a: p } : { a: measure.a, b: p });
         return;
       }
       case "calibrate": {
@@ -456,7 +523,8 @@ export function Canvas2D() {
     const down = (e: KeyboardEvent) => {
       if (typing(e)) return;
       const anchorPt = draft[draft.length - 1];
-      const entering = !!anchorPt && (tool === "wall" || tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour");
+      const entering =
+        (!!anchorPt && (tool === "wall" || tool === "room" || tool === "zone" || tool === "connector" || tool === "neighbour")) || (tool === "offset" && !!offsetFrom);
       const mod = e.metaKey || e.ctrlKey;
       if (entering && !mod && /^[0-9.@<,\-]$/.test(e.key)) {
         e.preventDefault();
@@ -470,7 +538,13 @@ export function Canvas2D() {
       }
       if (typed && e.key === "Enter") {
         e.preventDefault();
-        applyTyped();
+        if (tool === "offset") placeOffset();
+        else applyTyped();
+        return;
+      }
+      if (e.key === "Escape" && (offsetFrom || measure)) {
+        setOffsetFrom(null);
+        setMeasure(null);
         return;
       }
       if (typed && e.key === "Escape") {
@@ -610,6 +684,7 @@ export function Canvas2D() {
             below={below}
             zoneTeams={zoneTeams}
             group={group}
+            hidden={hiddenLayers}
           />
 
           <g transform={`translate(${northAt.x} ${northAt.y}) rotate(${plan.site?.northDeg ?? 0})`}>
@@ -661,6 +736,48 @@ export function Canvas2D() {
             </>
           )}
           {calib && <PreviewSegment a={calib.a} b={calib.b} scale={cam.s} dashed />}
+          {offsetFrom &&
+            (() => {
+              const w = getItem(plan, "wall", offsetFrom);
+              const d = offsetDistance();
+              if (!w) return null;
+              const L = dist(w.a, w.b);
+              const n = L ? { x: -(w.b.y - w.a.y) / L, y: (w.b.x - w.a.x) / L } : { x: 0, y: 0 };
+              const a = d === null ? null : { x: w.a.x + n.x * d, y: w.a.y + n.y * d };
+              const b = d === null ? null : { x: w.b.x + n.x * d, y: w.b.y + n.y * d };
+              return (
+                <g style={{ pointerEvents: "none" }}>
+                  <line x1={w.a.x} y1={w.a.y} x2={w.b.x} y2={w.b.y} stroke="var(--accent)" strokeWidth={Math.max(w.thickness, sx(4))} strokeOpacity={0.45} />
+                  {a && b && (
+                    <>
+                      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--accent)" strokeWidth={Math.max(w.thickness, sx(2))} strokeOpacity={0.6} strokeDasharray={`${sx(6)} ${sx(4)}`} />
+                      <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - sx(8)} fontSize={sx(12)} textAnchor="middle" className="measure">
+                        {Math.abs(d!).toFixed(2)} m
+                      </text>
+                    </>
+                  )}
+                </g>
+              );
+            })()}
+          {measure &&
+            (() => {
+              const b = measure.b ?? cursor?.point;
+              if (!b) return <circle cx={measure.a.x} cy={measure.a.y} r={sx(3.5)} fill="var(--accent)" />;
+              const dx = b.x - measure.a.x;
+              const dy = measure.a.y - b.y;
+              const angle = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+              return (
+                <g style={{ pointerEvents: "none" }}>
+                  <line x1={measure.a.x} y1={measure.a.y} x2={b.x} y2={b.y} stroke="var(--accent)" strokeWidth={sx(1.5)} />
+                  {[measure.a, b].map((p, i) => (
+                    <circle key={i} cx={p.x} cy={p.y} r={sx(3.5)} fill="var(--accent)" />
+                  ))}
+                  <text x={(measure.a.x + b.x) / 2 + sx(8)} y={(measure.a.y + b.y) / 2 - sx(8)} fontSize={sx(12)} className="measure">
+                    {Math.hypot(dx, dy).toFixed(2)} m · Δx {Math.abs(dx).toFixed(2)} · Δy {Math.abs(dy).toFixed(2)} · {angle.toFixed(0)}°
+                  </text>
+                </g>
+              );
+            })()}
           {box && (
             <rect
               x={Math.min(box.a.x, box.b.x)}
@@ -701,7 +818,7 @@ export function Canvas2D() {
               );
             })()}
 
-          {cursor && tool !== "select" && tool !== "pan" && tool !== "door" && tool !== "window" && (
+          {cursor && tool !== "select" && tool !== "pan" && tool !== "door" && tool !== "window" && tool !== "trim" && tool !== "offset" && (
             <g style={{ pointerEvents: "none" }}>
               <circle
                 cx={cursor.point.x}
@@ -747,6 +864,28 @@ export function Canvas2D() {
           const scale = Math.max(.25, Math.min((width - 96) / Math.max(1, w), (height - 128) / Math.max(1, h)));
           setCam({ s: scale, x: (width - w * scale) / 2 - x * scale, y: (height - h * scale) / 2 - y * scale });
         }}>Surroundings</button>}
+        <div className="layers-menu">
+          <button onClick={() => setLayersOpen((o) => !o)} aria-expanded={layersOpen} title="Show or hide parts of the plan">
+            Layers{hiddenLayers.length ? ` · ${hiddenLayers.length} hidden` : ""}
+          </button>
+          {layersOpen && (
+            <div className="layers-pop" role="group" aria-label="Layers">
+              {[
+                ["rooms", "Room colours and names"],
+                ["zones", "Zones"],
+                ["furniture", "Furniture"],
+                ["noise", "Noise sources"],
+                ["image", "Traced image"],
+                ["below", "Floor below"],
+              ].map(([key, label]) => (
+                <label key={key} className="check">
+                  <input type="checkbox" checked={!hiddenLayers.includes(key)} onChange={() => useEditor.getState().toggleLayer(key)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
         <button onClick={fit} title="Fit plan to screen">
           Fit
         </button>
