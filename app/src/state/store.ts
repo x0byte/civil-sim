@@ -7,7 +7,7 @@ import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
-export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "zone" | "fixture" | "connector" | "neighbour" | "noise" | "calibrate";
+export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "zone" | "offset" | "trim" | "measure" | "fixture" | "connector" | "neighbour" | "noise" | "calibrate";
 export type ViewMode = "2d" | "3d" | "sim" | "compare";
 
 /** A saved copy of a layout, so design options can be compared. */
@@ -32,6 +32,9 @@ interface EditorState {
   selection: ItemRef | null;
   /** Several items selected at once (two or more). Empty when one item or nothing is selected. */
   group: ItemRef[];
+  /** Plan layers hidden in the editor (furniture, zones, rooms, image, noise, below). Remembered in this browser. */
+  hiddenLayers: string[];
+  toggleLayer: (layer: string) => void;
   view: ViewMode;
   snapToGrid: boolean;
   gridSize: number;
@@ -156,6 +159,22 @@ export const useEditor = create<EditorState>()((set, get) => ({
   tool: "select",
   selection: null,
   group: [],
+  hiddenLayers: (() => {
+    try {
+      return JSON.parse(localStorage.getItem("civil-sim:layers") ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  })(),
+  toggleLayer: (layer) => {
+    const hidden = get().hiddenLayers.includes(layer) ? get().hiddenLayers.filter((l) => l !== layer) : [...get().hiddenLayers, layer];
+    set({ hiddenLayers: hidden });
+    try {
+      localStorage.setItem("civil-sim:layers", JSON.stringify(hidden));
+    } catch {
+      /* remembered for this session only */
+    }
+  },
   view: "2d",
   snapToGrid: true,
   gridSize: 0.25,

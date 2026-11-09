@@ -445,3 +445,15 @@ Space-drag, the middle button or the Pan tool. A group (store `group`, two or mo
 (Shift: 1 m), copies, cuts, pastes at the cursor, duplicates (+1 m) and deletes together; doors ride on their walls,
 pastes get fresh ids and stay inside the plan, and stairs and lifts paste only onto the floor they came from.
 Batch 2: offset, trim/extend/join, rotate/mirror, measure, layers.
+
+## 2026-11-09 · CAD-style editing, batch 2
+New tools: Offset (O) picks a wall, then each click places a parallel copy on the cursor's side at the grid-rounded
+distance, or exactly at a typed distance (Enter). Trim/extend (X): a click removes the piece of a wall between the
+crossings around it (splitting the wall when the piece is in the middle; doors in the removed piece go); Shift-click,
+or a click on a wall nothing crosses, extends the nearer end to the next wall, doors keeping their place. Measure (M)
+shows length, Δx, Δy and angle between two snapped points. Clicking a door or window, or near a wall, counts as the
+wall for Offset and Trim. A selection of several items can rotate (90° either way or any angle, clockwise on screen)
+and mirror about its centre; furniture turns with it, doors ride on their walls, and anything that would leave the
+plan is refused with a reason. Two selected walls can be joined: in line they merge (up to a 2 m gap), at an angle they
+are trimmed or extended to a clean corner. A Layers menu hides room colours, zones, furniture, noise, the traced image
+or the floor below; hidden layers can't be clicked and are remembered in this browser.

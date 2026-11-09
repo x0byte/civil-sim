@@ -32,6 +32,7 @@ import { WindowGlass, RoomFinish, NoiseFields } from "./ComfortFields.tsx";
 import { FindWalls } from "../importers/FindWalls.tsx";
 import { useEditor } from "../state/store.ts";
 import { copyItems, deleteItems, pasteClip } from "../model/groupOps.ts";
+import { joinWalls, mirrorItems, rotateItems } from "../model/cadOps.ts";
 import { NumField, SelectField, TextField } from "./fields.tsx";
 
 const PRIVACY: { value: Privacy; label: string }[] = [
@@ -640,6 +641,13 @@ export function GroupPanel() {
   const counts = new Map<string, number>();
   for (const r of group) counts.set(r.kind, (counts.get(r.kind) ?? 0) + 1);
   const summary = [...counts].map(([k, n]) => `${n} ${GROUP_NAMES[k]?.[n === 1 ? 0 : 1] ?? k}`).join(", ");
+  const [angle, setAngle] = useState(45);
+  const walls = group.filter((r) => r.kind === "wall");
+  const apply = <A,>(fn: (p: import("../../../contracts/floorplan.ts").FloorPlan, refs: typeof group, arg: A) => { plan: import("../../../contracts/floorplan.ts").FloorPlan } | { error: string }, arg: A) => {
+    const out = fn(useEditor.getState().plan, group, arg);
+    if ("error" in out) return notify(out.error);
+    commit(() => out.plan);
+  };
   const duplicate = () => {
     let refs: typeof group = [];
     commit((p) => {
@@ -664,6 +672,30 @@ export function GroupPanel() {
         <button onClick={duplicate}>Duplicate</button>
         <button onClick={() => select(null)}>Clear selection</button>
       </div>
+      <div className="field">
+        <span>Turn and flip</span>
+        <div className="dialog-actions">
+          <button title="Rotate 90° anticlockwise" aria-label="Rotate 90° anticlockwise" onClick={() => apply(rotateItems, -90)}>↺ 90°</button>
+          <button title="Rotate 90° clockwise" aria-label="Rotate 90° clockwise" onClick={() => apply(rotateItems, 90)}>↻ 90°</button>
+          <button title="Mirror left to right" aria-label="Mirror left to right" onClick={() => apply(mirrorItems, "left-right")}>⇋ Mirror</button>
+          <button title="Mirror top to bottom" aria-label="Mirror top to bottom" onClick={() => apply(mirrorItems, "up-down")}>⇵ Mirror</button>
+        </div>
+      </div>
+      <NumField label="Rotate by" unit="° clockwise" step={1} value={angle} onCommit={(v) => setAngle(v)} />
+      <button onClick={() => apply(rotateItems, angle)} disabled={!angle}>Rotate {angle}°</button>
+      {walls.length === 2 && group.length === 2 && (
+        <button
+          onClick={() => {
+            const out = joinWalls(useEditor.getState().plan, walls[0].id, walls[1].id);
+            if ("error" in out) return notify(out.error);
+            commit(() => out.plan);
+            select(null);
+            notify("Walls joined.");
+          }}
+        >
+          Join the two walls
+        </button>
+      )}
     </Panel>
   );
 }
