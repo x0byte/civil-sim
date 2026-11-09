@@ -189,7 +189,7 @@ function simulateCore(plan: FloorPlan, scenario: Scenario, options: SimulationOp
     const world = new ShopperWorld(plan, navigation, warn, requests.map((r) => r.arrival), scenario.people.length + (scenario.visitors?.length ?? 0));
     schedules.push(...requests.map((request) => scheduleShopper(world, scenario, request, durationS, events, people.people.get(request.id))));
   }
-  const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn, options.onProgress ? (t) => options.onProgress!({ stage: "simulating", t, durationS }) : undefined);
+  const tracks = runSchedules(schedules, plan, scenario, navigation, events, warn, options.onProgress ? (t) => options.onProgress!({ stage: "simulating", t, durationS }) : undefined, people.behaviours);
   for (const track of tracks) { const profile = people.people.get(track.personId)?.profile; if (profile) track.profileId = profile.id; }
   if (scenario.evacuation) options.onProgress?.({ stage: "evacuating" });
   const evacuation = scenario.evacuation ? evacuate(plan,scenario,tracks,events,people,warn) : undefined;

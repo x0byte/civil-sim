@@ -214,7 +214,11 @@ export function defaultProfile(plan: FloorPlan): OfficeProfile {
 export const COMFORT_MEASURES = new Set(["glare", "light_lux", "noise_dba"]);
 /** True when a rule reacts to glare, light or noise but sound and light checking is off, so it can't apply. */
 export const rulePaused = (profile: OfficeProfile, rule: import("../../../contracts/scenario.ts").BehaviourRule) =>
-  rule.enabled && !profile.comfort?.enabled && rule.when.kind === "measure" && COMFORT_MEASURES.has(rule.when.measure);
+  rule.enabled && rule.when.kind === "measure" &&
+  ((!profile.comfort?.enabled && COMFORT_MEASURES.has(rule.when.measure)) || (!profile.crowding && rule.when.measure === "crowd_density"));
+/** What a paused rule is waiting for. */
+export const pausedFor = (rule: import("../../../contracts/scenario.ts").BehaviourRule): "comfort" | "crowding" =>
+  rule.when.kind === "measure" && rule.when.measure === "crowd_density" ? "crowding" : "comfort";
 /**
  * The profile's rules for the engine. Paused rules go in switched off, so the scenario says honestly what applies;
  * kinds of person not in today's mix are dropped from a rule (and a rule left with none is switched off).

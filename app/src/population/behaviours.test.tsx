@@ -21,7 +21,7 @@ describe("behaviour rules in the app", () => {
     expect(ruleSentence(DEFAULT_RULES[0])).toBe(
       "People whose glare tolerance is below 0.3 on the 0–1 glare scale, where glare is above their own glare tolerance, treat routes there as 2× as long.",
     );
-    expect(ruleSentence(DEFAULT_RULES[2])).toMatch(/walk at 85% of their speed\.$/);
+    expect(ruleSentence(DEFAULT_RULES.find((r) => r.id === "dim-slow")!)).toMatch(/walk at 85% of their speed\.$/);
   });
 
   it("starts new projects from the default rules, on and labelled as assumptions", () => {
@@ -35,7 +35,7 @@ describe("behaviour rules in the app", () => {
   it("pauses glare, light and noise rules while sound and light is off, so the scenario stays valid", () => {
     const profile = { ...defaultProfile(office), comfort: { ...defaultProfile(office).comfort!, enabled: false } };
     const { scenario } = expandProfile(profile, office);
-    expect(scenario.behaviours!.filter((r) => r.enabled).map((r) => r.id)).toEqual(["contrast-slow"]);
+    expect(scenario.behaviours!.filter((r) => r.enabled).map((r) => r.id)).toEqual(["crowd-avoid", "contrast-slow"]);
     expect(profile.behaviours!.filter((r) => rulePaused(profile, r)).map((r) => r.id)).toEqual(["glare-avoid", "noise-avoid", "dim-slow"]);
     expect(validateScenario(scenario, office)).toEqual([]);
     expect(() => simulate(office, scenario)).not.toThrow();
@@ -47,6 +47,14 @@ describe("behaviour rules in the app", () => {
     const { scenario } = expandProfile({ ...profile, behaviours: [rule] }, office);
     expect(scenario.behaviours![0].enabled).toBe(false);
     expect(validateScenario(scenario, office)).toEqual([]);
+  });
+
+  it("pauses crowd rules while crowding is off, and says so in the panel", () => {
+    const profile = { ...defaultProfile(office), crowding: false };
+    const { scenario } = expandProfile(profile, office);
+    expect(scenario.behaviours!.find((r) => r.id === "crowd-avoid")!.enabled).toBe(false);
+    expect(validateScenario(scenario, office)).toEqual([]);
+    expect(renderToStaticMarkup(<BehavioursSection profile={profile} setProfile={() => {}} />)).toContain("1 rule reacts to crowding, which is only worked out with crowding on");
   });
 
   it("keeps older profiles without rules exactly as they were", () => {
@@ -96,7 +104,7 @@ describe("the Behaviours panel and results", () => {
   it("lists the default rules with their strengths, ranges and labels", () => {
     const out = renderToStaticMarkup(<BehavioursSection profile={defaultProfile(office)} setProfile={() => {}} />);
     for (const r of DEFAULT_RULES) expect(out).toContain(html(r.name));
-    expect(out).toContain("4 of 4 rules on");
+    expect(out).toContain("5 of 5 rules on");
     expect(out).toContain("Strength 2 × route cost (range 1.2–4) · assumed, not measured");
   });
 
@@ -106,7 +114,7 @@ describe("the Behaviours panel and results", () => {
     const off = { ...defaultProfile(office), comfort: { ...defaultProfile(office).comfort!, enabled: false } };
     const html = renderToStaticMarkup(<BehavioursSection profile={off} setProfile={() => {}} />);
     expect(html).toContain("3 rules react to light, glare or noise");
-    expect(html).toContain("1 of 4 rules on");
+    expect(html).toContain("2 of 5 rules on");
   });
 
   it("shows what each rule did, with ranges", () => {

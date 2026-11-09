@@ -18,10 +18,10 @@ import {
   ruleSentence,
 } from "./behaviourRules.ts";
 import { KINDS } from "./kinds.ts";
-import { type OfficeProfile, rulePaused } from "./officeProfile.ts";
+import { type OfficeProfile, pausedFor, rulePaused } from "./officeProfile.ts";
 
 const TRAITS = Object.keys(TRAIT_LABEL) as RuleTrait[];
-const MEASURES = (Object.keys(MEASURE_LABEL) as RuleMeasure[]).filter((m) => m !== "crowd_density");
+const MEASURES = Object.keys(MEASURE_LABEL) as RuleMeasure[];
 const CONNECTORS = Object.keys(CONNECTOR_LABEL) as ConnectorKind[];
 
 /** A sensible new rule to start editing from. */
@@ -86,15 +86,22 @@ export function BehavioursSection({ profile, setProfile }: { profile: OfficeProf
         </div>
       </header>
       <div className="panel-body">
-        {paused.length > 0 && (
-          <p className="warn">
-            {paused.length === 1 ? "1 rule reacts" : `${paused.length} rules react`} to light, glare or noise, which are only worked out with sound and light
-            on, so {paused.length === 1 ? "it's" : "they're"} paused.{" "}
-            <button onClick={() => setProfile({ ...profile, comfort: { ...profile.comfort!, enabled: true } })} disabled={!profile.comfort}>
-              Turn on sound and light
-            </button>
-          </p>
-        )}
+        {(["comfort", "crowding"] as const).map((need) => {
+          const waiting = paused.filter((r) => pausedFor(r) === need);
+          if (!waiting.length) return null;
+          return (
+            <p key={need} className="warn">
+              {waiting.length === 1 ? "1 rule reacts" : `${waiting.length} rules react`} to {need === "comfort" ? "light, glare or noise, which are only worked out with sound and light on" : "crowding, which is only worked out with crowding on"}, so {waiting.length === 1 ? "it's" : "they're"} paused.{" "}
+              {need === "comfort" ? (
+                <button onClick={() => setProfile({ ...profile, comfort: { ...profile.comfort!, enabled: true } })} disabled={!profile.comfort}>
+                  Turn on sound and light
+                </button>
+              ) : (
+                <button onClick={() => setProfile({ ...profile, crowding: true })}>Turn on crowding</button>
+              )}
+            </p>
+          );
+        })}
         {!rules.length && <p className="muted">No rules: everyone moves the same way whatever the conditions.</p>}
         {rules.map((rule) =>
           editing === rule.id ? (
@@ -173,7 +180,7 @@ function RuleCard({
           {s.basis !== "assumed" && s.source ? ` · ${s.source}` : ""}
         </p>
       )}
-      {paused && <p className="muted">Paused: turn on sound and light for this rule to apply.</p>}
+      {paused && <p className="muted">Paused: turn on {pausedFor(rule) === "crowding" ? "crowding" : "sound and light"} for this rule to apply.</p>}
       {rule.note && <p className="muted">Note: {rule.note}</p>}
     </article>
   );

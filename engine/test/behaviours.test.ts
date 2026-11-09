@@ -7,6 +7,7 @@ import { checkScenario } from "../../contracts/validate.ts";
 import { DEFAULT_RULES, ParameterValues, simulate } from "../src/index.ts";
 import { Behaviours, weightedRoute } from "../src/modules/behaviours.ts";
 import { createNavigation } from "../src/modules/navigation.ts";
+import { DensityField } from "../src/modules/density.ts";
 import { People } from "../src/modules/profiles.ts";
 import { TrackBuilder } from "../src/modules/track.ts";
 import { withParameters } from "../src/parameters.ts";
@@ -188,4 +189,74 @@ describe("behaviour rules (engine)", () => {
     const base = read<Scenario>("office-day.scenario");
     expect(JSON.stringify(simulate(plan, { ...base, behaviours: [] }).tracks)).toBe(JSON.stringify(simulate(plan, base).tracks));
   }, 60000);
+
+  describe("crowd density", () => {
+    const crowdRule = (effect: BehaviourRule["effect"]["kind"], value: number) => rule({
+      id: "crowd", when: { kind: "measure", measure: "crowd_density", compare: "above", threshold: { value: 1 } },
+      effect: { kind: effect }, strength: { value, low: value, high: value, basis: "user", source: "test" },
+    });
+    /** Packs people into the middle of the hall, around x 8–12, y 3–7. */
+    const crowdIn = (plan: FloorPlan) => {
+      const field = new DensityField(plan);
+      let n = 0;
+      for (let x = 8.25; x < 12; x += 0.5) for (let y = 3.25; y < 7; y += 0.5) field.set({ id: `c${n++}`, x, y, levelId: "g", size: 1 });
+      return field;
+    };
+
+    it("reads people per m² from the live crowd, and nothing without crowding", () => {
+      const plan = hall();
+      setup(plan, scenarioWith([crowdRule("avoid", 4)], { crowding: { enabled: true } }), (b) => {
+        expect(Number.isNaN(b.measure("crowd_density", { x: 10, y: 5 }, "g", 0))).toBe(true);
+        b.crowd = crowdIn(plan);
+        expect(b.measure("crowd_density", { x: 10, y: 5 }, "g", 0)).toBeGreaterThan(2);
+        expect(b.measure("crowd_density", { x: 2, y: 5 }, "g", 0)).toBe(0);
+      });
+    });
+
+    it("avoid: routes round a crowd that's there when the trip starts", () => {
+      const plan = hall();
+      setup(plan, scenarioWith([crowdRule("avoid", 4)], { crowding: { enabled: true } }), (b, person, nav) => {
+        b.crowd = crowdIn(plan);
+        const path = b.adjust(across, person, 0, nav.grids, nav.first, 1.3, () => true);
+        expect(pointsIn(path, 8.5, 3.5, 11.5, 6.5)).toBe(false);
+        expect(b.results()[0].people).toBe(1);
+      });
+    });
+
+    it("slow and hesitate react live as people walk, recording the extra time", () => {
+      const plan = hall();
+      setup(plan, scenarioWith([crowdRule("slow", 0.5), { ...crowdRule("hesitate", 2), id: "pause" }], { crowding: { enabled: true } }), (b, person) => {
+        b.crowd = crowdIn(plan);
+        expect(b.live(person, { x: 10, y: 5 }, "g", 4, 1, true)).toEqual({ factor: 0.5, pauseS: 2 });
+        expect(b.live(person, { x: 2, y: 5 }, "g", 4, 1, true)).toEqual({ factor: 1, pauseS: 0 });
+        const [slow, pause] = b.results();
+        expect(slow.extraS).toBeCloseTo(4, 9);
+        expect(pause.extraS).toBe(2);
+      });
+    });
+
+    it("has no effect, with a warning, when crowding is off", () => {
+      const warnings: string[] = [];
+      const scenario = scenarioWith([crowdRule("avoid", 4)]);
+      const values = new ParameterValues(scenario.parameters, scenario);
+      withParameters(values, () => {
+        const b = new Behaviours(hall(), values.scenario!, (w) => warnings.push(w.message));
+        expect(b.active).toBe(false);
+      });
+      expect(warnings[0]).toMatch(/only worked out with crowding on/);
+    });
+
+    it("runs a busy mall day with crowd avoidance, deterministically, reporting it", () => {
+      const plan = read<FloorPlan>("mall-2f.floorplan");
+      const base = read<Scenario>("mall-weekend-people.scenario");
+      const crowdAvoid = DEFAULT_RULES.find((r) => r.id === "crowd-avoid")!;
+      const scenario: Scenario = { ...base, crowding: { enabled: true }, behaviours: [{ ...crowdAvoid, who: { kind: "everyone" }, when: { kind: "measure", measure: "crowd_density", compare: "above", threshold: { value: 0.5 } } }] };
+      const a = simulate(plan, scenario, { decision: true });
+      const b = simulate(plan, scenario, { decision: true });
+      expect(JSON.stringify(a.tracks)).toBe(JSON.stringify(b.tracks));
+      const row = a.decision!.behaviours!.find((r) => r.ruleId === "crowd-avoid")!;
+      expect(row.peopleAffected.value).toBeGreaterThan(0);
+      expect(a.warnings.some((w) => /crowding/.test(w.message) && /no effect/.test(w.message))).toBe(false);
+    }, 120000);
+  });
 });

@@ -26,9 +26,7 @@ Every behaviour comes from a rule in the scenario; the engine decides nothing by
 
 ## Not yet (honest gaps)
 
-- **Crowd density** conditions: rules using them are reported with a warning and have no effect. The crowd field lives
-  inside the crowding step, not where routes are chosen. "People anxious in crowds avoid busy areas" is therefore left
-  out of the defaults for now.
+- ~~Crowd density~~ **Done (2026-11-09, see below).**
 - **Choosing where to go:** avoid doesn't yet steer the choice between toilets, pantries or shops, only the way there.
 - **Stay longer** applies to staff toilet and pantry visits, not yet to shop or meeting stays.
 - **Hesitate** pauses at turns, not at every door passed.
@@ -70,3 +68,28 @@ list is updated with a reason for every new number.
 
 Part B (app): the Behaviours panel, Ella's `set_behaviour` tool, results and Evidence display, and starting new
 projects from `DEFAULT_RULES`. Then the gaps above, crowd density first.
+
+## Follow-up: crowd density rules (2026-11-09)
+
+Crowd density now works in rules **when crowding is on**. It's only worked out by the crowding step: without it, people
+don't interact, so a crowd rule has no effect, the run warns, and the app pauses the rule with a "Turn on crowding" button.
+
+- **Measure:** people per m² within a metre of the spot, from the live crowd field (the same 0.5 m cells crowding uses).
+- **Avoid / prefer / can't use:** read the crowd when a trip starts and route around busy cells, as for glare.
+- **Slow / hesitate:** react live, each four-second step and at each turn, because crowds move during a walk; the extra
+  time is recorded per rule.
+- **Default rule added:** "People anxious in crowds avoid busy areas" (crowd tolerance below 1 person/m²; avoid
+  1.5×, range 1.1–3, assumed), switched on in new projects.
+
+Mall check (mall-2f, busy weekend with kinds of people, crowding on):
+
+| | Run time | Staff time lost | People who re-routed | Extra s each |
+|---|---:|---:|---:|---:|
+| no rules | 1.91 s | 0.18 h/day | — | — |
+| crowd avoidance on | 2.61 s | 0.18 h/day | 90 | 0.2 |
+
+The cost is about +35% run time on a busy mall (offices barely change: 0.17 → 0.18 s), because routes are re-checked
+against the live crowd. Over the 12 range runs that's roughly 18 → 25 s for this sample.
+
+Tests: 5 new engine tests (live measure, avoid, live slow and hesitate, no effect without crowding, a deterministic
+mall day) and an app pause test. Engine 362 of 362, app 326 of 326, contracts 11 of 11.
