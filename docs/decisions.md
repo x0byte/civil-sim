@@ -403,3 +403,12 @@ in conversation history. Full parameter evidence is an explicit read-only lookup
 stay at 60 seconds. Waiting-episode p90 is representative detail outside the locked result contract, with unfinished
 waits labelled lower bounded. Progress reserves shell space; the typical-run notice expires after six seconds and
 remains in tab progress. Empty team relationships are described as missing inputs, not zero measured travel.
+
+
+## 2026-11-09 · Part C updated review: three-layer Ella context
+Supersedes the request-local digest design: freeze ordered tool schemas, system guidance, measurement knowledge
+and the complete default registry as one release prefix with an explicit one-hour final-block breakpoint; automatic
+tail caching uses the same TTL. Append a current-state system message after a user/tool-result turn only when
+plan, people, run, comparison or visible workspace/tab changes. Preserve all earlier messages and thinking blocks.
+Use six pure lookup tools for details, and label current draft versus saved/stale observations. Question-set evidence
+contracts run in the app suite; they are distinct from live language-quality grading or production cache-hit proof.

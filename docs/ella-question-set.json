@@ -1,0 +1,563 @@
+[
+  {
+    "id": "E01",
+    "question": "Why is the toilet so busy?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_element",
+        "input": {
+          "refId": "toilet"
+        },
+        "mustCite": [
+          "saved.0.data.capacity.utilisation",
+          "saved.0.data.capacity.p90Wait",
+          "saved.0.data.capacity.window"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the rolling service-window utilisation in percent and p90 wait among waiting episodes; do not turn a short arrival burst into a claim that the toilet is four times too small."
+  },
+  {
+    "id": "E02",
+    "question": "Is that a one-minute or fifteen-minute toilet peak?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_element",
+        "input": {
+          "refId": "toilet"
+        },
+        "mustCite": [
+          "saved.0.data.capacity.window.minimumS",
+          "saved.0.data.capacity.worstAt.unit"
+        ],
+        "mustBeMissing": [],
+        "equals": {
+          "saved.0.data.capacity.window.minimumS": 900
+        }
+      }
+    ],
+    "goodAnswer": "Cite the fixed room-window minimum, possible service-time extension, and representative window start. Doors and connectors use sixty seconds."
+  },
+  {
+    "id": "E03",
+    "question": "How long does a person actually wait for the toilet?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_element",
+        "input": {
+          "refId": "toilet"
+        },
+        "mustCite": [
+          "saved.0.data.capacity.p90Wait.p90WaitS",
+          "saved.0.data.capacity.p90Wait.episodes",
+          "saved.0.data.capacity.p90Wait.unfinished"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Quote waiting-episode p90 in seconds with episode count, give-up and unfinished-wait qualification. It is not the p90 of uncertainty runs."
+  },
+  {
+    "id": "E04",
+    "question": "Is option B better than A?",
+    "fixture": "comparison",
+    "calls": [
+      {
+        "name": "get_comparison",
+        "input": {
+          "metric": "timeLost.hoursPerDay"
+        },
+        "mustCite": [
+          "rows.0.method",
+          "rows.0.difference",
+          "rows.0.verdict",
+          "rows.0.provisional"
+        ],
+        "mustBeMissing": [],
+        "equals": {
+          "rows.0.method": "paired",
+          "rows.0.verdict": "within noise"
+        }
+      }
+    ],
+    "goodAnswer": "State B minus A, the paired method, median and p10–p90 difference, completeness and displayed verdict. This controlled A=A comparison must not be called clearly better."
+  },
+  {
+    "id": "E05",
+    "question": "Would adding an exit definitely improve evacuation?",
+    "fixture": "comparison",
+    "calls": [
+      {
+        "name": "get_comparison",
+        "input": {
+          "metric": "all"
+        },
+        "mustCite": [
+          "direction",
+          "rows.0.difference",
+          "rows.0.method"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Do not promise an unrun counterfactual. Cite the available comparison and recommend an explicit edited-option evacuation comparison."
+  },
+  {
+    "id": "E06",
+    "question": "Can I trust ranges before all twelve runs finish?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.runs.completed",
+          "0.runs.total",
+          "0.data.rows.0.timeLost.low",
+          "0.data.rows.0.timeLost.high"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite completed versus configured runs. Partial intervals may widen; p10–p90 is model spread, not a probability of compliance."
+  },
+  {
+    "id": "E07",
+    "question": "Did everybody evacuate safely?",
+    "fixture": "censored",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.evacuation.assessment",
+          "0.data.rows.0.evacuation.horizon",
+          "0.data.rows.0.evacuation.notOut"
+        ],
+        "mustBeMissing": [],
+        "equals": {
+          "0.data.rows.0.evacuation.assessment": "Cannot verify",
+          "0.data.rows.0.evacuation.censored": true
+        }
+      }
+    ],
+    "goodAnswer": "Say Cannot verify and More than the horizon seconds with the not-out count. Refuges and unresolved people are not successfully evacuated."
+  },
+  {
+    "id": "E08",
+    "question": "How many people are still not out at the horizon?",
+    "fixture": "censored",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.evacuation.notOut",
+          "0.data.rows.0.evacuation.horizon"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the largest observed not-out count and horizon; distinguish saved censoring from the representative playback."
+  },
+  {
+    "id": "E09",
+    "question": "Which floor or exit held up the evacuation?",
+    "fixture": "censored",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "evacuation",
+          "limit": 20,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.observation",
+          "0.data.rows.0.unit"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite representative floor/exit observations and keep the overall censored verdict Cannot verify. Do not label a representative clear time as an ensemble interval."
+  },
+  {
+    "id": "E10",
+    "question": "Where is staff time being lost?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "movement",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.cause",
+          "0.data.rows.0.hoursPerDay"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Quote the largest staff loss cause in hours/day with its saved range and run count. Do not equate all walking time with lost time."
+  },
+  {
+    "id": "E11",
+    "question": "What is that delay costing each year?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.timeLost.unit"
+        ],
+        "mustBeMissing": [
+          "0.data.rows.0.costPerYear"
+        ],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "If staff cost is missing, say so and request cost, currency and workdays; never invent annual money."
+  },
+  {
+    "id": "E12",
+    "question": "Why do you warn at eighty-five percent?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_parameter",
+        "input": {
+          "key": "setting.decision.utilisation_warning"
+        },
+        "mustCite": [
+          "registry.value",
+          "registry.kind",
+          "registry.source"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the registry policy and source. It is screening policy, not a country’s legal capacity requirement."
+  },
+  {
+    "id": "E13",
+    "question": "What walking speed did you use, and where did it come from?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_parameter",
+        "input": {
+          "key": "walk.speed.adult"
+        },
+        "mustCite": [
+          "saved.0.data.value",
+          "saved.0.data.low",
+          "saved.0.data.high",
+          "saved.0.data.unit",
+          "saved.0.data.source"
+        ],
+        "mustBeMissing": [],
+        "equals": {
+          "saved.0.data.unit": "m/s"
+        }
+      }
+    ],
+    "goodAnswer": "Cite saved effective value, bounds, unit, source and override status, separating release defaults from run evidence."
+  },
+  {
+    "id": "E14",
+    "question": "Was the toilet service time measured here?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_parameter",
+        "input": {
+          "key": "service.facility.minimum"
+        },
+        "mustCite": [
+          "saved.0.data.source",
+          "saved.0.data.value",
+          "saved.0.data.overridden"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Say the saved assumption is not a site measurement; quote its source and explain what local timing measurement could replace it."
+  },
+  {
+    "id": "E15",
+    "question": "What should we measure first?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_sensitivity",
+        "input": {
+          "metric": "timeLost.hoursPerDay"
+        },
+        "mustCite": [
+          "0.data.rows.0.drivers",
+          "0.data.rows.0.parameters",
+          "0.data.rows.0.unit"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the largest endpoint driver and its evidence/source. This is reduced-population screening, not an uncertainty percentile or proof of causation."
+  },
+  {
+    "id": "E16",
+    "question": "Does the range mean there is a ninety-percent chance of passing?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.timeLost",
+          "0.runs"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Explain the saved p10–p90 model spread and completed run count. It is not a probability of compliance or a confidence statement about reality."
+  },
+  {
+    "id": "E17",
+    "question": "Why is the person I selected moving like that?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_person",
+        "input": {
+          "personId": "selected"
+        },
+        "mustCite": [
+          "0.data.activityS",
+          "0.data.activityUnit",
+          "0.data.metrics",
+          "0.data.observation"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Quote the selected representative person’s actual activity durations and profile/metrics, not a fabricated individual uncertainty interval."
+  },
+  {
+    "id": "E18",
+    "question": "Which building element is nearest to capacity?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "capacity",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.refId",
+          "0.data.rows.0.utilisation",
+          "0.runs"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the worst-first element, percent median and bounds, 85%/100% references, run count and absolute rate in the table."
+  },
+  {
+    "id": "E19",
+    "question": "What are the exact door dimensions before you change it?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_element",
+        "input": {
+          "refId": "w-top"
+        },
+        "mustCite": [
+          "element.a",
+          "element.b",
+          "geometryUnit"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Read exact current geometry, or report an unknown reference and ask which element. Never invent dimensions from memory."
+  },
+  {
+    "id": "E20",
+    "question": "Which shops get passers but few entries?",
+    "fixture": "mall",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "retail",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.spaceId",
+          "0.data.rows.0.passersPerHour",
+          "0.data.rows.0.entriesPerHour"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Compare saved passers and entries per hour with ranges and run count; use more rows when truncated. Do not call modelled activity a sales forecast."
+  },
+  {
+    "id": "E21",
+    "question": "How long do shoppers stay, and how much revenue is predicted?",
+    "fixture": "mall",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "retail",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.dwellS"
+        ],
+        "mustBeMissing": [
+          "0.data.rows.0.revenuePerYear"
+        ],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Quote dwell seconds and its range. Without user spend per visit, say revenue is unavailable; even supplied revenue is a proxy."
+  },
+  {
+    "id": "E22",
+    "question": "Who is uncomfortable with noise or light?",
+    "fixture": "comfort",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "comfort",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.minutes",
+          "0.data.rows.0.unit",
+          "0.data.rows.0.observation"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite representative person-minutes by cause and the modelled tolerances. Comfort grids have no ensemble range in this run."
+  },
+  {
+    "id": "E23",
+    "question": "Does passing the access checks certify the building?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "access",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.ok",
+          "0.data.rows.0.rule",
+          "0.data.rows.0.refIds"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Cite the named rule and affected element. Common guidance screening is not certification; applicable local rules need checking."
+  },
+  {
+    "id": "E24",
+    "question": "Will changing an Evidence value update this result immediately?",
+    "fixture": "office",
+    "calls": [
+      {
+        "name": "get_parameter",
+        "input": {
+          "key": "walk.speed.adult"
+        },
+        "mustCite": [
+          "note",
+          "pendingOverride",
+          "saved.0.data"
+        ],
+        "mustBeMissing": [],
+        "equals": {}
+      }
+    ],
+    "goodAnswer": "Distinguish saved evidence from pending sourced overrides. Recording a source marks results stale; rerun to calculate a new result."
+  },
+  {
+    "id": "E25",
+    "question": "Why does team travel have no number?",
+    "fixture": "unrelated",
+    "calls": [
+      {
+        "name": "get_tab_rows",
+        "input": {
+          "tab": "summary",
+          "limit": 10,
+          "sort": "worst"
+        },
+        "mustCite": [
+          "0.data.rows.0.teamTravel"
+        ],
+        "mustBeMissing": [],
+        "equals": {
+          "0.data.rows.0.teamTravel": "No team relationships set · add them in People"
+        }
+      }
+    ],
+    "goodAnswer": "If relationships and cross-team meetings are absent, say No team relationships set · add them in People. Never present missing inputs as measured zero travel."
+  }
+]

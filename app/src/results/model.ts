@@ -1,9 +1,10 @@
+import { runCount, referenceName, hasTeamRelationships } from "./data.ts";
+export { runCount, referenceName, hasTeamRelationships } from "./data.ts";
 import { evacuationStatus } from "../playback/evacuationStatus.ts";
 import type { SimRun, Comparison } from "../sim/runSimulation.ts";
 import {
   compareResults,
   roomQueueObservations,
-  PARAMETERS,
 } from "../../../engine/src/index.ts";
 import type { ResultsTab } from "./state.ts";
 export function availableTabs(runs: readonly SimRun[]): ResultsTab[] {
@@ -34,9 +35,6 @@ export function availableTabs(runs: readonly SimRun[]): ResultsTab[] {
     "evidence",
   ] as ResultsTab[];
 }
-export const runCount = (run: SimRun) =>
-  run.scenario.uncertainty?.runs ??
-  PARAMETERS.find((p) => p.key === "setting.uncertainty.runs")!.value;
 const rangeCountText = (run: SimRun) =>
   !run.result.decision?.runs
     ? "Central estimate · ranges pending"
@@ -49,17 +47,6 @@ export function progressText(run: SimRun): string {
       ? ` · Now showing a typical run · run ${representative.index + 1} of ${representative.total}`
       : "")
   );
-}
-export function referenceName(run: SimRun, id: string): string {
-  const named =
-    run.plan.spaces.find((x) => x.id === id) ??
-    run.plan.connectors.find((x) => x.id === id) ??
-    run.scenario.teams.find((x) => x.id === id);
-  if (named) return named.name;
-  const index = run.plan.openings
-    .filter((x) => x.kind === "door")
-    .findIndex((x) => x.id === id);
-  return index >= 0 ? `Door ${index + 1}` : id;
 }
 export const evidenceKeys = (run: SimRun, groups: readonly string[]) =>
   run.result.evidence?.parameters
@@ -76,17 +63,6 @@ const short = (text: string, size = 72) =>
 const rounded = (value: number) => Number(value.toPrecision(4));
 const range = (value: { value: number; low: number; high: number }) =>
   [value.value, value.low, value.high].map(rounded);
-export function hasTeamRelationships(run: SimRun): boolean {
-  if (run.scenario.relationships?.length) return true;
-  const teams = new Map(
-    run.scenario.people.map((person) => [person.id, person.teamId]),
-  );
-  return run.scenario.meetings.some(
-    (meeting) =>
-      new Set(meeting.attendeeIds.map((id) => teams.get(id)).filter(Boolean))
-        .size > 1,
-  );
-}
 export function resultsContext(
   run: SimRun | null,
   comparison: Comparison | null,
@@ -195,13 +171,21 @@ export function resultsContext(
           ),
           rounded(p.overloadMinutes),
         ]);
+    const headlineMetrics = new Set([
+      "timeLost.hoursPerDay",
+      "timeLost.costPerYear",
+      "evacuation.totalSeconds",
+      "teamDistance.secondsPerPersonPerDay",
+      ...(capacity[0] ? [`capacity.${capacity[0].refId}.utilisation`] : []),
+    ]);
     const drivers = (r.result.evidence?.sensitivity ?? [])
-      .slice(0, 4)
+      .filter((row) => headlineMetrics.has(row.metric))
       .map((row) => ({
-        metric: short(row.metric),
-        drivers: row.drivers
-          .slice(0, 2)
-          .map((p) => ({ key: p.key, swingPct: rounded(p.swingPct) })),
+        metric: row.metric,
+        drivers: row.drivers.slice(0, 3).map((driver) => ({
+          key: driver.key,
+          swingPct: rounded(driver.swingPct),
+        })),
       }));
     const dependencies = new Set(
       drivers.flatMap((row) => row.drivers.map((p) => p.key)),
@@ -217,25 +201,17 @@ export function resultsContext(
         : []),
     ])
       dependencies.add(key);
-    const parameters = [...dependencies]
-      .flatMap((key) =>
-        (r.result.evidence?.parameters ?? []).filter((p) => p.key === key),
-      )
-      .slice(0, 12)
-      .map((p) => ({
-        key: p.key,
-        value: rounded(p.value),
-        low: rounded(p.low),
-        high: rounded(p.high),
-        source: short(p.source),
-      }));
+    const parameters = (r.result.evidence?.parameters ?? [])
+      .filter((p) => p.overridden && dependencies.has(p.key))
+      .slice(0, 6)
+      .map((p) => ({ key: p.key, value: p.value, source: short(p.source) }));
     if (tab === "evidence") rows = drivers;
     return {
       layout: short(r.plan.name),
       runs: [d?.runs ?? 0, runCount(r)],
       headlines,
-      rows: rows.slice(0, comparison ? 10 : 20),
-      omitted: Math.max(0, rows.length - (comparison ? 10 : 20)),
+      rows: rows.slice(0, 10),
+      omitted: Math.max(0, rows.length - 10),
       drivers,
       parameters,
     };
@@ -271,11 +247,12 @@ export function resultsContext(
         evidence: "drivers",
       } as const
     )[tab],
-    values: "median,p10,p90; utilisation in percent",
+    values:
+      "value,p10,p90; central estimate if runs=0, otherwise median; utilisation in percent",
     options,
     differences,
     lookup:
-      "lookup_result_parameter(key) returns full saved evidence. Censored evacuation: Cannot verify. Do not invent ranges or citations.",
+      "get_parameter(key) returns full saved evidence. Censored evacuation: Cannot verify. Do not invent ranges or citations.",
   };
   const render = () =>
     "CURRENT RESULTS TAB: " + tab + "\n" + JSON.stringify(digest);

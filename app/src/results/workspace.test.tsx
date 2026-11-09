@@ -345,7 +345,7 @@ describe("Part C results workspace", () => {
     const context = resultsContext(run, null, "capacity");
     expect(context).toContain("CURRENT RESULTS TAB: capacity");
     expect(context).toContain("headlines");
-    expect(context).toContain("Assumption:");
+    expect(context).toContain("get_parameter");
     expect(context).toContain("runs");
   });
   it("keeps censored evacuation wording visible and displays retail only for a shopping crowd", () => {

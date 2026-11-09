@@ -66,15 +66,45 @@ with `?`; the browser retains original Unicode labels. These limitations are exp
 
 ## Review corrections
 
-1. **Ella context.** Automatic Results context is attached only when the workspace is visible (not Home, editing,
-   proposals or improvement previews). It is request-local, never retained in conversation history, so navigating
-   away does not resend old digests. Headline median/p10/p90 values, completed/total runs and comparison methods
-   accompany at most 20 current-tab rows, worst first where meaningful (10 per option in comparisons). Top drivers
-   and their parameter dependencies have short source labels without URLs. An 8,400-byte ceiling trims supporting
-   rows and parameters as needed. `lookup_result_parameter` is a read-only tool returning full saved evidence for
-   one exact key, including original source URLs and each comparison option. Its responses do not create proposals.
-   The size test covers every tab, both one option and comparison, on an actual mall-2f result with populated drivers;
-   the largest digest is **7,104 bytes (2,368 tokens by the conservative proxy)**. It asserts UTF-8 bytes / 3 < 3,000 as a conservative proxy, not a claim to use Claude’s tokenizer.
+1. **Ella’s three layers (updated review).**
+   - A deeply frozen release prefix holds the system prompt, fixed-order tool definitions, measurement/explanation
+     guidance and the complete 138-entry default registry (key, unit, value, bounds, kind and full source). Registry
+     rows and nested JSON keys are sorted deterministically. No plan, clock or request data enters this layer.
+     Its final text block has explicit `cache_control: {type: "ephemeral", ttl: "1h"}`; automatic conversation-tail
+     caching also uses `ttl: "1h"`.
+   - A combined compact plan and run snapshot is appended as `{role: "system", content}` immediately after the
+     user or tool-result turn, only when the plan, people, run, comparison or visible workspace/tab has changed.
+     It is retained unchanged. Unchanged sends append no state block. Earlier messages and signed thinking blocks
+     are never edited or deleted. The state includes the plan overview and reference counts, saved headline ranges,
+     completed/configured runs, comparison method/verdict, at most ten current-tab rows, three drivers per headline,
+     current overrides and censored/stale flags. Outside Results, only the saved Summary headlines are attached on
+     a state change, labelled as saved data rather than a prediction for pending edits; no hidden-tab rows are sent.
+     The budget covers the **combined plan and run message**, not just the results fragment. Its worst tested mall
+     and comparison case is **7,953 bytes, 2,651 tokens by the conservative UTF-8 bytes/3 proxy**. It is not a Claude
+     tokenizer claim.
+   - Six pure, read-only tools answer from the current saved run/draft: `get_parameter`, `get_tab_rows`, `get_element`,
+     `get_person`, `get_comparison`, `get_sensitivity`. Results preserve units, intervals, run counts and provenance.
+     `get_element("plan")` retrieves omitted reference IDs before requesting exact geometry. Saved parameter evidence
+     and pending overrides remain separate. Person and supporting observations never acquire invented ensemble ranges.
+     Lookups do not run simulations or create proposals. The prompt requires quoting numbers only from current state
+     or a lookup result; cached registry defaults are not asserted to be measured values for this building.
+
+   API protocol was checked against the installed SDK and official [mid-conversation system-message documentation](https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages)
+   and [prompt-caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). The SDK
+   supports the required system role; no speculative role cast or user-message substitute is used.
+
+   Regression tests cover byte-identical prefixes, the explicit and automatic one-hour TTLs, mocked positive cache
+   reads, exactly one state block per change, none when unchanged, preserved history/thinking, combined mall size,
+   each lookup’s agreement with the tabs, and read-only behaviour. Mock cache reads are **not** a claim of production
+   cache hits. The last API response’s cache read/write counters are retained for observation.
+
+   The 25 real questions and answer-citation rubric are in [ella-question-set.md](ella-question-set.md), with
+   machine-readable cases in [ella-question-set.json](ella-question-set.json). All 25 evidence contracts run with the
+   app suite after prompt changes. Fixtures include ordinary and unrelated-team office days, retail, comfort,
+   censored evacuation and a controlled paired A=A comparison. The harness verifies retrieval, missing-data and
+   safety assertions. **No live Claude answer-quality or billed API evaluation was performed (no headless API key was configured)**; the documented live
+   rubric remains the manual language-quality acceptance check.
+
 2. **Capacity plot.** Worst-first percentage bars show utilisation with p10–p90 whiskers and labelled 85% warning /
    100% reference lines. Absolute demand and service capacity remain in the table. Scorecards, tab leads and tables
    all display utilisation as percentages. Headline cards show large values, bounds, explanations and Evidence links;
@@ -106,30 +136,24 @@ Browser console inspection found no errors. Review screenshots: `/tmp/civil-c2-s
 
 ## Verification
 
-Final full engine suite followed by final full app suite, with no overlap. Browser and Vite were stopped before
-engine timing checks.
+Full engine suite finished before the app suite started; no suites overlapped, and no browser/Vite process ran
+during timing checks. This revision adds no engine or contract edits; it retains the earlier capacity/window,
+scorecard and progress fixes and their regression tests.
 
 | Check | Result | Time |
 |---|---|---|
-| Full engine `npm test` (serial file execution) | **334/334 passed**, 28 files | **160.76 s** |
-| Full app `npx vitest run` | **233/233 passed**, 33 files | **48.56 s** |
-| App production build including TypeScript | Passed | Vite build 2.86 s |
-| Engine TypeScript | Passed | — |
+| Full engine `npm test` (serial files) | **334/334 passed**, 28 files | **158.54 s** |
+| Full app `npx vitest run` | **266/266 passed**, 34 files | **54.71 s** |
+| App production build including TypeScript | Passed | Vite build 2.83 s |
 | `npm run check:contracts` | All 11 sample pairs passed | — |
 | `git diff --check` | Passed | — |
+| 25-question evidence set + five lookup reader tests | **30/30 passed** | 2.48 s focused run |
 
-The first full engine run passed 333 tests and failed only its exact-expression numeric allow-list after the p90
-addition and formatting. Only the decision reader’s reviewed audit entry was refreshed; its reason identifies
-0.9 as the requested statistical quantile, indexing/clipping constants and minute unit conversion. The subsequent
-full run passed all 334 tests. The existing build chunk-size/import advisories remain; contracts are unchanged.
-Final export pages were rendered again and visually checked for percentage values, rolling-window labels, p90
-waiting detail, source wrapping and plan layout.
-
- Focused regression suites already
-passed: engine 15/15; app 20/20. New checks cover burst versus sustained room demand and exact window boundaries,
-long service overrides, sourced window evidence, p90 and unfinished waits, streamed room ranges, compact mall and
-comparison digest budgets, Results-only request/history gating, full lookup, percentages/whiskers/cards, missing
-team relationships and the six-second chip lifecycle.
+The full app suite includes combined-state size on mall and comparisons, frozen registry completeness and ordering,
+one-hour TTLs, a mocked positive cache read, one snapshot per change/no unchanged snapshot, append-only history and
+signed thinking, all six pure readers, missing-data/safety cases and the retained workspace regressions. The earlier
+focused integration run passed 53/53. Existing build chunk-size/import advisories remain. Live model answer grading
+and production cache-hit verification are not claimed; their manual rubric and last-response counters are available.
 
 ## Suggested review path
 
