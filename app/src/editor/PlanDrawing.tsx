@@ -24,6 +24,8 @@ interface Props {
   level?: string;
   /** Walls of the floor below, drawn faintly to line the floors up. */
   below?: Wall[];
+  /** Who sits in each zone (team names), shown under the zone's name. */
+  zoneTeams?: Map<string, string>;
 }
 
 const pts = (poly: Vec2[]) => poly.map((p) => `${p.x},${p.y}`).join(" ");
@@ -33,7 +35,7 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below, zoneTeams }: Props) {
   const px = (n: number) => n / scale;
   const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
@@ -98,6 +100,24 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
           strokeWidth={px(isSel("space", s.id) ? 2.5 : 1)}
         />
       ))}
+
+      {plan.zones?.map((z) => {
+        const sel = isSel("zone", z.id);
+        return (
+          <polygon
+            key={z.id}
+            data-kind="zone"
+            data-id={z.id}
+            points={pts(z.polygon)}
+            fill="var(--paper)"
+            fillOpacity={muted ? 0.04 : sel ? 0.22 : 0.12}
+            stroke={sel ? "var(--accent)" : "var(--ink)"}
+            strokeOpacity={sel ? 1 : 0.8}
+            strokeWidth={px(sel ? 2.5 : 1.5)}
+            strokeDasharray={`${px(7)} ${px(5)}`}
+          />
+        );
+      })}
 
       {below?.map((w) => (
         <line
@@ -186,6 +206,26 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
           </g>
         );
       })}
+
+      {!muted &&
+        plan.zones?.map((z) => {
+          const fs = px(11);
+          const x = Math.min(...z.polygon.map((p) => p.x)) + px(6);
+          const y = Math.min(...z.polygon.map((p) => p.y)) + px(6) + fs;
+          const team = zoneTeams?.get(z.id);
+          return (
+            <g key={`zlabel-${z.id}`} style={{ pointerEvents: "none", paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: px(2), strokeLinejoin: "round" }}>
+              <text x={x} y={y} fontSize={fs} fill="var(--ink)" style={{ fontWeight: 650 }}>
+                {z.name}
+              </text>
+              {team && (
+                <text x={x} y={y + fs * 1.25} fontSize={fs * 0.9} fill="var(--ink-2)">
+                  {team}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
       {suggestions?.map((w, i) => (
         <line

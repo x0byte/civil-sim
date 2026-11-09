@@ -1,11 +1,15 @@
 import { rampGradient } from "../../../engine/src/modules/accessibility.ts";
 import { changeSite } from "../site/surroundings.ts";
 import { useEffect, useState } from "react";
-import type { Connector, ConnectorKind, Level, Privacy, Space, SpaceType } from "../../../contracts/floorplan.ts";
+import type { Connector, ConnectorKind, Level, Privacy, Space, SpaceType, Zone, ZoneUse } from "../../../contracts/floorplan.ts";
 import { polygonArea, wallLength } from "../model/geometry.ts";
 import {
   CONNECTOR_TYPES,
   FIXTURE_TYPES,
+  ZONE_USES,
+  desksInZone,
+  fillZoneWithDesks,
+  zoneSpace,
   SPACE_TYPES,
   fitOpening,
   getItem,
@@ -150,6 +154,8 @@ export function Inspector() {
       </Panel>
     );
   }
+
+  if (selection.kind === "zone") return <ZoneInspector id={selection.id} onDelete={remove} />;
 
   if (selection.kind === "space") {
     const s = getItem(plan, "space", selection.id);
@@ -566,3 +572,50 @@ function Panel({ title, sub, onDelete, children }: { title: string; sub: string;
 }
 
 export function rampText(plan: import("../../../contracts/floorplan.ts").FloorPlan,c: Connector):string { const g=rampGradient(plan,c);return `1 in ${Math.round(1/g)} — ${g<=1/12+1e-9?"fine for wheelchairs":"too steep for wheelchairs"}`; }
+
+/** An invisible area inside a room: its name, what it's for, how many desks it holds, and which team sits there. */
+export function ZoneInspector({ id, onDelete }: { id: string; onDelete: () => void }) {
+  const plan = useEditor((s) => s.plan);
+  const profile = useEditor((s) => s.profiles[s.plan.id]);
+  const { commit, notify } = useEditor.getState();
+  const z = getItem(plan, "zone", id);
+  if (!z) return null;
+  const upd = (fn: (x: Zone) => Zone) => commit((p) => updateItem(p, "zone", z.id, fn));
+  const desks = desksInZone(plan, z).length;
+  const room = zoneSpace(plan, z);
+  const teams = profile?.departments.filter((d) => d.zoneId === z.id) ?? [];
+  const label = ZONE_USES.find((u) => u.use === z.use)?.label ?? z.use;
+  const fill = () => {
+    let added = 0;
+    commit((p) => {
+      const out = fillZoneWithDesks(p, z.id);
+      added = out.added;
+      return out.plan;
+    });
+    notify(added ? `Added ${added} desk${added === 1 ? "" : "s"} to ${z.name}.` : `No room for more desks in ${z.name}${z.capacity ? " (it's at its desk count)" : ""}.`);
+  };
+  return (
+    <Panel title="Zone" sub={`${label}${room ? ` · in ${room.name}` : ""} · ${polygonArea(z.polygon).toFixed(1)} m²`} onDelete={onDelete}>
+      <TextField label="Name" value={z.name} onCommit={(name) => upd((x) => ({ ...x, name }))} />
+      <SelectField<ZoneUse> label="Used for" value={z.use} options={ZONE_USES.map((u) => ({ value: u.use, label: u.label }))} onChange={(use) => upd((x) => ({ ...x, use }))} />
+      {z.use === "team" && (
+        <>
+          <NumField
+            label="Desks it should hold"
+            unit="desks"
+            step={1}
+            min={1}
+            value={z.capacity ?? Math.max(1, desks)}
+            onCommit={(capacity) => upd((x) => ({ ...x, capacity: Math.max(1, Math.round(capacity)) }))}
+          />
+          <p className="muted">
+            {desks} desk{desks === 1 ? "" : "s"} drawn inside.{" "}
+            {teams.length ? `Team: ${teams.map((t) => t.name).join(", ")}.` : "No team sits here yet: choose one in People."}
+          </p>
+          <button onClick={fill}>Fill with desks</button>
+        </>
+      )}
+      <p className="muted">A zone has no walls: people walk through it freely. It labels where a team sits or what an area is for.</p>
+    </Panel>
+  );
+}

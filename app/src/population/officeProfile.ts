@@ -5,6 +5,7 @@
 // Kept in the app for now. When malls arrive it becomes a shared contract.
 
 import type { FloorPlan, Space } from "../../../contracts/floorplan.ts";
+import { pointInPolygon } from "../model/geometry.ts";
 import { SCENARIO_VERSION, type Comfort, type Weather, type Meeting, type Person, type Scenario, type Visitor } from "../../../contracts/scenario.ts";
 import { type KindsSettings, kindsFromPreset, expandKinds } from "./kinds.ts";
 import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
@@ -21,7 +22,23 @@ export interface Department {
   roomIds: string[];
   /** Whole-team meetings per day. */
   teamMeetingsPerDay: number;
+  /** The plan zone (a team area) the department sits in. Its people get desks there first. Missing: just its rooms. */
+  zoneId?: string;
 }
+
+/** How closely two departments work together, as the user said it: face-to-face interactions per person per day. */
+export interface TeamRelationship {
+  a: string;
+  b: string;
+  perPersonPerDay: number;
+}
+
+/** The scale offered in People, matching the contract's typical values. */
+export const RELATIONSHIP_LEVELS = [
+  { label: "Closely", perPersonPerDay: 4, note: "about 4 times a day" },
+  { label: "Sometimes", perPersonPerDay: 1, note: "about once a day" },
+  { label: "Rarely", perPersonPerDay: 0.2, note: "about once a week" },
+] as const;
 
 /** Two departments that work together, and how often they meet. */
 export interface Collaboration {
@@ -40,6 +57,8 @@ export interface OfficeProfile {
   attendance: number;
   departments: Department[];
   collaborations: Collaboration[];
+  /** How closely departments work together, entered in People or told to Ella. Missing: none. */
+  relationships?: TeamRelationship[];
   rates: { toiletVisitsPerDay: number; pantryVisitsPerDay: number };
   /** Lunch break. Missing means none (older saved profiles). */
   lunch?: LunchSettings;
@@ -201,9 +220,14 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     desks.find((d) => !taken.has(d.id) && (spaces.get(d.spaceId)!.type === "private_office") === privateOffice);
   const allPrivate = new Set(plan.spaces.filter((s) => s.type === "private_office").map((s) => s.id));
 
+  const teamZones = new Map((plan.zones ?? []).filter((z) => z.use === "team").map((z) => [z.id, z]));
   for (const dept of profile.departments) {
-    const rooms = new Set(dept.roomIds.filter((id) => spaces.has(id)));
-    const deskCount = desks.filter((d) => rooms.has(d.spaceId)).length;
+    const zone = dept.zoneId ? teamZones.get(dept.zoneId) : undefined;
+    const inZone = (d: (typeof desks)[number]) => !!zone && d.levelId === zone.levelId && pointInPolygon(d.position, zone.polygon);
+    const zoneRoom = zone ? plan.spaces.find((sp) => sp.levelId === zone.levelId && zone.polygon.every((p) => pointInPolygon(p, sp.polygon))) : undefined;
+    const rooms = new Set([...dept.roomIds.filter((id) => spaces.has(id)), ...(zoneRoom && !dept.roomIds.length ? [zoneRoom.id] : [])]);
+    const freeInZone = () => (zone ? desks.find((d) => !taken.has(d.id) && inZone(d)) : undefined);
+    const deskCount = zone ? desks.filter(inZone).length : desks.filter((d) => rooms.has(d.spaceId)).length;
     const headcount = Math.max(0, Math.round(dept.headcount));
     const managers = Math.min(headcount, Math.max(0, Math.round(dept.managers)));
     // Who is in today: each person independently, so attendance is realistic rather than exact.
@@ -218,12 +242,12 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       const desk =
         role === "manager"
           ? (freeIn(rooms, true) ?? freeIn(allPrivate) ?? freeIn(rooms) ?? freeAnywhere(false))
-          : (freeIn(rooms) ?? freeAnywhere(false));
+          : (freeInZone() ?? freeIn(rooms) ?? freeAnywhere(false));
       if (!desk) {
         unseated++;
         continue;
       }
-      if (!rooms.has(desk.spaceId) && !(role === "manager" && allPrivate.has(desk.spaceId))) outside++;
+      if (zone ? !inZone(desk) && !(role === "manager" && allPrivate.has(desk.spaceId)) : !rooms.has(desk.spaceId) && !(role === "manager" && allPrivate.has(desk.spaceId))) outside++;
       taken.add(desk.id);
       seating.set(desk.id, dept.id);
       people.push({ id: `${dept.id}-${i + 1}`, teamId: dept.id, role, deskId: desk.id });
@@ -231,6 +255,15 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
     if (outside) notes.push(`${outside} ${dept.name} ${outside === 1 ? "person sits" : "people sit"} outside their own area (not enough desks there).`);
     if (unseated) notes.push(`${unseated} ${dept.name} ${unseated === 1 ? "person has" : "people have"} no desk at all, so they're left out.`);
   }
+
+  const deptIds = new Set(profile.departments.map((d) => d.id));
+  const seenPairs = new Set<string>();
+  const relationships = (profile.relationships ?? []).flatMap((r) => {
+    const key = [r.a, r.b].sort().join("|");
+    if (r.a === r.b || !deptIds.has(r.a) || !deptIds.has(r.b) || seenPairs.has(key) || !(r.perPersonPerDay > 0)) return [];
+    seenPairs.add(key);
+    return [{ a: r.a, b: r.b, perPersonPerDay: Math.min(50, r.perPersonPerDay), from: "user" as const }];
+  });
 
   const { meetings, requested } = scheduleMeetings(profile, plan, people, rnd, deptNames, notes);
   const visitors = planVisitors(profile, plan, meetings, rnd, notes);
@@ -263,7 +296,8 @@ export function expandProfile(profile: OfficeProfile, plan: FloorPlan, scenarioI
       name: `${people.length} people in today${profile.attendance < 1 ? ` (${Math.round(profile.attendance * 100)}% attendance)` : ""}`,
       seed: profile.seed,
       workday: profile.workday,
-      teams: profile.departments.map((d) => ({ id: d.id, name: d.name })),
+      teams: profile.departments.map((d) => ({ id: d.id, name: d.name, ...(d.zoneId && teamZones.has(d.zoneId) ? { zoneId: d.zoneId } : {}) })),
+      ...(relationships.length ? { relationships } : {}),
       people,
       meetings,
       rates: profile.rates,

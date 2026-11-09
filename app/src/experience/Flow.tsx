@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
 import { useEditor } from "../state/store.ts";
-import { getItem } from "../model/planOps.ts";
+import { getItem, removeItem } from "../model/planOps.ts";
+import { ZoneInspector } from "../ui/Inspector.tsx";
+import { PasteTeams } from "../population/PasteTeams.tsx";
 import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
 import { defaultProfile } from "../population/officeProfile.ts";
 import { DEFAULT_SHOPPERS, MALL_HOURS, hasShops, SHOPPER_DAYS, type ShopperDay } from "../population/shoppers.ts";
@@ -18,7 +20,18 @@ export function SimpleBuilding() {
   const state = useEditor(),
     ux = useExperience();
   const item = state.selection ? getItem(state.plan, state.selection.kind, state.selection.id) : undefined;
+  const zone = state.selection?.kind === "zone" && item ? state.selection : null;
   return (
+    <>
+    {zone && (
+      <ZoneInspector
+        id={zone.id}
+        onDelete={() => {
+          state.commit((p) => removeItem(p, zone));
+          state.select(null);
+        }}
+      />
+    )}
     <section className="panel simple-building">
       <header>
         <h2>{item && "name" in item ? item.name : "Your building"}</h2>
@@ -38,8 +51,10 @@ export function SimpleBuilding() {
           Describe a change
         </button>
         <button onClick={() => ux.go(2)}>Next: Who uses it →</button>
+        {!state.plan.zones?.length && <p className="muted">Open-plan floor? Use the Zone tool (Z) to mark each team's area without walls.</p>}
       </div>
     </section>
+    </>
   );
 }
 export function SimplePeople() {
@@ -48,8 +63,10 @@ export function SimplePeople() {
     profile = state.profiles[state.plan.id] ?? defaultProfile(state.plan),
     mall = hasShops(state.plan);
   const save = (p: typeof profile) => state.setProfile(state.plan.id, p, true);
+  const [pasting, setPasting] = useState(false);
   return (
     <section className="panel simple-people">
+      {pasting && <PasteTeams profile={profile} setProfile={save} onClose={() => setPasting(false)} />}
       <header>
         <h1>Who uses your building?</h1>
       </header>
@@ -131,7 +148,13 @@ export function SimplePeople() {
                 )}
               </select>
             </label>
-            <p>{profile.departments.reduce((n, d) => n + d.headcount, 0)} staff on the team. Ask Ella to change teams or add visitors.</p>
+            <p>
+              {profile.departments.length} team{profile.departments.length === 1 ? "" : "s"}, {profile.departments.reduce((n, d) => n + d.headcount, 0)} staff.
+              Paste your own list, or ask Ella to change teams or add visitors.
+            </p>
+            <button className="primary" onClick={() => setPasting(true)}>
+              Paste your teams
+            </button>
           </>
         )}
         <label className="field">
