@@ -28,14 +28,52 @@ report and the honesty rules all work. Four changes are needed first. Two are th
    - mall-2f: about 133,000 characters (roughly 38,000 tokens).
    - A comparison: double that.
 
-   That makes Ella slow and expensive, and buries the plan description. Change:
-   - Send only when the Results workspace is open.
-   - Send a compact digest: headline metrics with ranges, the run count, the comparison method, and the current tab's
-     rows (capped at about 20, worst first).
-   - Send the top sensitivity drivers, and only the parameters those drivers and headlines depend on (key, value,
-     low–high, a short source label, no URLs).
-   - Add a tool Ella can call to look up any parameter in full when asked. Aim for under 3,000 tokens on mall-2f, and add
-     a test that checks the size.
+   That makes Ella slow and expensive, and buries the plan description. The plan description has the same problem
+   today: `send` adds a full copy to every user turn, so after five messages the history holds five snapshots, four
+   of them stale. Change Ella's context to three layers (product owner's decision, 2026-11-09):
+
+   **Layer 1 · fixed knowledge, cached.** One frozen prefix holding:
+   - the system prompt;
+   - the tool definitions, in a fixed order;
+   - a "how Nine Arches works" section: what each decision metric means and how it's measured, what p10–p90 ranges
+     and "from n of 12 runs" mean, paired comparison verdicts, "Cannot verify", and how to explain results to a
+     stakeholder;
+   - the full parameter registry (key, unit, value, low–high, kind, source).
+
+   It changes only with an app release, so it can be long. Put an explicit `cache_control` breakpoint with
+   `ttl: "1h"` on its last block, and keep the existing top-level automatic caching for the conversation tail (set its
+   TTL to match). Nothing in this layer may vary per request: no dates, no plan data, no unsorted JSON.
+
+   **Layer 2 · current state, sent only when it changes.** Stop prefixing every user turn with the plan and results.
+   When the plan, the run, the comparison or the open tab has changed since Ella last saw it, append one
+   mid-conversation system message (`{ role: "system", content }` after the user turn). It holds:
+   - a compact plan description, or what changed in it;
+   - the run digest: headline metrics with ranges, the run count, the comparison method if comparing, the open tab's
+     worst ~10 rows, the top three drivers per headline, and censored or stale flags.
+
+   Target under 3,000 tokens on mall-2f for the digest. Never edit or delete earlier messages: history stays
+   append-only, so the cache and the thinking blocks stay valid. When nothing has changed, send nothing.
+
+   **Layer 3 · details through tools.** Add read-only tools that answer from the current run:
+   - `get_parameter(key)`;
+   - `get_tab_rows(tab, limit, sort)`;
+   - `get_element(refId)` (capacity, worst minute, queue);
+   - `get_person(personId)`;
+   - `get_comparison(metric)` (paired differences and verdict);
+   - `get_sensitivity(metric)`.
+
+   They return compact JSON with units and ranges. The system prompt tells Ella to quote numbers only from layer 2
+   or a tool result, never from memory.
+
+   Tests:
+   - the digest's size on mall-2f;
+   - a test that two consecutive sends with no change produce a byte-identical prefix, plus `cache_read_input_tokens`
+     > 0 in a mocked or live check;
+   - one system message appended per change, none when unchanged;
+   - each tool returns the same numbers the tabs show.
+
+   Also add an Ella question set to `docs/`: about 25 real questions ("why is the toilet so busy?", "is option B
+   better?", "what should we measure first?"), each with what a good answer must cite. Run it after any prompt change.
 
 2. **The Capacity chart hides the bottleneck.** Demand and capacity share one people-per-minute scale. Doors are rated
    at about 100 people a minute and a toilet at well under 1, so the toilet, the worst element at 375%, is an invisible
