@@ -1,3 +1,4 @@
+import { teamCentre } from "./team-allocation.ts";
 import type { FloorPlan, Vec2 } from "../../contracts/floorplan.ts";
 import type {
   DecisionMetrics,
@@ -15,7 +16,6 @@ import { connectorRate, doorGates } from "./modules/flow.ts";
 import {
   distance,
   pointInPolygon,
-  polygonCentroid,
 } from "./modules/geometry.ts";
 import { interiorIntervals, polygonBounds } from "./modules/occupancy.ts";
 import type { LevelPoint } from "./modules/levels.ts";
@@ -120,7 +120,7 @@ export function roomQueueObservations(
  * lift pickup is removed: pickup is measured separately as lift_wait. Drop-off
  * door time remains part of the physical ride in both actual and baseline.
  */
-function freePathS(plan: FloorPlan, path: Vec2[], speed: number): number {
+export function freePathS(plan: FloorPlan, path: Vec2[], speed: number): number {
   let seconds = 0;
   for (let i = 1; i < path.length; i++) {
     const a = path[i - 1] as LevelPoint,
@@ -330,29 +330,7 @@ function teamDistance(
     }
     relationships = [...pairs.values()];
   }
-  const centre = (id: string): LevelPoint | undefined => {
-    const team = scenario.teams.find((t) => t.id === id)!,
-      zone = plan.zones?.find((z) => z.id === team.zoneId);
-    if (zone)
-      return { ...polygonCentroid(zone.polygon), levelId: zone.levelId };
-    const desks = scenario.people
-      .filter((p) => p.teamId === id)
-      .flatMap((p) => plan.fixtures.filter((f) => f.id === p.deskId));
-    if (!desks.length) return undefined;
-    // A multi-floor team uses its largest floor group; do not put a centroid between floors.
-    const level = plan.levels
-      .map((l) => ({
-        id: l.id,
-        count: desks.filter((d) => d.levelId === l.id).length,
-      }))
-      .sort((a, b) => b.count - a.count)[0].id;
-    const group = desks.filter((d) => d.levelId === level);
-    return {
-      x: group.reduce((n, d) => n + d.position.x, 0) / group.length,
-      y: group.reduce((n, d) => n + d.position.y, 0) / group.length,
-      levelId: level,
-    };
-  };
+  const centre = (id:string) => teamCentre(plan,scenario,id);
   const pairs: NonNullable<DecisionMetrics["teamDistance"]>["pairs"] = [];
   let weighted = 0;
   for (const row of relationships) {

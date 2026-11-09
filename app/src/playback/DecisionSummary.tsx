@@ -13,7 +13,12 @@ import type { Ranged } from "../../../contracts/results.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
 const number = (value: number) =>
-  value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  value.toLocaleString(
+    undefined,
+    Math.abs(value) > 0 && Math.abs(value) < 0.01
+      ? { maximumSignificantDigits: 2 }
+      : { maximumFractionDigits: 2 },
+  );
 function Range({
   value,
   pending,

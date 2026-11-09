@@ -1,3 +1,4 @@
+import { isStoredGoal } from "../population/goals.ts";
 // A project file keeps everything about one piece of design work together: the plan,
 // its People settings, and the saved layout options to compare. It's an app format,
 // not a contract: the engine only ever sees the plan and scenario inside it.
@@ -101,7 +102,12 @@ function isPlan(x: unknown): x is FloorPlan {
 
 function isProfile(x: unknown): x is OfficeProfile {
   const p = x as OfficeProfile;
-  return !!p && p.version === 1 && (p.parameters === undefined || Array.isArray(p.parameters) && p.parameters.every(value => value && typeof value.key === 'string' && Number.isFinite(value.value) && typeof value.source === 'string' && value.source.trim())) && Array.isArray(p.departments) && typeof p.attendance === "number";
+  return !!p && p.version === 1 &&
+    (p.parameters === undefined || Array.isArray(p.parameters) && p.parameters.every(value =>
+      value && typeof value.key === 'string' && Number.isFinite(value.value) &&
+      typeof value.source === 'string' && !!value.source.trim())) &&
+    Array.isArray(p.departments) && typeof p.attendance === "number" &&
+    (p.goals === undefined || Array.isArray(p.goals) && p.goals.every(g => isStoredGoal(g,p)));
 }
 
 /** A plan that opens but has problems is still opened; the problems are listed in the editor. */

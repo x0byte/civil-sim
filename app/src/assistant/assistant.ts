@@ -1,3 +1,6 @@
+import { rebaseToolOutcome } from "./toolOutcome.ts";
+import { explainEvidence } from "./explain.ts";
+import type { OptimisationProposal } from "./optimise.ts";
 import { useExperience } from "../experience/state.ts";
 import { useImprovements } from "../improvements/store.ts";
 import { FROZEN_KNOWLEDGE } from "./knowledge.ts";
@@ -36,6 +39,7 @@ interface Proposal {
   base: Draft;
   draft: Draft;
   changes: Change[];
+  optimisation?: OptimisationProposal;
 }
 
 interface AssistantState {
@@ -81,6 +85,7 @@ function currentDraft(): Draft {
 /** A note for the model, added to the next user message (never edited into history). */
 let pendingNote = "";
 let requestController: AbortController | undefined;
+let proposalEpoch = 0;
 
 export const useAssistant = create<AssistantState>((set, get) => ({
   key: storedKey(),
@@ -117,6 +122,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   send: async (text) => {
     const { key, busy } = get();
     if (busy || !text.trim() || !key) return;
+    const epoch = proposalEpoch;
     const controller = new AbortController();
     requestController = controller;
     const proposal = get().proposal;
@@ -142,6 +148,17 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     });
     let draft = start.draft;
     let changes = [...start.changes];
+    let optimisation: OptimisationProposal | undefined = proposal?.optimisation;
+    const readContext = () => ({
+      draft,
+      run: optimisation?.comparison.b ?? useEditor.getState().run,
+      comparison:
+        optimisation?.comparison ??
+        (useEditor.getState().view === "compare"
+          ? useEditor.getState().comparison
+          : null),
+      selectedPersonId: useExperience.getState().followId,
+    });
     const reply: string[] = [];
     try {
       for (let step = 0; ; step++) {
@@ -160,8 +177,8 @@ export const useAssistant = create<AssistantState>((set, get) => ({
           ux = useExperience.getState();
         const state: StateContext = {
           draft,
-          run: editor.run,
-          comparison: editor.view === "compare" ? editor.comparison : null,
+          run: readContext().run,
+          comparison: readContext().comparison,
           tab: useResults.getState().tab,
           selectedPersonId: ux.followId,
           workspace: ux.home
@@ -229,33 +246,50 @@ export const useAssistant = create<AssistantState>((set, get) => ({
 
         const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
         for (const call of calls) {
-          const out: ToolOutcome = isReadTool(call.name)
-            ? {
-                draft,
-                ...runReadTool(
-                  call.name,
-                  call.input as Record<string, unknown>,
-                  {
-                    draft,
-                    run: useEditor.getState().run,
-                    comparison:
-                      useEditor.getState().view === "compare"
-                        ? useEditor.getState().comparison
-                        : null,
-                    selectedPersonId: useExperience.getState().followId,
-                  },
-                ),
-              }
-            : await runInBackground(
-                {
-                  kind: "assistantTool",
-                  name: call.name,
-                  input: call.input as Record<string, unknown>,
+          const raw: ToolOutcome =
+            call.name === "explain"
+              ? {
                   draft,
-                },
-                controller.signal,
-              );
+                  ...explainEvidence(
+                    call.input as Record<string, unknown>,
+                    readContext(),
+                  ),
+                }
+              : call.name === "propose_layout"
+                ? await runOptimiserTask(
+                    draft,
+                    (call.input as Record<string, unknown>).scope,
+                    controller,
+                    (progress) =>
+                      set({
+                        activity: [
+                          ...get().activity.slice(0, -1),
+                          progress.message,
+                        ],
+                      }),
+                  )
+                : isReadTool(call.name)
+                  ? {
+                      draft,
+                      ...runReadTool(
+                        call.name,
+                        call.input as Record<string, unknown>,
+                        readContext(),
+                      ),
+                    }
+                  : await runInBackground(
+                      {
+                        kind: "assistantTool",
+                        name: call.name,
+                        input: call.input as Record<string, unknown>,
+                        draft,
+                      },
+                      controller.signal,
+                    );
           controller.signal.throwIfAborted();
+          const out = rebaseToolOutcome(draft, raw);
+          if (out.optimisation) optimisation = out.optimisation;
+          else if (out.draft !== draft) optimisation = undefined;
           draft = out.draft;
           if (out.change) changes.push(out.change);
           set({
@@ -277,6 +311,7 @@ export const useAssistant = create<AssistantState>((set, get) => ({
       if (controller.signal.aborted) {
         draft = start.draft;
         changes = [...start.changes];
+        optimisation = proposal?.optimisation;
       }
       set({
         error: controller.signal.aborted
@@ -326,7 +361,12 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     set({
       busy: false,
       activity: [],
-      proposal: changed ? { base: start.base, draft, changes } : null,
+      proposal:
+        epoch !== proposalEpoch
+          ? get().proposal
+          : changed
+            ? { base: start.base, draft, changes, optimisation }
+            : null,
       lines: reply.length
         ? [...get().lines, { role: "assistant", text: reply.join("\n\n") }]
         : get().lines,
@@ -334,20 +374,31 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   },
 
   apply: () => {
+    if (get().busy) return;
     const p = get().proposal;
     if (!p) return;
     const ed = useEditor.getState();
-    if (ed.plan !== p.base.plan) {
+    if (
+      ed.plan !== p.base.plan ||
+      JSON.stringify(ed.profiles[ed.plan.id] ?? defaultProfile(ed.plan)) !==
+        JSON.stringify(p.base.profile)
+    ) {
       set({
         error:
-          "The plan was changed by hand since this proposal was made. Discard it and ask again.",
+          "The plan or People settings changed by hand since this proposal was made. Discard it and ask again.",
       });
       return;
     }
     const plan: FloorPlan = p.draft.plan;
-    ed.commit(() => plan);
+    if (plan !== p.base.plan) ed.commit(() => plan);
     if (p.draft.profile !== p.base.profile)
-      ed.setProfile(plan.id, p.draft.profile);
+      ed.setProfile(plan.id, p.draft.profile, plan === p.base.plan);
+    if (p.optimisation) {
+      ed.setRun(p.optimisation.comparison.b);
+      ed.setComparison(p.optimisation.comparison);
+      ed.setView("compare");
+      useExperience.getState().go(3);
+    }
     ed.notify(
       `Applied ${p.changes.length} change${p.changes.length === 1 ? "" : "s"}. Undo reverses the plan changes.`,
     );
@@ -360,6 +411,8 @@ export const useAssistant = create<AssistantState>((set, get) => ({
 
   discard: () => {
     if (!get().proposal) return;
+    proposalEpoch++;
+    requestController?.abort();
     pendingNote =
       "NOTE: the user discarded your last proposal; the plan above is without it.";
     set({
@@ -369,6 +422,8 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   },
 
   reset: () => {
+    proposalEpoch++;
+    requestController?.abort();
     pendingNote = "";
     set({
       lines: [],
@@ -397,6 +452,10 @@ export function errorText(e: unknown): string {
 }
 
 const TOOL_ACTIVITY: Record<string, string> = {
+  set_relationship: "Recording team interactions",
+  set_goal: "Recording the goal",
+  propose_layout: "Checking team placements",
+  explain: "Reading the Evidence",
   get_parameter: "Reading parameter evidence",
   get_tab_rows: "Reading results rows",
   get_element: "Inspecting the element",
@@ -426,4 +485,37 @@ export function toolActivity(name: string, failed?: boolean): string {
     TOOL_ACTIVITY[name] ??
     `Working on ${name.replace(/^(set|add|update)_/, "").replace(/_/g, " ")}`;
   return failed ? `${label} (trying again)` : label;
+}
+
+async function runOptimiserTask(
+  draft: Draft,
+  scope: unknown,
+  controller: AbortController,
+  report: import("../loading/progress.ts").ReportProgress,
+): Promise<ToolOutcome> {
+  const { cancelRanges } = await import("../sim/rangeJob.tsx");
+  const { cancelSensitivity } = await import("../sim/evidenceJob.tsx");
+  cancelRanges();
+  cancelSensitivity();
+  const { useSimulationJob } = await import("../sim/jobs.tsx");
+  if (useSimulationJob.getState().status === "working")
+    useSimulationJob.getState().cancel();
+  const stopOnRun = useSimulationJob.subscribe((next) => {
+    if (next.status === "working") controller.abort();
+  });
+  const snapshot = useEditor.getState();
+  const unsubscribe = useEditor.subscribe((next) => {
+    if (next.plan !== snapshot.plan || next.profiles !== snapshot.profiles)
+      controller.abort();
+  });
+  try {
+    return await runInBackground(
+      { kind: "optimise", draft, scope },
+      controller.signal,
+      report,
+    );
+  } finally {
+    unsubscribe();
+    stopOnRun();
+  }
 }

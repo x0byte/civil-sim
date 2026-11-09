@@ -79,6 +79,9 @@ export function compactPlan({ plan, profile }: StateContext["draft"]) {
       .slice(0, 6)
       .map((s) => ({ id: s.id, name: s.name, type: s.type, level: s.levelId })),
     people: {
+      relationships: profile.relationships?.slice(0, 10),
+      goals: profile.goals?.slice(0, 10),
+
       workday: profile.workday,
       attendance: profile.attendance,
       rates: profile.rates,
@@ -87,7 +90,14 @@ export function compactPlan({ plan, profile }: StateContext["draft"]) {
         .slice(0, 6),
 
       teams: profile.departments
-        .map((t) => ({ id: t.id, name: t.name, headcount: t.headcount }))
+        .map((t) => ({
+          id: t.id,
+          name: t.name,
+          headcount: t.headcount,
+          managers: t.managers,
+          zoneId: t.zoneId,
+          roomIds: t.roomIds,
+        }))
         .slice(0, 6),
       comfort: profile.comfort?.enabled ?? false,
       evacuation: profile.evacuation ?? null,
@@ -130,13 +140,20 @@ export function stateMessage(
         !!state.run &&
         !isCurrentRun(state.draft.plan, state.run, state.draft.profile),
     },
-    comparisonStale: state.comparison
-      ? [state.comparison.a, state.comparison.b].map((r) =>
-          r.plan.id === state.draft.plan.id
-            ? !isCurrentRun(state.draft.plan, r, state.draft.profile)
-            : false,
-        )
-      : undefined,
+    comparisonStale:
+      state.comparison &&
+      state.comparison.b.plan === state.draft.plan &&
+      state.comparison.a.plan === state.comparison.b.plan &&
+      JSON.stringify(state.comparison.b.profile) ===
+        JSON.stringify(state.draft.profile)
+        ? [false, false]
+        : state.comparison
+          ? [state.comparison.a, state.comparison.b].map((r) =>
+              r.plan.id === state.draft.plan.id
+                ? !isCurrentRun(state.draft.plan, r, state.draft.profile)
+                : false,
+            )
+          : undefined,
     selectedPersonId: state.selectedPersonId ?? null,
     result,
     note: note || undefined,

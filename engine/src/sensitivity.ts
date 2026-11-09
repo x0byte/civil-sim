@@ -1,3 +1,4 @@
+import { allocateTeamHeadcounts } from "./team-allocation.ts";
 import { withNavigationCache } from "./modules/navigation.ts";
 import type { FloorPlan } from "../../contracts/floorplan.ts";
 import type { Evidence, SimulationResult } from "../../contracts/results.ts";
@@ -75,6 +76,7 @@ export function sensitivitySample(scenario: Scenario, sampleSize = parameterDefa
  */
 export function analyseSensitivity(plan: FloorPlan, scenario: Scenario, evidence: Evidence,
   run: SimulationRunner, options: SensitivityOptions = {}): Evidence['sensitivity'] {
+  scenario=allocateTeamHeadcounts(plan,scenario);
   return withNavigationCache(() => sensitivityCore(plan, scenario, evidence, run, options));
 }
 function sensitivityCore(plan: FloorPlan, scenario: Scenario, evidence: Evidence, run: SimulationRunner, options: SensitivityOptions): Evidence['sensitivity'] {

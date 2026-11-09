@@ -117,10 +117,13 @@ export function comparisonRows(comparison: Comparison, metric = "all") {
   const complete = [a, b].every(
     (r) => (r.result.decision?.runs ?? 0) >= runCount(r),
   );
-  return compareResults(a.result, b.result, { a: a.rangeData, b: b.rangeData })
+  return [
+    ...compareResults(a.result, b.result, { a: a.rangeData, b: b.rangeData }),
+    ...(comparison.additionalDifferences ?? []),
+  ]
     .filter((row) =>
       metric === "all"
-        ? /^(timeLost|evacuation|teamDistance)/.test(row.metric)
+        ? /^(timeLost|evacuation|teamDistance|goals)/.test(row.metric)
         : row.metric === metric ||
           row.metric.replace(
             /^capacity\.(".*")\.(demand|utilisation)$/,

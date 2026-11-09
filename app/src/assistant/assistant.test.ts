@@ -1,3 +1,4 @@
+import { optimiserFixture } from "../../test/optimiserFixture.ts";
 import { useResults } from "../results/state.ts";
 import { FROZEN_KNOWLEDGE } from "./knowledge.ts";
 import { useExperience } from "../experience/state.ts";
@@ -69,11 +70,114 @@ describe("design assistant conversation", () => {
     cachedPrefixes.clear();
     useExperience.setState({ step: 1, home: false, followId: null });
     useResults.setState({ tab: "summary" });
+    useEditor.setState({ profiles: {} });
     useEditor.getState().load(mallJson as FloorPlan);
     useAssistant.getState().reset();
     useAssistant.getState().setKey("sk-ant-test", false);
   });
 
+  it("proposes the requested adjacent team swap through the existing conversation, then applies and undoes only People settings", async () => {
+    const draft = optimiserFixture();
+    useEditor.getState().load(draft.plan);
+    useEditor.getState().setProfile(draft.plan.id, draft.profile);
+    const before = useEditor.getState().profiles[draft.plan.id];
+    script.push(
+      toolUse("relationship", "set_relationship", {
+        a: "Finance",
+        b: "Sales",
+        strength: "closely",
+      }),
+      toolUse("keep", "set_goal", {
+        goal: { kind: "keep", teamId: "Manager" },
+      }),
+      toolUse("search", "propose_layout", { scope: "teams" }),
+      toolUse("evidence", "explain", {
+        metric: "teamDistance.secondsPerPersonPerDay",
+      }),
+      say(
+        "Sales and Operations swap zones, making Finance and Sales adjacent. The manager stays put. Team distance is clearly better; staff delay is within noise, and walking time rises slightly within noise.",
+      ),
+    );
+    await useAssistant
+      .getState()
+      .send(
+        "Finance works closely with Sales; keep the manager's office where it is",
+      );
+    expect(useAssistant.getState().error).toBeNull();
+    const proposal = useAssistant.getState().proposal!;
+    expect(proposal.optimisation).toBeDefined();
+    expect(useEditor.getState().profiles[draft.plan.id]).toBe(before);
+    expect(useEditor.getState().plan).toBe(proposal.base.plan);
+    expect(proposal.optimisation!.comparison.b.plan).toBe(proposal.base.plan);
+    const prefix = (r: Record<string, unknown>) =>
+      JSON.stringify({ system: r.system, tools: r.tools });
+    expect(new Set(requests.map(prefix)).size).toBe(1);
+    expect(JSON.stringify(requests.at(-1)!.messages)).toContain("evidenceOnly");
+    useAssistant.getState().apply();
+    expect(useAssistant.getState().proposal).toBeNull();
+    expect(useEditor.getState().profiles[draft.plan.id]).toBe(
+      proposal.draft.profile,
+    );
+    expect(useEditor.getState().view).toBe("compare");
+    useEditor.getState().undo();
+    expect(useEditor.getState().profiles[draft.plan.id]).toEqual(before);
+  }, 30000);
+  it.each(["people", "run", "reset"])(
+    "cancels optimisation on %s changes without publishing a stale placement",
+    async (action) => {
+      const draft = optimiserFixture();
+      useEditor.getState().load(draft.plan);
+      useEditor.getState().setProfile(draft.plan.id, draft.profile);
+      const { useSimulationJob } = await import("../sim/jobs.tsx");
+      script.push(toolUse("search", "propose_layout", { scope: "teams" }));
+      let changed = false;
+      const off = useAssistant.subscribe((next) => {
+        if (changed || !next.activity.some((a) => a.includes("from 1 of 12")))
+          return;
+        changed = true;
+        if (action === "people")
+          useEditor
+            .getState()
+            .setProfile(draft.plan.id, { ...draft.profile, attendance: 0.5 });
+        if (action === "run") useSimulationJob.setState({ status: "working" });
+        if (action === "reset") useAssistant.getState().reset();
+      });
+      try {
+        await useAssistant.getState().send("Find a better team placement");
+        expect(changed).toBe(true);
+        expect(useAssistant.getState().proposal).toBeNull();
+        expect(useEditor.getState().plan).toBe(draft.plan);
+      } finally {
+        off();
+        useSimulationJob.getState().cancel();
+      }
+    },
+  );
+  it("refuses to overwrite People settings edited while a proposal is pending", async () => {
+    script.push(
+      toolUse("relationship", "set_relationship", {
+        a: "Sales",
+        b: "unknown",
+        strength: "closely",
+      }),
+      say("Unknown team."),
+    );
+    await useAssistant.getState().send("Record this relationship");
+    expect(useAssistant.getState().proposal).toBeNull();
+    script.push(
+      toolUse("window", "add_opening", WINDOW),
+      say("Review the window."),
+    );
+    await useAssistant.getState().send("Add the window");
+    const plan = useEditor.getState().plan;
+    const profile = useAssistant.getState().proposal!.base.profile;
+    useEditor.getState().setProfile(plan.id, { ...profile, attendance: 0.5 });
+    useAssistant.getState().apply();
+    expect(useAssistant.getState().error).toMatch(
+      /People settings changed by hand/,
+    );
+    expect(useAssistant.getState().proposal).not.toBeNull();
+  });
   it("appends Results state once, retains it unchanged, and supports full parameter lookup", async () => {
     const out = runSimulation(useEditor.getState().plan, undefined, undefined, {
       decision: true,

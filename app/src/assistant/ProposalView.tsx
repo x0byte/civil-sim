@@ -1,3 +1,7 @@
+import { OptimisationSummary } from "./OptimisationSummary.tsx";
+import type { OptimisationProposal } from "./optimise.ts";
+import { polygonCentroid } from "../model/geometry.ts";
+import "./optimise.css";
 import { useMemo, useRef, useState } from "react";
 import type { FloorPlan, Vec2 } from "../../../contracts/floorplan.ts";
 import { PlanDrawing } from "../editor/PlanDrawing.tsx";
@@ -22,7 +26,7 @@ export function ProposalView({
   discardLabel = "Discard",
   applyDisabled = false,
 }: {
-  proposal?: { base: Draft; draft: Draft };
+  proposal?: { base: Draft; draft: Draft; optimisation?: OptimisationProposal };
   onApply?: () => void;
   onDiscard?: () => void;
   title?: string;
@@ -31,13 +35,17 @@ export function ProposalView({
 } = {}) {
   const waiting = useAssistant((s) => s.proposal);
   const proposal = supplied ?? waiting!;
+  const working = useAssistant((s) => s.busy);
+  const optimisation = proposal.optimisation;
   const apply = onApply ?? useAssistant.getState().apply;
   const discard = onDiscard ?? useAssistant.getState().discard;
   const plan = proposal.draft.plan;
   const before = proposal.base.plan;
   // Its own floor choice: a floor the proposal adds isn't in the editor yet.
   const [level, setLevel] = useState(useEditor.getState().level);
-  const shown = plan.levels.some((l) => l.id === level) ? level : plan.levels[0].id;
+  const shown = plan.levels.some((l) => l.id === level)
+    ? level
+    : plan.levels[0].id;
   const diff = useMemo(() => diffPlans(before, plan), [before, plan]);
   const view = useMemo(() => onLevel(plan, shown), [plan, shown]);
 
@@ -49,71 +57,152 @@ export function ProposalView({
   const sx = (px: number) => px / cam.s;
 
   const marks = [
-    ...diff.changed.map((c) => mark(plan, c.kind, c.id, shown, "var(--accent)", false, sx)),
-    ...diff.removed.map((c) => mark(before, c.kind, c.id, shown, "var(--danger)", true, sx)),
+    ...diff.changed.map((c) =>
+      mark(plan, c.kind, c.id, shown, "var(--accent)", false, sx),
+    ),
+    ...diff.removed.map((c) =>
+      mark(before, c.kind, c.id, shown, "var(--danger)", true, sx),
+    ),
   ];
 
   return (
-    <div ref={wrapRef} className="canvas-wrap">
-      <svg
-        ref={svgRef}
-        className="canvas"
-        style={{ cursor: "grab" }}
-        onPointerDown={(e) => {
-          svgRef.current!.setPointerCapture(e.pointerId);
-          pan.current = { x: e.clientX, y: e.clientY, cam };
-        }}
-        onPointerMove={(e) => {
-          const p = pan.current;
-          if (p) setCam({ ...p.cam, x: p.cam.x + e.clientX - p.x, y: p.cam.y + e.clientY - p.y });
-        }}
-        onPointerUp={() => {
-          pan.current = null;
-          force((n) => n + 1);
-        }}
-      >
-        <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          <PlanDrawing plan={view} level={shown} scale={cam.s} selection={null} underlaySize={null} />
-          <g style={{ pointerEvents: "none" }}>{marks}</g>
-        </g>
-      </svg>
+    <div className="layout-proposal">
+      <div ref={wrapRef} className="canvas-wrap">
+        <svg
+          ref={svgRef}
+          className="canvas"
+          style={{ cursor: "grab" }}
+          onPointerDown={(e) => {
+            svgRef.current!.setPointerCapture(e.pointerId);
+            pan.current = { x: e.clientX, y: e.clientY, cam };
+          }}
+          onPointerMove={(e) => {
+            const p = pan.current;
+            if (p)
+              setCam({
+                ...p.cam,
+                x: p.cam.x + e.clientX - p.x,
+                y: p.cam.y + e.clientY - p.y,
+              });
+          }}
+          onPointerUp={() => {
+            pan.current = null;
+            force((n) => n + 1);
+          }}
+        >
+          <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
+            <PlanDrawing
+              plan={view}
+              level={shown}
+              scale={cam.s}
+              selection={null}
+              underlaySize={null}
+            />
+            <g style={{ pointerEvents: "none" }}>
+              {marks}
+              {optimisation?.moves.map((move, index) => {
+                const zone = plan.zones?.find((z) => z.id === move.to),
+                  room = plan.spaces.find((s) => s.id === move.to),
+                  area = zone ?? room;
+                if (!area || area.levelId !== shown) return null;
+                const centre = polygonCentroid(area.polygon),
+                  team = proposal.draft.profile.departments.find(
+                    (d) => d.id === move.teamId,
+                  );
+                return (
+                  <g
+                    key={`${move.teamId}-${move.kind}`}
+                    data-moved-team={move.teamId}
+                  >
+                    <polygon
+                      points={area.polygon
+                        .map((p) => `${p.x},${p.y}`)
+                        .join(" ")}
+                      stroke="var(--accent)"
+                      strokeWidth={sx(4)}
+                      fill="var(--accent)"
+                      fillOpacity=".14"
+                    />
+                    <text
+                      x={centre.x}
+                      y={centre.y + index * sx(2)}
+                      fontSize={sx(12)}
+                      fill="var(--ink)"
+                    >
+                      {team?.name ?? move.teamId} → here
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          </g>
+        </svg>
 
-      <FloorSwitcher levels={plan.levels} value={shown} onPick={setLevel} />
+        <FloorSwitcher levels={plan.levels} value={shown} onPick={setLevel} />
 
-      <div className="proposal-bar">
-        <div>
-          <strong>{title ?? "Proposed by Ella"}</strong>
-          <span className="muted">
-            {" "}
-            · {diff.changed.length} new or changed, {diff.removed.length} removed
-            {diff.newLevels.length ? ` · ${diff.newLevels.length} new floor${diff.newLevels.length > 1 ? "s" : ""}` : ""}
-          </span>
+        <div className="proposal-bar">
+          <div>
+            <strong>{title ?? "Proposed by Ella"}</strong>
+            <span className="muted">
+              {" "}
+              ·{" "}
+              {optimisation
+                ? `${new Set(optimisation.moves.map((m) => m.teamId)).size} teams reassigned`
+                : before === plan &&
+                    proposal.draft.profile !== proposal.base.profile
+                  ? "People settings proposed"
+                  : `${diff.changed.length} new or changed, ${diff.removed.length} removed`}
+              {diff.newLevels.length
+                ? ` · ${diff.newLevels.length} new floor${diff.newLevels.length > 1 ? "s" : ""}`
+                : ""}
+            </span>
+          </div>
+          <div className="proposal-actions">
+            <button onClick={discard}>{discardLabel}</button>
+            <button
+              className="primary"
+              onClick={apply}
+              disabled={applyDisabled || (working && !supplied)}
+            >
+              Apply
+            </button>
+          </div>
         </div>
-        <div className="proposal-actions">
-          <button onClick={discard}>{discardLabel}</button>
-          <button className="primary" onClick={apply} disabled={applyDisabled}>
-            Apply
-          </button>
+
+        <div className="canvas-zoom">
+          <button onClick={() => zoomBy(1.25)}>+</button>
+          <button onClick={() => zoomBy(0.8)}>−</button>
+          <button onClick={fit}>Fit</button>
         </div>
       </div>
-
-      <div className="canvas-zoom">
-        <button onClick={() => zoomBy(1.25)}>+</button>
-        <button onClick={() => zoomBy(0.8)}>−</button>
-        <button onClick={fit}>Fit</button>
-      </div>
+      {optimisation && <OptimisationSummary proposal={optimisation} />}
     </div>
   );
 }
 
-function mark(plan: FloorPlan, kind: string, id: string, level: string, color: string, dashed: boolean, sx: (px: number) => number) {
+function mark(
+  plan: FloorPlan,
+  kind: string,
+  id: string,
+  level: string,
+  color: string,
+  dashed: boolean,
+  sx: (px: number) => number,
+) {
   const dash = dashed ? `${sx(6)} ${sx(4)}` : undefined;
-  const common = { stroke: color, strokeWidth: sx(3), strokeDasharray: dash, fill: "none" };
+  const common = {
+    stroke: color,
+    strokeWidth: sx(3),
+    strokeDasharray: dash,
+    fill: "none",
+  };
   const poly = (pts: Vec2[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
   switch (kind) {
     case "neighbour": {
       const n = getItem(plan, "neighbour", id);
-      return n ? <polygon key={id} points={poly(n.polygon)} {...common} /> : null;
+      return n ? (
+        <polygon key={id} points={poly(n.polygon)} {...common} />
+      ) : null;
     }
     case "road": {
       const r = getItem(plan, "road", id);
@@ -122,28 +211,71 @@ function mark(plan: FloorPlan, kind: string, id: string, level: string, color: s
     case "wall": {
       const w = getItem(plan, "wall", id);
       if (!w || w.levelId !== level) return null;
-      return <line key={`w-${id}`} x1={w.a.x} y1={w.a.y} x2={w.b.x} y2={w.b.y} {...common} strokeWidth={sx(6)} strokeOpacity={0.55} />;
+      return (
+        <line
+          key={`w-${id}`}
+          x1={w.a.x}
+          y1={w.a.y}
+          x2={w.b.x}
+          y2={w.b.y}
+          {...common}
+          strokeWidth={sx(6)}
+          strokeOpacity={0.55}
+        />
+      );
     }
     case "opening": {
       const o = getItem(plan, "opening", id);
       const w = o && getItem(plan, "wall", o.wallId);
       if (!o || !w || w.levelId !== level) return null;
       const c = pointAlong(w, o.offset);
-      return <circle key={`o-${id}`} cx={c.x} cy={c.y} r={o.width / 2 + 0.3} {...common} />;
+      return (
+        <circle
+          key={`o-${id}`}
+          cx={c.x}
+          cy={c.y}
+          r={o.width / 2 + 0.3}
+          {...common}
+        />
+      );
     }
     case "space": {
       const s = getItem(plan, "space", id);
       if (!s || s.levelId !== level) return null;
-      return <polygon key={`s-${id}`} points={poly(s.polygon)} {...common} fill={color} fillOpacity={0.08} />;
+      return (
+        <polygon
+          key={`s-${id}`}
+          points={poly(s.polygon)}
+          {...common}
+          fill={color}
+          fillOpacity={0.08}
+        />
+      );
     }
     case "noise": {
       const n = getItem(plan, "noise", id);
-      return n && n.levelId === level ? <circle key={`n-${id}`} cx={n.position.x} cy={n.position.y} r={0.7} {...common} /> : null;
+      return n && n.levelId === level ? (
+        <circle
+          key={`n-${id}`}
+          cx={n.position.x}
+          cy={n.position.y}
+          r={0.7}
+          {...common}
+        />
+      ) : null;
     }
     case "fixture": {
       const f = getItem(plan, "fixture", id);
       if (!f || f.levelId !== level) return null;
-      return <circle key={`f-${id}`} cx={f.position.x} cy={f.position.y} r={0.7} {...common} />;
+      return (
+        <circle
+          key={`f-${id}`}
+          cx={f.position.x}
+          cy={f.position.y}
+          r={0.7}
+          {...common}
+        />
+      );
     }
     case "connector": {
       const c = getItem(plan, "connector", id);

@@ -298,3 +298,13 @@ provenance in each result.
 | `comfort.sound.road.end_hour` | behaviour / Assumed | 22 | 15.4–24 | h | Legacy default road closing hour. |
 
 | `setting.decision.room_window_s` | 900 s | Setting | Rolling serviced-room demand window; extended to maximum service duration. Product-owner Part C review. |
+
+Part E search budgets are fixed implementation settings, never sampled behaviours:
+
+| Key | Kind | Value | Envelope | Unit | Basis |
+|---|---|---:|---|---|---|
+| `setting.optimiser.starts` | setting | 16 | 16–16 | starts | Implementation CPU budget for seeded greedy restarts. |
+| `setting.optimiser.passes` | setting | 30 | 30–30 | passes | Implementation CPU budget for improving swaps per restart. |
+| `setting.optimiser.candidates` | setting | 2000 | 2000–2000 | assignments | Implementation cap on distinct complete assignments scored. |
+| `setting.optimiser.confirmation_runs` | setting | 12 | 12–12 | runs | Product-owner Part E confirmation requirement, paired across layouts. |
+| `setting.optimiser.finalists` | setting | 2 | 2–2 | candidates | Product-owner Part E best-two confirmation requirement, plus current layout. |
