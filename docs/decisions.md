@@ -436,3 +436,27 @@ edit, so it lives in the app; the engine side of Part D (Codex) is using zones i
 
 ## 2026-11-09 · Existing-zone placement and paired confirmation (v1.0 D engine / E)
 Team zones are authoritative centroids; headcounts expand onto existing zone desks only when a team has no explicit people. The optimiser edits Department.zoneId/roomIds and profile goals/relationships, reserves payroll capacity, and keeps exact desks for locked teams. Seeded greedy restarts and swaps rank placements; shared-cache, full-population twelve-draw paired confirmations of current and the best two decide whether to propose. Require a clear decision/route-goal improvement, a non-increasing staff-delay median and no clearly worse staff delay; within noise is not proven non-inferiority. All sampled max-walk limits and evacuation limits must pass. Goal penalties are internal job metadata, not new contract fields. Worker outcomes restore equal references; Apply checks both plan and People inputs, publishes the verified comparison and is one undoable profile edit. Proposal Evidence is read-only and scoped to its own confirmed run; changing inputs or starting a new run cancels confirmation. Static sorted tool schemas and registry remain in the frozen knowledge prefix.
+
+## 2026-11-09 · CAD-style editing, batch 1
+Snapping now follows CAD priority: wall end, crossing, midpoint, square onto a wall from the previous point, along a
+wall, a 15° angle lock from the previous point (within 3°, length on the grid), then the grid; the snap is named next
+to the cursor. While drawing walls or outlines, typing places the next point: `4.2` (towards the cursor), `4.2<30`
+(degrees anticlockwise from east) or `@3,1.5` (offset, y up as in CAD), then Enter. Select tool: Shift-click adds,
+a box selects several (left to right takes only what's wholly inside, right to left anything touched), and a drag
+that starts on a room draws a box while a click still selects it. Empty-space drag no longer pans: pan with
+Space-drag, the middle button or the Pan tool. A group (store `group`, two or more items) drags, nudges with arrows
+(Shift: 1 m), copies, cuts, pastes at the cursor, duplicates (+1 m) and deletes together; doors ride on their walls,
+pastes get fresh ids and stay inside the plan, and stairs and lifts paste only onto the floor they came from.
+Batch 2: offset, trim/extend/join, rotate/mirror, measure, layers.
+
+## 2026-11-09 · CAD-style editing, batch 2
+New tools: Offset (O) picks a wall, then each click places a parallel copy on the cursor's side at the grid-rounded
+distance, or exactly at a typed distance (Enter). Trim/extend (X): a click removes the piece of a wall between the
+crossings around it (splitting the wall when the piece is in the middle; doors in the removed piece go); Shift-click,
+or a click on a wall nothing crosses, extends the nearer end to the next wall, doors keeping their place. Measure (M)
+shows length, Δx, Δy and angle between two snapped points. Clicking a door or window, or near a wall, counts as the
+wall for Offset and Trim. A selection of several items can rotate (90° either way or any angle, clockwise on screen)
+and mirror about its centre; furniture turns with it, doors ride on their walls, and anything that would leave the
+plan is refused with a reason. Two selected walls can be joined: in line they merge (up to a 2 m gap), at an angle they
+are trimmed or extended to a clean corner. A Layers menu hides room colours, zones, furniture, noise, the traced image
+or the floor below; hidden layers can't be clicked and are remembered in this browser.

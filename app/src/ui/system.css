@@ -952,3 +952,21 @@ html:root[data-theme="dark"] .segmented button.active {
   font-size: var(--text-small);
   color: var(--ink-3);
 }
+
+/* Editor · layers menu (CAD editing batch 2) */
+.layers-menu { position: relative; }
+.layers-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 14rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: var(--pop-shadow, 0 6px 24px #0003);
+  font-size: var(--text-small);
+}

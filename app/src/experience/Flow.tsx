@@ -5,6 +5,7 @@ import { useExperience } from "./state.ts";
 import { Estimate } from "./Story.tsx";
 import { useEditor } from "../state/store.ts";
 import { getItem, removeItem } from "../model/planOps.ts";
+import { GroupPanel } from "../ui/Inspector.tsx";
 import { ZoneInspector } from "../ui/Inspector.tsx";
 import { PasteTeams } from "../population/PasteTeams.tsx";
 import { DEFAULT_COMFORT } from "../model/comfortDefaults.ts";
@@ -21,6 +22,7 @@ export function SimpleBuilding() {
     ux = useExperience();
   const item = state.selection ? getItem(state.plan, state.selection.kind, state.selection.id) : undefined;
   const zone = state.selection?.kind === "zone" && item ? state.selection : null;
+  if (state.group.length) return <GroupPanel />;
   return (
     <>
     {zone && (

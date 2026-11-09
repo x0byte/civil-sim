@@ -24,6 +24,10 @@ interface Props {
   level?: string;
   /** Walls of the floor below, drawn faintly to line the floors up. */
   below?: Wall[];
+  /** Several items selected at once, all highlighted. */
+  group?: ItemRef[];
+  /** Layers not to draw: "furniture", "zones", "rooms", "image", "noise", "below". */
+  hidden?: readonly string[];
   /** Who sits in each zone (team names), shown under the zone's name. */
   zoneTeams?: Map<string, string>;
 }
@@ -35,9 +39,9 @@ const normal = (w: Wall): Vec2 => {
 };
 const offsetPt = (p: Vec2, n: Vec2, k: number): Vec2 => ({ x: p.x + n.x * k, y: p.y + n.y * k });
 
-export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below, zoneTeams }: Props) {
+export function PlanDrawing({ plan, scale, selection, underlaySize, muted, underWalls, deskColors, suggestions, level, below, group, hidden, zoneTeams }: Props) {
   const px = (n: number) => n / scale;
-  const isSel = (kind: ItemRef["kind"], id: string) => selection?.kind === kind && selection.id === id;
+  const isSel = (kind: ItemRef["kind"], id: string) => (selection?.kind === kind && selection.id === id) || !!group?.some((g) => g.kind === kind && g.id === id);
   const wallById = new Map(plan.walls.map((w) => [w.id, w]));
   const { width, height } = plan.bounds;
 
@@ -64,7 +68,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         <polygon points={pts(n.polygon)} fill="var(--ink-3)" fillOpacity={.18} stroke={isSel("neighbour", n.id) ? "var(--accent)" : check ? "var(--warn)" : "var(--bounds)"} strokeWidth={px(2)} />
         <text x={c.x} y={c.y} textAnchor="middle" fontSize={px(11)} fill="var(--ink-2)" pointerEvents="none">{n.name ?? "Neighbour"} · {n.heightM} m{check ? " · check this height" : ""}</text>
       </g>; })}
-      {plan.underlay && underlaySize && !muted && (
+      {plan.underlay && underlaySize && !muted && !hidden?.includes("image") && (
         <image
           href={plan.underlay.image}
           x={plan.underlay.origin.x}
@@ -88,7 +92,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         strokeDasharray={`${px(6)} ${px(4)}`}
       />
 
-      {plan.spaces.map((s) => (
+      {!hidden?.includes("rooms") && plan.spaces.map((s) => (
         <polygon
           key={s.id}
           data-kind="space"
@@ -101,7 +105,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         />
       ))}
 
-      {plan.zones?.map((z) => {
+      {!hidden?.includes("zones") && plan.zones?.map((z) => {
         const sel = isSel("zone", z.id);
         return (
           <polygon
@@ -119,7 +123,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         );
       })}
 
-      {below?.map((w) => (
+      {!hidden?.includes("below") && below?.map((w) => (
         <line
           key={`below-${w.id}`}
           x1={w.a.x}
@@ -145,7 +149,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         return w ? <OpeningShape key={o.id} wall={w} opening={o} selected={isSel("opening", o.id)} scale={scale} /> : null;
       })}
 
-      {plan.fixtures.map((f) => {
+      {!hidden?.includes("furniture") && plan.fixtures.map((f) => {
         const sel = isSel("fixture", f.id);
         const stroke = sel ? "var(--accent)" : f.spaceId ? "var(--ink-2)" : "var(--danger)";
         return (
@@ -192,7 +196,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         />
       ))}
 
-      {plan.spaces.map((s) => {
+      {!hidden?.includes("rooms") && plan.spaces.map((s) => {
         const c = polygonCentroid(s.polygon);
         const fs = px(12);
         return (
@@ -207,7 +211,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
         );
       })}
 
-      {!muted &&
+      {!muted && !hidden?.includes("zones") &&
         plan.zones?.map((z) => {
           const fs = px(11);
           const x = Math.min(...z.polygon.map((p) => p.x)) + px(6);
@@ -262,7 +266,7 @@ export function PlanDrawing({ plan, scale, selection, underlaySize, muted, under
             />
           ));
         })()}
-      {(plan.noiseSources ?? []).map((n) => <g key={n.id} data-kind="noise" data-id={n.id} transform={`translate(${n.position.x} ${n.position.y})`} style={{ cursor: "move" }}>
+      {!hidden?.includes("noise") && (plan.noiseSources ?? []).map((n) => <g key={n.id} data-kind="noise" data-id={n.id} transform={`translate(${n.position.x} ${n.position.y})`} style={{ cursor: "move" }}>
         <circle r={px(13)} fill="var(--paper)" stroke={isSel("noise", n.id) ? "var(--accent)" : "var(--ink-3)"} strokeWidth={px(1.5)} />
         <path d={`M ${px(-8)} ${px(-4)} h ${px(4)} l ${px(6)} ${px(-5)} v ${px(18)} l ${px(-6)} ${px(-5)} h ${px(-4)} Z M ${px(5)} ${px(-6)} q ${px(8)} ${px(6)} 0 ${px(12)}`} fill="none" stroke="var(--ink)" strokeWidth={px(1.5)} pointerEvents="none" />
         <title>{n.name} · {n.dbA} dB(A) at 1 m</title>

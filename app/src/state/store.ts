@@ -7,7 +7,7 @@ import type { OfficeProfile } from "../population/officeProfile.ts";
 import type { ThickSegment } from "../importers/walls.ts";
 import type { Comparison, SimRun } from "../sim/runSimulation.ts";
 
-export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "zone" | "fixture" | "connector" | "neighbour" | "noise" | "calibrate";
+export type Tool = "select" | "pan" | "wall" | "door" | "window" | "room" | "zone" | "offset" | "trim" | "measure" | "fixture" | "connector" | "neighbour" | "noise" | "calibrate";
 export type ViewMode = "2d" | "3d" | "sim" | "compare";
 
 /** A saved copy of a layout, so design options can be compared. */
@@ -30,6 +30,11 @@ interface EditorState {
   future: HistoryEntry[];
   tool: Tool;
   selection: ItemRef | null;
+  /** Several items selected at once (two or more). Empty when one item or nothing is selected. */
+  group: ItemRef[];
+  /** Plan layers hidden in the editor (furniture, zones, rooms, image, noise, below). Remembered in this browser. */
+  hiddenLayers: string[];
+  toggleLayer: (layer: string) => void;
   view: ViewMode;
   snapToGrid: boolean;
   gridSize: number;
@@ -62,6 +67,8 @@ interface EditorState {
   redo: () => void;
   setTool: (tool: Tool) => void;
   select: (ref: ItemRef | null) => void;
+  /** Selects several items; one item becomes an ordinary selection. */
+  setGroup: (refs: ItemRef[]) => void;
   setView: (view: ViewMode) => void;
   setSnap: (on: boolean) => void;
   setGridSize: (size: number) => void;
@@ -151,6 +158,23 @@ export const useEditor = create<EditorState>()((set, get) => ({
   future: [],
   tool: "select",
   selection: null,
+  group: [],
+  hiddenLayers: (() => {
+    try {
+      return JSON.parse(localStorage.getItem("civil-sim:layers") ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  })(),
+  toggleLayer: (layer) => {
+    const hidden = get().hiddenLayers.includes(layer) ? get().hiddenLayers.filter((l) => l !== layer) : [...get().hiddenLayers, layer];
+    set({ hiddenLayers: hidden });
+    try {
+      localStorage.setItem("civil-sim:layers", JSON.stringify(hidden));
+    } catch {
+      /* remembered for this session only */
+    }
+  },
   view: "2d",
   snapToGrid: true,
   gridSize: 0.25,
@@ -184,6 +208,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       past: [],
       future: [],
       selection: null,
+      group: [],
       tool: "select",
       run: null,
       wallSuggestions: null,
@@ -194,24 +219,29 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { plan, past, future } = get();
     if (!past.length) return;
     const prev = past[past.length - 1];
-    set({ ...prev, past: past.slice(0, -1), future: [{ plan, profiles: get().profiles }, ...future], selection: null, level: keepLevel(prev.plan, get().level) });
+    set({ ...prev, past: past.slice(0, -1), future: [{ plan, profiles: get().profiles }, ...future], selection: null, group: [], level: keepLevel(prev.plan, get().level) });
     persistProfiles(prev.profiles);
   },
   redo: () => {
     const { plan, past, future } = get();
     if (!future.length) return;
-    set({ ...future[0], past: [...past, { plan, profiles: get().profiles }], future: future.slice(1), selection: null, level: keepLevel(future[0].plan, get().level) });
+    set({ ...future[0], past: [...past, { plan, profiles: get().profiles }], future: future.slice(1), selection: null, group: [], level: keepLevel(future[0].plan, get().level) });
     persistProfiles(future[0].profiles);
   },
-  setTool: (tool) => set({ tool, selection: tool === "select" ? get().selection : null }),
+  setTool: (tool) => set({ tool, selection: tool === "select" ? get().selection : null, group: tool === "select" ? get().group : [] }),
   select: (selection) => {
     // Selecting something on another floor (e.g. from the problem list) shows that floor.
     const on = selection && levelOf(get().plan, selection);
     const level = get().level;
     const stays = !on || on === level || (selection?.kind === "connector" && get().plan.connectors.some((c) => c.id === selection.id && c.levelIds.includes(level)));
-    set({ selection, level: stays ? level : on });
+    set({ selection, group: [], level: stays ? level : on });
   },
-  setLevel: (level) => set({ level: keepLevel(get().plan, level), selection: null }),
+  setGroup: (refs) => {
+    const unique = refs.filter((r, i) => refs.findIndex((q) => q.kind === r.kind && q.id === r.id) === i);
+    if (unique.length <= 1) return get().select(unique[0] ?? null);
+    set({ group: unique, selection: null });
+  },
+  setLevel: (level) => set({ level: keepLevel(get().plan, level), selection: null, group: [] }),
   setView: (view) => set({ view }),
   setSnap: (snapToGrid) => set({ snapToGrid }),
   setGridSize: (gridSize) => set({ gridSize }),
